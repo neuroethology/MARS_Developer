@@ -1,0 +1,252 @@
+export DATASET_DIR=../tf_dataset_detection/top_separate_allset
+export RESULT_DIR=../results_detection/top_separate_allset
+if [ ! -d "$RESULT_DIR" ];then mkdir $RESULT_DIR; fi
+
+#each step is run double, one for each mouse
+
+###################Visualize the inputs to the network
+python visualize_input_imsize.py \
+--tfrecords $DATASET_DIR/black/val* \
+--config $DATASET_DIR/config_val.yaml
+
+python visualize_inputs.py \
+--tfrecords $DATASET_DIR/white/val* \
+--config $DATASET_DIR/config_val.yaml
+
+#################### train warmup
+python train.py \
+--tfrecords $DATASET_DIR/black/train_* \
+--priors $DATASET_DIR/priors_black.pkl \
+--logdir $RESULT_DIR/finetune_black/ \
+--config $DATASET_DIR/config_train.yaml \
+--pretrained_model inception_resnet_v2_2016_08_30.ckpt \
+--fine_tune
+
+mkdir $RESULT_DIR/finetune_black/val_summaries/
+mkdir $RESULT_DIR/finetune_black/train_summaries/
+mkdir $RESULT_DIR/finetune_black/done
+
+for f in `ls ../$RESULT_DIR/finetune_black/model.ckpt-* | sort -V`
+do
+    if ! [ ${f: -5} == ".meta" ]
+    then
+        echo $f
+        echo "val"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/black/val* \
+        --priors ../$DATASET_DIR/priors_black.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/finetune_black/val_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "train"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/black/train* \
+        --priors ../$DATASET_DIR/priors_black.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/finetune_black/train_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "test"
+        mv $f ../$RESULT_DIR/finetune_black/done/
+    fi
+    mv $f.meta ../$RESULT_DIR/finetune_black/done/
+done
+
+python train.py \
+--tfrecords $DATASET_DIR/white/train_* \
+--priors $DATASET_DIR/priors_white.pkl \
+--logdir $RESULT_DIR/finetune_white/ \
+--config $DATASET_DIR/config_train.yaml \
+--pretrained_model inception_resnet_v2_2016_08_30.ckpt \
+--fine_tune
+
+mkdir $RESULT_DIR/finetune_white/val_summaries/
+mkdir $RESULT_DIR/finetune_white/train_summaries/
+mkdir $RESULT_DIR/finetune_white/done
+
+for f in `ls ../$RESULT_DIR/finetune_white/model.ckpt-* | sort -V`
+do
+    if ! [ ${f: -5} == ".meta" ]
+    then
+        echo $f
+        echo "val"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/white/val* \
+        --priors ../$DATASET_DIR/priors_white.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/finetune_white/val_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "train"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/white/train* \
+        --priors ../$DATASET_DIR/priors_white.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/finetune_white/train_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "test"
+        mv $f ../$RESULT_DIR/finetune_white/done/
+    fi
+    mv $f.meta ../$RESULT_DIR/finetune_white/done/
+done
+
+#####################train
+python train.py \
+--tfrecords $DATASET_DIR/black/train_* \
+--priors $DATASET_DIR/priors_black.pkl \
+--logdir $RESULT_DIR/black/ \
+--config $DATASET_DIR/config_train.yaml \
+--pretrained_model $RESULT_DIR/finetune_black/
+
+mkdir $RESULT_DIR/black/eval
+mkdir $RESULT_DIR/black/eval/val_summaries/
+mkdir $RESULT_DIR/black/eval/train_summaries/
+mkdir $RESULT_DIR/black/done
+
+cd evalutation
+for f in `ls ../$RESULT_DIR/black/model.ckpt-* | sort -V`
+do
+    if ! [ ${f: -5} == ".meta" ]
+    then
+        echo $f
+        echo "val"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/black/val* \
+        --priors ../$DATASET_DIR/priors_black.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/black/eval/val_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "train"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/black/train* \
+        --priors ../$DATASET_DIR/priors_black.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/black/eval/train_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        mv $f ../$RESULT_DIR/black/done/
+        mv $f.meta ../$RESULT_DIR/black/done/
+    fi
+done
+cd ..
+
+python train.py \
+--tfrecords $DATASET_DIR/white/train_* \
+--priors $DATASET_DIR/priors_white.pkl \
+--logdir $RESULT_DIR/white/ \
+--config $DATASET_DIR/config_train.yaml \
+--pretrained_model $RESULT_DIR/finetune_white/
+
+mkdir $RESULT_DIR/white/eval
+mkdir $RESULT_DIR/white/eval/val_summaries/
+mkdir $RESULT_DIR/white/eval/train_summaries/
+mkdir $RESULT_DIR/white/done
+
+cd evaluation
+for f in `ls ../$RESULT_DIR/white/model.ckpt-* | sort -V`
+do
+    if ! [ ${f: -5} == ".meta" ]
+    then
+        echo $f
+        echo "val"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/white/val* \
+        --priors ../$DATASET_DIR/priors_white.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/white/eval/val_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        echo "train"
+        python eval.py \
+        --tfrecords ../$DATASET_DIR/white/train* \
+        --priors ../$DATASET_DIR/priors_white.pkl \
+        --checkpoint_path $f \
+        --summary_dir ../$RESULT_DIR/white/eval/train_summaries/ \
+        --config ../$DATASET_DIR/config_test.yaml \
+        --max_iterations 100
+        mv $f ../$RESULT_DIR/white/done/
+    fi
+    mv $f.meta ../$RESULT_DIR/white/done/
+done
+
+#################detection
+
+python detect_imsize.py \
+--tfrecords $DATASET_DIR/black/test* \
+--priors $DATASET_DIR/priors_black.pkl \
+--checkpoint_path $RESULT_DIR/black/ \
+--save_dir $RESULT_DIR/black/ \
+--config $DATASET_DIR/config_test.yaml \
+--max_iterations 0
+
+python detect_imsize.py \
+--tfrecords $DATASET_DIR/white/test* \
+--priors $DATASET_DIR/priors_white.pkl \
+--checkpoint_path $RESULT_DIR/white/ \
+--save_dir $RESULT_DIR/white/ \
+--config $DATASET_DIR/config_test.yaml \
+--max_iterations 0
+
+###############evaluation
+cd evaluation
+python eval.py \
+--tfrecords ../$DATASET_DIR/black/test* \
+--priors ../$DATASET_DIR/priors_black.pkl \
+--checkpoint_path ../$RESULT_DIR/black/model.ckpt-287889 \
+--summary_dir ../$RESULT_DIR/black/ \
+--config ../$DATASET_DIR/config_test.yaml \
+--max_iterations 0
+
+python eval.py \
+--tfrecords ../$DATASET_DIR/white/test* \
+--priors ../$DATASET_DIR/priors_white.pkl \
+--checkpoint_path ../$RESULT_DIR/white/model.ckpt-424923 \
+--summary_dir ../$RESULT_DIR/white/ \
+--config ../$DATASET_DIR/config_test.yaml \
+--max_iterations 0
+
+######################################visualize validation on original images
+python visualize_val_imsize.py \
+--tfrecords $DATASET_DIR/black/val* \
+--priors  $DATASET_DIR/priors_black.pkl \
+--checkpoint_path $RESULT_DIR/black/model.ckpt-287889 \
+--config $DATASET_DIR/config_val.yaml \
+--save_dir $RESULT_DIR/black/vis_val/
+
+python visualize_val_imsize.py \
+--tfrecords $DATASET_DIR/white/val* \
+--priors  $DATASET_DIR/priors_white.pkl \
+--checkpoint_path $RESULT_DIR/white/model.ckpt-424923 \
+--config $DATASET_DIR/config_val.yaml \
+--save_dir $RESULT_DIR/white/vis_val/
+
+
+######################################visualize detection on test
+python visualize_detect_imsize.py \
+--tfrecords $DATASET_DIR/black/test* \
+--priors $DATASET_DIR/priors_black.pkl \
+--checkpoint_path $RESULT_DIR/black/model.ckpt-287889 \
+--config $DATASET_DIR/config_val.yaml \
+--save_dir $RESULT_DIR/black/vis_detection/ \
+--save_res $RESULT_DIR/black/
+
+python visualize_detect_imsize.py \
+--tfrecords $DATASET_DIR/white/val* \
+--priors  $DATASET_DIR/priors_white.pkl \
+--checkpoint_path $RESULT_DIR/white/model.ckpt-424923 \
+--config $DATASET_DIR/config_val.yaml \
+--save_dir $RESULT_DIR/white/vis_detection/ \
+--save_res $RESULT_DIR/white/
+
+################## visualization
+python visualize_detect_separate_json.py \
+--tfrecords $DATASET_DIR/white/test* \
+--save_dir $RESULT_DIR/both/ \
+--config $DATASET_DIR/config_test.yaml \
+--json $RESULT_DIR/black/results-dense-287889.json,$RESULT_DIR/white/results-dense-424923.json
+
+#pr curves
+evaluation/prcurve_sperate.py # to edit manually

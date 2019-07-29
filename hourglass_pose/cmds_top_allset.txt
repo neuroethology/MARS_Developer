@@ -1,0 +1,152 @@
+export DATASET_DIR=../tf_dataset_keypoints/top_allset
+export EXPERIMENT_DIR=../results_keypoints/top_allset
+
+########################## visualize input
+python visualize_inputs.py \
+--tfrecords $DATASET_DIR/train* \
+--config $DATASET_DIR/config_train.yaml
+
+python visualize_inputs.py \
+--tfrecords $DATASET_DIR/val* \
+--config $DATASET_DIR/config_test.yaml
+
+################################# Start the training
+python train.py \
+--tfrecords $DATASET_DIR/train* \
+--logdir $EXPERIMENT_DIR/ \
+--config $DATASET_DIR/config_train.yaml
+
+#for a more personalized training
+python train_custom.py \
+--tfrecords $DATASET_DIR/train* \
+--logdir $EXPERIMENT_DIR/ \
+--config $DATASET_DIR/config_train.yaml \
+--max_number_of_steps 20000 \
+--lr 0.00005 \
+--lr_decay_type 'fixed' \
+--batch_size 4
+
+
+###################################### evaluate training
+mkdir $EXPERIMENT_DIR/done/
+mkdir $EXPERIMENT_DIR/val_summaries/
+mkdir $EXPERIMENT_DIR/train_summaries/
+mkdir $EXPERIMENT_DIR/test_summaries/
+
+for f in `ls $EXPERIMENT_DIR/model.ckpt-*.index | sort -V`
+do
+    echo $f
+    echo "val"
+    python eval.py \
+    --tfrecords $DATASET_DIR/val* \
+    --checkpoint_path ${f::-6} \
+    --summary_dir $EXPERIMENT_DIR/val_summaries/ \
+    --config $DATASET_DIR/config_test.yaml \
+    --max_iterations 100
+    echo "train"
+    python eval.py \
+    --tfrecords $DATASET_DIR/train* \
+    --checkpoint_path ${f::-6} \
+    --summary_dir $EXPERIMENT_DIR/train_summaries/ \
+    --config $DATASET_DIR/config_test.yaml \
+    --max_iterations 100
+    echo "test"
+    python eval.py \
+    --tfrecords $DATASET_DIR/test* \
+    --checkpoint_path ${f::-6} \
+    --summary_dir $EXPERIMENT_DIR/test_summaries/ \
+    --config $DATASET_DIR/config_test.yaml \
+    --max_iterations 100
+done
+
+
+########################### Run Eval on the test set
+ python eval.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--summary_dir $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml
+
+############################## Visualize detections on the test set
+ python visualize_eval_saveim.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml \
+--savedir $EXPERIMENT_DIR/eval_kps_oneim/
+
+
+###################### visualize heatmaps on test
+ python visualize_eval_heatmaps.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml
+
+############################# Detect parts on new data
+python detect.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml \
+--save_dir $EXPERIMENT_DIR/
+
+
+####################### Visualize detections on new data
+python visualize_detect.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml
+
+python plot_pose_confs.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test_plot.yaml \
+--save_dir $EXPERIMENT_DIR/
+
+python plot_pose_confs_coco.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test_plot.yaml \
+--save_dir $EXPERIMENT_DIR/figures_pred_coco/
+
+##############################
+python prcurve_prep_data.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--summary_dir $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test_plot.yaml
+
+python prcurve.py \
+--f $EXPERIMENT_DIR/ \
+--n 7 \
+--s PR_top_pose \
+--t top
+
+#########################################
+
+python get_GT_from_tfrecords.py \
+--tfrecords $DATASET_DIR/test* \
+--num_parts 7 \
+--num_examples 1500 \
+--savename $EXPERIMENT_DIR/gt_top_test
+
+#########################################
+#pck
+
+python eval_pck.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--summary_dir $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml
+
+
+python eval_pckb.py \
+--tfrecords $DATASET_DIR/test* \
+--checkpoint_path $EXPERIMENT_DIR/ \
+--summary_dir $EXPERIMENT_DIR/ \
+--config $EXPERIMENT_DIR/config_test.yaml
+
+python pck_amt_pd_top.py \
+--res_path $EXPERIMENT_DIR/ \
+--amt_path ../tf_dataset_detection/AMT_data/top/AMT15_top_csv.pkl \
+--save_dir $EXPERIMENT_DIR/ \
+--view top \
+--num_points 7

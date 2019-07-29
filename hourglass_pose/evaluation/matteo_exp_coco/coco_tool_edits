@@ -1,0 +1,50 @@
+# EDIT COCO
+
+# cocoeval.py
+- line 569-584: updted   _summarizeKps_verbose() to deal with custom maxDets self.params.maxDets[-1]
+- line 216:     updates with my model sigmas
+
+
+# EDIT ANALYZE API 
+
+#utilities.py
+-line 18: updated sigmas with my model's values
+-line 15: updated num_kpts=len(sigmas) to be independent of model
+-lines 20-26: updated skeleton and colors variables w.r.t my model
+-line 76: updated for loop with num_kpts 
+-line 77,80: updates w.r.t to my model
+-line 154: updated for loop with num_kpts
+
+#localizationErrors.py
+-line 9: defined order
+-line 10: defined num_points=len(order) so indipendent w.r.t model 
+-lines 32-34: updates w.r.t num_points
+-line 81: changed figure size
+-line 82: loading my model image
+-lines 96-98: redefined coordinates of axis to plot pie chars w.r.t my model
+-line 165: cmap if imshow set to gray for my images
+-line 177: set loop to num_points
+-line 178: redifiend w.r.t my model
+-line 181:redifined w.r.t my model
+
+#backgroundFalseNegative.py
+-edited imshow to with cmap gray
+-lines 64-68 to deal with front view
+-line 97 to deal with img >1024
+# not working withoud segmentation mask
+
+#occlusionAndCrowdingSensitivity.py
+-lines 24-25: edited w.r.t my model
+-line 113: edited w.r.t my model
+-line 179: edited w.r.t my model
+-line 203: edited w.r.t my model
+
+
+#sizeSensitivity.py
+-line 46-49: edited to avoid keyerror
+-line 55: edited to avoid keyerror y = [len(size_index['medium']) if 'medium' in size_index.keys() else 0,
+         len(size_index['large']) if 'large' in size_index.keys() else 0,
+         len(size_index['xlarge']) if 'xlarge' in size_index.keys() else 0,
+         len(size_index['xxlarge']) if 'xxlarge' in size_index.keys() else 0]
+-line 186: added     oks_75_auc[oks_75_auc == -1] = 0.
+

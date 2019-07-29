@@ -1,0 +1,54 @@
+ #export_detection
+
+#black top
+python export_detection.py \
+--checkpoint_path ./models/top_detection/model.ckpt-287889 \
+--export_dir ./ \
+--export_version 0 \
+--prior_path ./models/top_detection/priors_black.pkl \
+--strain black \
+--view top
+
+#white top
+python export_detection.py \
+--checkpoint_path ./models/top_detection/model.ckpt-424923 \
+--export_dir ./ \
+--export_version 0 \
+--prior_path ./models/top_detection/priors_white.pkl \
+--strain white \
+--view top
+
+#black front
+python export_detection.py \
+--checkpoint_path ./models/front_detection/model.ckpt-278665 \
+--export_dir ./ \
+--export_version 0 \
+--prior_path ./models/front_detection/priors_black.pkl \
+--strain black \
+--view front
+
+#white front
+python export_detection.py \
+--checkpoint_path ./models/front_detection/model.ckpt-550000 \
+--export_dir ./ \
+--export_version 0 \
+--prior_path ./models/front_detection/priors_white.pkl \
+--strain white \
+--view front
+
+
+# pose top
+python export_pose.py \
+--checkpoint_path ./models/top_pose_one/model.ckpt-539952 \
+--export_dir ./ \
+--export_version 0 \
+--view top \
+--num_parts 7
+
+#pose front
+python export_pose.py \
+--checkpoint_path ./models/front_pose/model.ckpt-749096 \
+--export_dir ./ \
+--export_version 0 \
+--view front \
+--num_parts 11
