@@ -42,25 +42,20 @@ Changing the model checkpoint and generated priors you can create in the same wa
 Then if you want to have a ligher model you can quantize the optimized model to a 8bit version.
 
 **Why quantize?**  
+Helpful overview by [Wei Fu](https://github.com/WeiFoo/tensorflow/blob/master/tensorflow/g3doc/how_tos/quantization/index.md):
+
 Neural network models can take up a lot of space on disk, with the original AlexNet being over 200 MB in float format for
 example. Almost all of that size is taken up with the weights for the neural connections, since there are often many 
 millions of these in a single model. Because they're all slightly different floating point numbers, simple compression 
 formats like zip don't compress them well. They are arranged in large layers though, and within each layer the weights 
-tend to be normally distributed within a certain range, for example -3.0 to 6.0. The simplest motivation for quantization 
-is to shrink file sizes by storing the min and max for each layer, and then compressing each float value to an eight-bit 
-integer representing the closest real number in a linear set of 256 within the range. For example with the -3.0 to 6.0 range,
-a 0 byte would represent -3.0, a 255 would stand for 6.0, and 128 would represent about 1.5. I'll go into the exact 
-calculations later, since there's some subtleties, but this means you can get the benefit of a file on disk that's shrunk
-by 75%, and then convert back to float after loading so that your existing floating-point code can work without any changes.
-Another reason to quantize is to reduce the computational resources you need to do the inference calculations, by running
-them entirely with eight-bit inputs and outputs. This is a lot more difficult since it requires changes everywhere you 
-do calculations, but offers a lot of potential rewards. Fetching eight-bit values only requires 25% of the memory 
-bandwidth of floats, so you'll make much better use of caches and avoid bottlenecking on RAM access. You can also 
-typically use SIMD operations that do many more operations per clock cycle. In some case you'll have a DSP chip available 
-that can accelerate eight-bit calculations too, which can offer a lot of advantages.
-Moving calculations over to eight bit will help you run your models faster, and use less power (which is especially 
-important on mobile devices). It also opens the door to a lot of embedded systems that can't run floating point code 
-efficiently, so it can enable a lot of applications in the IoT world.
+tend to be normally distributed within a certain range, for example -3.0 to 6.0.
+
+The simplest motivation for quantization is to shrink file sizes by storing the min and max for each layer, and then compressing each float value to an eight-bit integer representing the closest real number in a linear set of 256 within the range. For example with the -3.0 to 6.0 range, a 0 byte would represent -3.0, a 255 would stand for 6.0, and 128 would represent about 1.5. I'll go into the exact 
+calculations later, since there's some subtleties, but this means you can get the benefit of a file on disk that's shrunk by 75%, and then convert back to float after loading so that your existing floating-point code can work without any changes.
+
+Another reason to quantize is to reduce the computational resources you need to do the inference calculations, by running them entirely with eight-bit inputs and outputs. This is a lot more difficult since it requires changes everywhere you  do calculations, but offers a lot of potential rewards. Fetching eight-bit values only requires 25% of the memory bandwidth of floats, so you'll make much better use of caches and avoid bottlenecking on RAM access. You can also typically use SIMD operations that do many more operations per clock cycle. In some case you'll have a DSP chip available that can accelerate eight-bit calculations too, which can offer a lot of advantages.
+
+Moving calculations over to eight bit will help you run your models faster, and use less power (which is especially important on mobile devices). It also opens the door to a lot of embedded systems that can't run floating point code efficiently, so it can enable a lot of applications in the IoT world.
 
 **How to quantize a model?**  
 Make sure you did compile tensorflow from sourse by building the pip package from the tensorflow directory by 
