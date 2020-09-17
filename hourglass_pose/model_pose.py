@@ -1,19 +1,29 @@
 import tensorflow as tf
+keras = tf.keras
 slim = tf.contrib.slim
 
 def residual(input, input_channels, output_channels, scope=None, reuse=None):
 
   with tf.variable_scope(scope, "residual", [input], reuse=reuse):
+    conv = keras.Sequential()
+    conv.add(keras.conv2d(output_channels / 2, (1, 1), input_shape=(input_channels,)))
+    conv.add(keras.conv2d(output_channels / 2, (3, 3), padding='same'))
+    conv.add(keras.conv2d(output_channels, (1, 1)))
+    """
     with slim.arg_scope([slim.conv2d], stride=1):
       with tf.variable_scope("convolution_path"):
         conv = slim.conv2d(input, output_channels / 2, [1, 1], padding='VALID')
         conv1 = slim.conv2d(conv, output_channels / 2, [3, 3], padding='SAME')
         conv2 = slim.conv2d(conv1, output_channels, [1, 1], padding='VALID', activation_fn=None)
-      with tf.variable_scope("skip_path"):
-        if input_channels == output_channels:
-          skip = input
-        else:
-          skip = slim.conv2d(input, output_channels, [1, 1], padding='VALID', activation_fn=None)
+    """
+    with tf.variable_scope("skip_path"):
+      if input_channels == output_channels:
+        skip = input
+      else:
+        skip = keras.conv2d(input, (1, 1))
+        """
+        skip = slim.conv2d(input, output_channels, [1, 1], padding='VALID', activation_fn=None)
+        """
     res = conv2 + skip
     return res
 
@@ -31,7 +41,8 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
     # 1. Pool -> Residuals -> Hourglass -> Residuals -> Upsample
     # 2. Pool -> Residuals -> Residuals -> Residuals -> Upsample
     with tf.variable_scope("lower_branch"):
-      low1 = slim.max_pool2d(input, 2, stride=2, padding='VALID')
+      low1 = keras.max_pool2d(input, pool_size=(2, 2), strides=2)
+      # low1 = slim.max_pool2d(input, 2, stride=2, padding='VALID')
       for i in range(num_res_modules):
         low1 = residual(low1, input_channels, input_channels)
       

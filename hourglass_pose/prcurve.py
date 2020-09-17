@@ -34,11 +34,11 @@ def plot_pr(f, figtitle, savename, NUM_PARTS):
 
     confs = np.array([dt[i]['score'][k] for i in range(len(dt)) for k in range(NUM_PARTS)])
     distp = np.asarray([dist.euclidean(gt_keys_flat[i],dt_keys_flat[i]) for i in range(len(dt_keys_flat))])
-    print 'GT'
+    print('GT')
     print(dist.euclidean(gt_keys_flat[1],dt_keys_flat[1]))
-    print len(gt_keys_flat)
-    print len(dt_keys_flat)
-    print 'done'
+    print(len(gt_keys_flat))
+    print(len(dt_keys_flat))
+    print('done')
 
     plt.figure(1)
 

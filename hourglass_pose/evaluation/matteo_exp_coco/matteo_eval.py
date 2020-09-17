@@ -101,7 +101,7 @@ def show_dets(coco_dts, coco_gts, img_path, sigmas):
 
         e = (dx ** 2 + dy ** 2) / (sigmas * 2) ** 2 / (g['area'] + np.spacing(1)) / 2
         oks = np.sum(np.exp(-e)) / e.shape[0]
-        print oks
+        print(oks)
 
         # ax.annotate("[%.3f][%.3f]" % (score, oks), (bbox[0] + bbox[2] / 2.0, bbox[1] + 15),
         #             color=[1, .6, 0], weight='bold', fontsize=12, ha='center', va='center')

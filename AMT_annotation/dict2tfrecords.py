@@ -107,7 +107,7 @@ test = v_info[ntrain + nval:]
 
 for i in range(len(v_info)):
     if not v_info[i]['object']['area'][0]>0 or not v_info[i]['object']['area'][1]>0:
-        print i
+        print(i)
 
 
 # Actually create the tfrecords.

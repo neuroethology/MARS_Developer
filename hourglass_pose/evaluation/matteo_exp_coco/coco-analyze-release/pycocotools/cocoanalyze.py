@@ -903,7 +903,7 @@ class COCOanalyze:
                         break
 
     def __str__(self):
-        print self.stats
+        print(self.stats)
 
 class Params:
     # Params for coco analyze api

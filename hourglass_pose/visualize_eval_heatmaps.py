@@ -97,7 +97,7 @@ def visualize(tfrecords, checkpoint_path, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -107,7 +107,7 @@ def visualize(tfrecords, checkpoint_path, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         plt.ion()
 
@@ -208,9 +208,9 @@ def visualize(tfrecords, checkpoint_path, cfg):
                   if i == cfg.PARTS.NUM_PARTS:
                     ax.set_xlabel("Not Visible")
 
-                  print "Part not visible"
+                  print("Part not visible")
 
-                print "%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap))
+                print("{:s} : max {:0.3f}, min {:0.3f}".format(cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap)))
                 
             fig.subplots_adjust(wspace=0, hspace=0)
 
@@ -259,8 +259,8 @@ if __name__ == '__main__':
     args = parse_args()
     cfg = parse_config_file(args.config_file)
 
-    print "Configurations:"
-    print pprint.pprint(cfg)
+    print("Configurations:")
+    print(pprint.pprint(cfg))
 
     visualize(
       tfrecords=args.tfrecords,

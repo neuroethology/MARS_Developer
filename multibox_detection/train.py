@@ -1,17 +1,19 @@
 import argparse
-import cPickle as pickle
+import pickle
 import copy
 import pprint
 
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.python.util import deprecation
 
 import inputs
 import loss
-import model
+import model_detection as model
 from config import parse_config_file
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def get_init_function(logdir, pretrained_model_path, fine_tune, original_inception_vars, use_moving_averages=False, restore_moving_averages=False, ema=None):
   """
@@ -95,7 +97,7 @@ def build_fully_trainable_model(inputs, cfg):
   batch_norm_params = {
     'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
     'epsilon': 0.001,
-    'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+    'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
     'is_training' : True
   }
   # Set activation_fn and parameters for batch_norm.
@@ -165,9 +167,9 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
     variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
     variables_to_train.extend([var for var in variables if var in trainable_var_set])
   
-  print "Trainable Variables"
+  print("Trainable Variables")
   for variable in variables_to_train:
-    print variable.name
+    print(variable.name)
   
   return variables_to_train
 
@@ -180,7 +182,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     cfg (EasyDict)
     pretrained_model_path (str) : path to a pretrained Inception Network
   """
-  tf.logging.set_verbosity(tf.logging.DEBUG)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   graph = tf.Graph()
 
@@ -188,7 +190,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
   with graph.as_default():
     
     # Create a variable to count the number of train() calls. 
-    global_step = slim.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
 
     # Calculate the learning rate schedule.
     num_batches_per_epoch = (cfg.NUM_TRAIN_EXAMPLES /
@@ -196,7 +198,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     decay_steps = int(num_batches_per_epoch * cfg.NUM_EPOCHS_PER_DELAY)
 
     # Decay the learning rate exponentially based on the number of steps.
-    lr = tf.train.exponential_decay(
+    lr = tf.compat.v1.train.exponential_decay(
       learning_rate=cfg.INITIAL_LEARNING_RATE,
       global_step=global_step,
       decay_steps=decay_steps,
@@ -205,7 +207,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     )
 
     # Create an optimizer that performs gradient descent.
-    optimizer = tf.train.RMSPropOptimizer(
+    optimizer = tf.compat.v1.train.RMSPropOptimizer(
       learning_rate=lr,
       decay=cfg.RMSPROP_DECAY,
       momentum=cfg.RMSPROP_MOMENTUM,
@@ -225,7 +227,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       cfg=cfg
     )
     
-    input_summaries = copy.copy(tf.get_collection(tf.GraphKeys.SUMMARIES))
+    input_summaries = copy.copy(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
     
     if fine_tune: 
       locs, confs, inception_vars, detection_vars = build_finetunable_model(batched_images, cfg)
@@ -233,7 +235,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
     else:
       locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
-      trainable_vars = tf.trainable_variables()
+      trainable_vars = tf.compat.v1.trainable_variables()
 
     location_loss, confidence_loss = loss.add_loss(
       locations = locs, 
@@ -244,7 +246,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
       location_loss_alpha = cfg.LOCATION_LOSS_ALPHA
     )
     
-    total_loss = slim.losses.get_total_loss()
+    total_loss = tf.compat.v1.losses.get_total_loss()
 
     # Track the moving averages of all trainable variables.
     # At test time we'll restore all variables with the average value
@@ -257,30 +259,30 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     )
     variables_to_average = (slim.get_model_variables()) # Makes it easier to restore for eval and detect purposes (whether you use the fine_tune flag or not)
     maintain_averages_op = ema.apply(variables_to_average)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, maintain_averages_op)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, maintain_averages_op)
 
     trainable_vars = filter_trainable_variables(trainable_vars, trainable_scopes)
 
     train_op = slim.learning.create_train_op(total_loss, optimizer, variables_to_train=trainable_vars)
 
     # Summary operations
-    summary_op = tf.summary.merge([
-      tf.summary.scalar('total_loss', total_loss),
-      tf.summary.scalar('location_loss', location_loss),
-      tf.summary.scalar('confidence_loss', confidence_loss),
-      tf.summary.scalar('learning_rate', lr)
+    summary_op = tf.compat.v1.summary.merge([
+      tf.compat.v1.summary.scalar('total_loss', total_loss),
+      tf.compat.v1.summary.scalar('location_loss', location_loss),
+      tf.compat.v1.summary.scalar('confidence_loss', confidence_loss),
+      tf.compat.v1.summary.scalar('learning_rate', lr)
     ] + input_summaries)
 
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
 
-    saver = tf.train.Saver(
+    saver = tf.compat.v1.train.Saver(
       # Save all variables
       max_to_keep = cfg.MAX_TO_KEEP,
       keep_checkpoint_every_n_hours = cfg.KEEP_CHECKPOINT_EVERY_N_HOURS
@@ -351,12 +353,12 @@ def parse_args():
 
 def main():
   args = parse_args()
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print 
 
@@ -366,8 +368,8 @@ def main():
   if args.batch_size != None:
     cfg.BATCH_SIZE = args.batch_size
 
-  with open(args.priors) as f:
-      bbox_priors = pickle.load(f)
+  with open(args.priors, 'rb') as f:
+      bbox_priors = pickle.load(f, encoding='latin1')
   bbox_priors = np.array(bbox_priors).astype(np.float32)
 
   train(

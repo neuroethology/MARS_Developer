@@ -175,13 +175,13 @@ def main():
   args = parse_args()
 
   # Display the command-line arguments.
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   # Display the internals of the config_file.
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print
 

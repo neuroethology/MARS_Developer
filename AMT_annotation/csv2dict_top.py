@@ -63,7 +63,7 @@ import scipy.io as sp
 
 path = '/PATH_TO_FRAMES_IMGS/' # where the image frames are
 frames10k = sp.loadmat('../tf_dataset_detection/top/frames10K_labels.mat')
-print 'load'#get actions saved from matlab used to extract the 10k frames and actions
+print('load')   #get actions saved from matlab used to extract the 10k frames and actions
 labels = np.array([str(x[0]) for x in frames10k['labels'][0]])
 # labels = frames10k['labels']
 labels_idx  =  np.array([int(x[0]) for x in frames10k['labels_idx'][0]])
@@ -76,7 +76,7 @@ csv_file = '../tf_dataset_detection/top/frames10K_top.csv'
 f = open(csv_file)
 csv_f = csv.reader(f,delimiter=';')
 T = list(csv_f)
-print 'load done'
+print('load done')
 
 headers = T[0]
 T = np.array(T[1:])
@@ -89,7 +89,7 @@ D = []
 # for each frame in the csv file
 errors = []
 for f in range(N_frames):
-    print f
+    print(f)
     idx_t=[]; tmp_t=[]
     #assign the name of the frame to the entry and find all entries with the same name of the current frame name
     idx_t = np.where(filename== unique_filename[f])
@@ -99,7 +99,7 @@ for f in range(N_frames):
     find_frame  = [i for i in range(len(fname)) if fname[i][22:] == tmp_t[0][15][20:]]
     # better to store the frames not found and return them at the end
     if find_frame is None:
-        print 'frame None'
+        print('frame None')
         errors.append(tmp_t[0][15])
     action = labels[find_frame[0]]
     action_idx = labels_idx[find_frame[0]]
@@ -123,7 +123,7 @@ for f in range(N_frames):
     workers = tmp_t[:,3]
     unique_workers = list(set(workers))
     N_workers = len(unique_workers)
-    XB=[];YB=[];XW=[];YW=[];
+    XB=[];YB=[];XW=[];YW=[]
     for w in range(N_workers):
         idx_w=[]; tmp_w=[]
         idx_w = np.where(workers==unique_workers[w])
@@ -168,10 +168,10 @@ for f in range(N_frames):
     # medXW = np.array(medoid(XW)); medYW = np.array(medoid(YW))
 
     #bboxes
-    Bxmin = min(mYB[:7]);   Bxmax = max(mYB[:7]);
-    Bymin = min(mXB[:7]);   Bymax = max(mXB[:7]);
-    Wxmin = min(mYW[:7]);   Wxmax = max(mYW[:7]);
-    Wymin = min(mXW[:7]);   Wymax = max(mXW[:7]);
+    Bxmin = min(mYB[:7]);   Bxmax = max(mYB[:7])
+    Bymin = min(mXB[:7]);   Bymax = max(mXB[:7])
+    Wxmin = min(mYW[:7]);   Wxmax = max(mYW[:7])
+    Wymin = min(mXW[:7]);   Wymax = max(mXW[:7])
 
     def correct_box(xmin,xmax,ymin,ymax):
         # Whether we use constant (vs width-based) stretch.
@@ -248,7 +248,7 @@ for f in range(N_frames):
 with open('../tf_dataset_detection/top/AMT10K_csv.pkl','wb') as fp:
     pickle.dump(D,fp)
 
-print 'saved'
+print('saved')
 
 if errors:
-    print errors
+    print(errors)

@@ -29,7 +29,7 @@ with open(open_file,'rb') as fp:
 
 # Append them together.
 D = D + Dm
-print 'loaded'
+print('loaded')
 
 
 def unpack_raw_annotations(annotations_dict):
@@ -76,7 +76,7 @@ white_error = []
 # Loop over the size of the annotation set.
 for i in range(len(D)):
     # Give an update on how far we are.
-    print i
+    print(i)
 
     # Parse out the annotations.
     black_annotations = D[i]['ann_B']

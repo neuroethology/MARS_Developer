@@ -95,7 +95,7 @@ def detect(tfrecords, checkpoint_path, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -104,7 +104,7 @@ def detect(tfrecords, checkpoint_path, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         # we will store results into a tfrecord file
         output_writer_iteration = 0
@@ -125,9 +125,9 @@ def detect(tfrecords, checkpoint_path, cfg):
         done = False
         step = 0
         print_str = ', '.join([
-          'Step: %d',
-          'Time/image network (ms): %.1f',
-          'Time/image post proc (ms): %.1f'
+          'Step: {:d}',
+          'Time/image network (ms): {:.1f}',
+          'Time/image post proc (ms): {:.1f}'
         ])
         while not coord.should_stop() and not done:
          
@@ -176,12 +176,12 @@ def detect(tfrecords, checkpoint_path, cfg):
               plt.title(cfg.PARTS.NAMES[j])
               # Render the argmax point
               plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
-              print "%s %s : x %0.3f, y %0.3f" % (image_id[0], cfg.PARTS.NAMES[j], x, y)
+              print("{:s} {:s} : x {:0.3f}, y {:0.3f}".format(image_id[0], cfg.PARTS.NAMES[j], x, y))
               plt.show(block=False)
 
 
             #plt.pause(0.0001)
-            print image_id[0]
+            print(image_id[0])
             r = raw_input("Push button")
             if r != "":
               done = True
@@ -225,8 +225,8 @@ if __name__ == '__main__':
     args = parse_args()
     cfg = parse_config_file(args.config_file)
 
-    print "Configurations:"
-    print pprint.pprint(cfg)
+    print("Configurations:")
+    print(pprint.pprint(cfg))
 
     detect(
       tfrecords=args.tfrecords,

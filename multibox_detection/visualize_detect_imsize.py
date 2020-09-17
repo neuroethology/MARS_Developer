@@ -118,7 +118,7 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_res, sav
                     checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
 
                 if checkpoint_path is None:
-                    print "ERROR: No checkpoint file found."
+                    print("ERROR: No checkpoint file found.")
                     return
 
                 # Restores from checkpoint
@@ -127,11 +127,11 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_res, sav
                 #   /my-favorite-path/cifar10_train/model.ckpt-0,
                 # extract global_step from it.
                 global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-                print "Found model for global step: %d" % (global_step,)
+                print("Found model for global step: {:d}}".format(global_step))
 
                 print_str = ', '.join([
-                    'Step: %d',
-                    'Time/image (ms): %.1f'
+                    'Step: {:d}',
+                    'Time/image (ms): {:.1f}'
                 ])
 
                 plt.ioff()
@@ -223,7 +223,7 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_res, sav
                         plt.clf()
 
                     step += 1
-                    print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000)
+                    print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
 
             except tf.errors.OutOfRangeError as e:
                 pass
@@ -267,12 +267,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-    print "Command line arguments:"
+    print("Command line arguments:")
     pprint.pprint(vars(args))
     print
 
     cfg = parse_config_file(args.config_file)
-    print "Configurations:"
+    print("Configurations:")
     pprint.pprint(cfg)
     print
 

@@ -10,7 +10,7 @@ import matplotlib.cm as cm
 path ='../../results_detection/top_separate_allset/black/'
 save_name = path +'pr_curve'
 with open(path + 'cocoEval.pkl', 'rb') as fp: cocoEval = pickle.load(fp)
-print 'load'
+print('load')
 
 #### PR CURVE
 rs_mat = cocoEval.params.recThrs #[0:.01:1] R=101 recall thresholds for evaluation

@@ -64,7 +64,7 @@ if not os.path.exists('../tf_dataset_detection/front/'):    os.makedirs('../tf_d
 
 path = '/PATH_TO_FRAMES_IMGS/'
 frames10k = sp.loadmat('frames10K_labels.mat')
-print 'load'#get actions saved from matlab used to extract the 10k frames and actions
+print('load')   #get actions saved from matlab used to extract the 10k frames and actions
 labels = np.array([str(x[0]) for x in frames10k['labels'][0]])
 # labels = frames10k['labels']
 labels_idx  =  np.array([int(x[0]) for x in frames10k['labels_idx'][0]])
@@ -77,7 +77,7 @@ csv_file = 'front_annotations.csv'
 f = open(csv_file)
 csv_f = csv.reader(f,delimiter=';')
 T = list(csv_f)
-print 'load done'
+print('load done')
 
 headers = T[0]
 T = np.array(T[1:])
@@ -90,7 +90,7 @@ D = []
 # for each frame in the csv file
 errors = []
 for f in range(N_frames):
-    print f
+    print(f)
     idx_t=[]; tmp_t=[]
     #assign the name of the frame to the entry and find all entries with the same name of the current frame name
     idx_t = np.where(filename== unique_filename[f])
@@ -100,7 +100,7 @@ for f in range(N_frames):
     find_frame  = [i for i in range(len(fname)) if fname[i][22:] == tmp_t[0][15][26:]]
     # better to store the frames not found and return them at the end
     if find_frame is None:
-        print 'frame None'
+        print('frame None')
         errors.append(tmp_t[0][15])
     action = labels[find_frame[0]]
     action_idx = labels_idx[find_frame[0]]
@@ -125,7 +125,7 @@ for f in range(N_frames):
     workers = tmp_t[:,3]
     unique_workers = list(set(workers))
     N_workers = len(unique_workers)
-    XB=[];YB=[];XW=[];YW=[];
+    XB=[];YB=[];XW=[];YW=[]
     for w in range(N_workers):
         idx_w=[]; tmp_w=[]
         idx_w = np.where(workers==unique_workers[w])
@@ -174,18 +174,18 @@ for f in range(N_frames):
 
     #bboxes
     ind = np.hstack([np.arange(7),np.arange(9,13)])
-    Bxmin = min(mYB[ind]);   Bxmax = max(mYB[ind]);
-    Bymin = min(mXB[ind]);   Bymax = max(mXB[ind]);
-    Wxmin = min(mYW[ind]);   Wxmax = max(mYW[ind]);
-    Wymin = min(mXW[ind]);   Wymax = max(mXW[ind]);
+    Bxmin = min(mYB[ind]);   Bxmax = max(mYB[ind])
+    Bymin = min(mXB[ind]);   Bymax = max(mXB[ind])
+    Wxmin = min(mYW[ind]);   Wxmax = max(mYW[ind])
+    Wymin = min(mXW[ind]);   Wymax = max(mXW[ind])
 
-    if Bxmin - .06>0.: Bxmin -= .06;
+    if Bxmin - .06>0.: Bxmin -= .06
     if Bxmax + .06<1.: Bxmax += .06
-    if Bymin - .06>0.: Bymin -= .06;
+    if Bymin - .06>0.: Bymin -= .06
     if Bymax + .06<1.: Bymax += .06
-    if Wxmin - .06>0.: Wxmin -= .06;
+    if Wxmin - .06>0.: Wxmin -= .06
     if Wxmax + .06<1.: Wxmax += .06
-    if Wymin - .06>0.: Wymin -= .06;
+    if Wymin - .06>0.: Wymin -= .06
     if Wymax + .06<1.: Wymax += .06
 
     # area bboxes
@@ -215,7 +215,7 @@ for f in range(N_frames):
 # save info into pickle file
 with open('../tf_dataset_detection/front/AMT10K_csv.pkl','w') as fp:
     pickle.dump(D,fp)
-print 'saved'
+print('saved')
 
 if errors:
-    print errors
+    print(errors)

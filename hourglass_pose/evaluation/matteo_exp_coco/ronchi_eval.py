@@ -113,7 +113,7 @@ def show_dets(coco_dts, coco_gts, img_path,  sigmas):
 
         e = (dx ** 2 + dy ** 2) / (sigmas * 2) ** 2 / (g['area'] + np.spacing(1)) / 2
         oks = np.sum(np.exp(-e)) / e.shape[0]
-        print oks
+        print(oks)
 
         # ax.annotate("[%.3f][%.3f]" % (score, oks), (bbox[0] + bbox[2] / 2.0, bbox[1] + 15),
         #             color=[1, .6, 0], weight='bold', fontsize=12, ha='center', va='center')
@@ -345,21 +345,24 @@ corrected_dts = coco_analyze.corrected_dts['all']
 
 i = 6
 # info on keypoint detection localization error
-print 'good: %s'%corrected_dts[i]['good']
-print 'miss: %s'%corrected_dts[i]['miss']
-print 'swap: %s'%corrected_dts[i]['swap']
-print 'inv.: %s'%corrected_dts[i]['inversion']
-print 'jit.: %s\n'%corrected_dts[i]['jitter']
+print(f"good: {corrected_dts[i]['good']}")
+print(f"miss: {corrected_dts[i]['miss']}")
+print(f"swap: {corrected_dts[i]['swap']}")
+print(f"inv.: {corrected_dts[i]['inversion']}")
+print(f"jit.: {corrected_dts[i]['jitter']}\n")
 
 # corrected keypoint locations
-print 'predicted keypoints:\n %s'%corrected_dts[i]['keypoints']
-print 'corrected keypoints:\n %s\n'%corrected_dts[i]['opt_keypoints']
+print(f"predicted keypoints:\n {corrected_dts[i]['keypoints']}")
+print(f"corrected keypoints:\n {corrected_dts[i]['opt_keypoints']}\n")
 
 # optimal detection score
-print 'original score: %s'%corrected_dts[i]['score']
-print 'optimal score:  %s\n'%corrected_dts[i]['opt_score']
+print(f"original score: {corrected_dts[i]['score']}")
+print(f"optimal score:  {corrected_dts[i]['opt_score']}\n")
 
 false_pos_dts = coco_analyze.false_pos_dts
 false_neg_gts = coco_analyze.false_neg_gts
 for oks in coco_analyze.params.oksThrs:
-    print "Oks:[%.2f] - Num.FP:[%d] - Num.FN:[%d]"%(oks,len(false_pos_dts['all',str(oks)]),len(false_neg_gts['all',str(oks)]))
+    print("Oks:[{:.2f}] - Num.FP:[{:d}] - Num.FN:[{:d}]".format(
+        oks,
+        len(false_pos_dts['all',str(oks)]),
+        len(false_neg_gts['all',str(oks)])))

@@ -70,7 +70,7 @@ csv_file = 'front_miniscope_annotations.csv'
 f = open(csv_file)
 csv_f = csv.reader(f,delimiter=';')
 T = list(csv_f)
-print 'load done'
+print('load done')
 
 headers = T[0]
 T = np.array(T[1:])
@@ -83,7 +83,7 @@ D = []
 # for each frame in the csv file
 errors = []
 for f in range(N_frames):
-    print f
+    print(f)
     idx_t=[]; tmp_t=[]
     #assign the name of the frame to the entry and find all entries with the same name of the current frame name
     idx_t = np.where(filename== unique_filename[f])
@@ -197,7 +197,7 @@ for f in range(N_frames):
 # save info into pickle file
 with open('../tf_dataset_detection/front_miniscope/AMT5K_csv.pkl','w') as fp:
     pickle.dump(D,fp)
-print 'saved'
+print('saved')
 
 if errors:
-    print errors
+    print(errors)

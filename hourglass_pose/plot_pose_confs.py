@@ -102,7 +102,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -111,7 +111,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         # we will store results into a tfrecord file
         output_writer_iteration = 0
@@ -129,9 +129,9 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
         done = False
         step = 0
         print_str = ', '.join([
-          'Step: %d',
-          'Time/image network (ms): %.1f',
-          'Time/image post proc (ms): %.1f'
+          'Step: {:d}',
+          'Time/image network (ms): {:.1f}',
+          'Time/image post proc (ms): {:.1f}'
         ])
 
         fig = plt.figure(figsize=(float(cfg.WIDTH) / 100.0, float(cfg.HEIGHT) / 100.0), dpi=100,
@@ -282,7 +282,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
 
 
           dtt = time.time() - t
-          print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000)
+          print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000))
           step += 1
           plt.clf()
 

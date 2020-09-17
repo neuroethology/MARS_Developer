@@ -3,28 +3,31 @@ Use the COCO evaluation pipeline.
 """
 
 import argparse
-import cPickle as pickle
+import pickle
 import logging
 import pdb
 import pprint
 import sys
 import time
-from cStringIO import StringIO
+import os
+from io import StringIO
 
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.python.util import deprecation
 
+sys.path.insert(0, os.path.abspath('../..'))
 sys.path.append('./')
 sys.path.append('./evaluation/')
 
-import model
-from config import parse_config_file
+import multibox_detection.model_detection as model
+from multibox_detection.config import parse_config_file
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import eval_inputs as inputs
 
-
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, cfg):
   
@@ -52,7 +55,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
       'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
       # epsilon to prevent 0s in variance.
       'epsilon': 0.001,
-      'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+      'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
       'is_training' : False
     }
     with slim.arg_scope([slim.conv2d],
@@ -80,21 +83,21 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
   
     
     # Restore the parameters
-    saver = tf.train.Saver(shadow_vars, reshape=True)
+    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
 
     fetches = [locations, confidences, batched_bboxes, batched_num_bboxes, batched_areas, batched_image_ids]
     
     coord = tf.train.Coordinator()
 
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    sess = tf.Session(graph=graph, config=sess_config)
+    sess = tf.compat.v1.Session(graph=graph, config=sess_config)
 
     dataset_image_ids = set()
     gt_annotations = []
@@ -103,17 +106,17 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
 
     with sess.as_default():
 
-      tf.global_variables_initializer().run()
-      tf.local_variables_initializer().run()
+      tf.compat.v1.global_variables_initializer().run()
+      tf.compat.v1.local_variables_initializer().run()
       threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
       try:
 
-        if tf.gfile.IsDirectory(checkpoint_path):
+        if tf.io.gfile.isdir(checkpoint_path):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -122,11 +125,11 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         print_str = ', '.join([
-          'Step: %d',
-          'Time/image (ms): %.1f'
+          'Step: {:d}',
+          'Time/image (ms): {:.1f}'
         ])
 
         step = 0
@@ -174,7 +177,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
               pred_annotations.append([
                 img_id,
                 x1, y1, x2 - x1, y2 - y1, 
-                score,
+                score[0],
                 1
               ])
 
@@ -195,7 +198,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
             dataset_image_ids.add(img_id)
 
           step += 1
-          print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000)
+          print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
 
           if max_iterations > 0 and step == max_iterations:
             break  
@@ -207,9 +210,10 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
       coord.join(threads)
 
       pred_annotations = np.array(pred_annotations)
+      print(f"eval: pred_annotations.shape is {pred_annotations.shape}")
       gt_dataset = {
-        'annotations' : gt_annotations,
-        'images' : [{'id' : img_id} for img_id in dataset_image_ids],
+        'annotations' : np.array(gt_annotations),
+        'images' : np.array([{'id' : img_id} for img_id in dataset_image_ids]).flatten(),
         'categories' : [{ 'id' : 1 }]
       }
       #initialize COCO GT api
@@ -231,9 +235,9 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
       cocoEval.summarize() # print results
       sys.stdout = old_stdout
 
-      summary_op = tf.summary.merge_all()
-      summary_writer = tf.summary.FileWriter(summary_dir)
-      summary = tf.Summary()
+      summary_op = tf.compat.v1.summary.merge_all()
+      summary_writer = tf.compat.v1.summary.FileWriter(summary_dir)
+      summary = tf.compat.v1.Summary()
       summary.ParseFromString(sess.run(summary_op))
 
       with open(summary_dir + 'cocoEval.pkl', 'wb') as fp:
@@ -247,7 +251,7 @@ def eval(tfrecords, bbox_priors, summary_dir, checkpoint_path, max_iterations, c
 
           summary.value.add(tag=description, simple_value=score)
 
-          print "%s: %0.3f" % (description, score)
+          print(f"{description:s}: {score:0.3f}")
       
       summary_writer.add_summary(summary, global_step)
       summary_writer.flush()
@@ -287,17 +291,17 @@ def parse_args():
 
 def main():
   args = parse_args()
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print 
     
-  with open(args.priors) as f:
-    bbox_priors = pickle.load(f)
+  with open(args.priors, 'rb') as f:
+    bbox_priors = pickle.load(f, encoding='latin1')
   bbox_priors = np.array(bbox_priors).astype(np.float32)
   
   eval(

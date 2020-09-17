@@ -13,8 +13,8 @@ def compute_assignments(locations, confidences, gt_bboxes, num_gt_bboxes, batch_
   num_gt_bboxes : [batch_size]  The number of gt bboxes in each image of the batch
   """
   
-  num_predictions = locations.shape[0] / batch_size
-  assignment_partitions = np.zeros(batch_size * num_predictions, dtype=np.int32)
+  num_predictions = locations.shape[0] // batch_size
+  assignment_partitions = np.zeros(batch_size * num_predictions, dtype=np.int32) # was np.int32
   #stacked_gt_bboxes = []
   stacked_gt_bboxes = np.zeros([0, 4], dtype=np.float32)
   
@@ -49,8 +49,8 @@ def compute_assignments(locations, confidences, gt_bboxes, num_gt_bboxes, batch_
       
   #stacked_gt_bboxes = np.array(stacked_gt_bboxes).astype(np.float32)
   stacked_gt_bboxes = stacked_gt_bboxes.astype(np.float32)
-    
-  return [assignment_partitions, stacked_gt_bboxes]
+  
+  return assignment_partitions, stacked_gt_bboxes
 
 def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_priors, location_loss_alpha):
   
@@ -79,8 +79,11 @@ def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_pr
     # print batched_bboxes.get_shape().as_list()
     # print batched_num_bboxes.get_shape().as_list()
     params = [locations, confidences, batched_bboxes, batched_num_bboxes, batch_size, location_loss_alpha]
-    matching, stacked_gt_bboxes = tf.py_func(compute_assignments, params, [tf.int32, tf.float32], name="bipartite_matching") 
-    
+    matching, stacked_gt_bboxes = tf.numpy_function(compute_assignments, params, [tf.int32, tf.float32], name="bipartite_matching") 
+    """
+    matching, stacked_gt_bboxes = compute_assignments(locations, confidences, batched_bboxes, batched_num_bboxes, batch_size, location_loss_alpha)
+    """
+  
     # matching: [num_predictions * batch_size] 0s and 1s for partitioning
     # stacked_gt_bboxes : [total number of gt bboxes for this batch, 4]
     
@@ -98,7 +101,7 @@ def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_pr
     
     
     location_loss = location_loss_alpha * tf.nn.l2_loss(matched_locations - stacked_gt_bboxes)
-    confidence_loss = -1. * tf.reduce_sum(tf.log(matched_confidences)) - tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
+    confidence_loss = -1. * tf.reduce_sum(tf.math.log(matched_confidences)) - tf.reduce_sum(tf.math.log((1. - unmatched_confidences) + SMALL_EPSILON))
     
     # It could be the case that there are no ground truth bounding boxes
     # num_gt_bboxes = tf.reduce_sum(batched_num_bboxes)
@@ -111,7 +114,7 @@ def add_loss(locations, confidences, batched_bboxes, batched_num_bboxes, bbox_pr
     # all_negative_conf_loss = lambda : -1. * tf.reduce_sum(tf.log((1. - unmatched_confidences) + SMALL_EPSILON))
     # confidence_loss = tf.cond(num_gt_bboxes > 0, conf_loss, all_negative_conf_loss)
     
-    slim.losses.add_loss(location_loss)
-    slim.losses.add_loss(confidence_loss)
+    tf.compat.v1.losses.add_loss(location_loss)
+    tf.compat.v1.losses.add_loss(confidence_loss)
 
   return location_loss, confidence_loss

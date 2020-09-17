@@ -96,7 +96,7 @@ def visualize(tfrecords, cfg):
         # Plot each heatmap.
         for p in range(num_parts):
           heatmap = heatmaps[:,:,p]
-          print "%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[p], np.max(heatmap), np.min(heatmap))
+          print("{:s} : max {:0.3f}, min {:0.3f}".format(cfg.PARTS.NAMES[p], np.max(heatmap), np.min(heatmap)))
 
         # Cap the heatmaps activation range at 0 and 1.
         heatmaps = np.clip(heatmaps, 0., 1.)

@@ -23,7 +23,7 @@ w = D[0]['width']
 h = D[0]['height']
 num_points = len(D[0]['ann_label'])
 parts = D[0]['ann_label']
-print 'load'
+print('load')
 
 with open('../tf_dataset/front/AMT15_front_csv.pkl','wb') as  fp: pkl.dump(D,fp)
 
@@ -199,7 +199,7 @@ w_err = []
 # Loop over the size of the annotation set.
 for i in range(len(D)):
     # Give an update on how far we are.
-    print i
+    print(i)
 
     # Parse out the annotations.
     black_annotations = D[i]['ann_B']

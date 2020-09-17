@@ -111,7 +111,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -120,12 +120,12 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,) 
+        print("Found model for global step: {:d}".format(global_step))
         
         step = 0
         print_str = ', '.join([
-          'Step: %d',
-          'Time/image network (ms): %.1f'
+          'Step: {:d}',
+          'Time/image network (ms): {:.1f}'
         ])
         while not coord.should_stop():
           t = time.time()
@@ -264,7 +264,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             gt_annotation_id += 1
             gt_image_id += 1
 
-          print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000))
+          print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
           step += 1
 
           if max_iterations > 0 and step == max_iterations:
