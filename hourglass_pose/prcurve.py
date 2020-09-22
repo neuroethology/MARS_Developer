@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import argparse
 import os
 import sys
@@ -19,7 +19,7 @@ from scipy import stats
 #   results = pickle.load(fp)
 def plot_pr(f, figtitle, savename, NUM_PARTS):
     fname = ''.join([f, '/results_pose_test.pkl'])
-    with open (fname,'r')  as fp:
+    with open (fname,'rb')  as fp:
       results = pickle.load(fp)
 
     dt = results[0]
@@ -49,7 +49,7 @@ def plot_pr(f, figtitle, savename, NUM_PARTS):
     P = np.zeros((len(conf_thr)+1,len(drange)))     # tp / pred positives
     R = np.zeros((len(conf_thr)+1,len(drange)))     # tp / positives
 
-    for d in xrange(len(drange)):
+    for d in range(len(drange)):
         valid = np.less_equal(distp,drange[d]) #the distances are within some threshold
         conf_dist_ok = np.copy(confs[valid]) # get the scores for all the above distances
         # no_valid = np.greater(distp,drange[d])
@@ -58,7 +58,7 @@ def plot_pr(f, figtitle, savename, NUM_PARTS):
         count_pos = len(gt_keys_flat) # There are gt keypoints in the dataset that are not visible; this should not count them
         count_neg = len(gt_keys_flat) - count_pos # As it is, this is identically zero...
 
-        for t in xrange(len(conf_thr)):
+        for t in range(len(conf_thr)):
             y_ = np.greater_equal(conf_dist_ok,conf_thr[t]) # get all the dt scores that are actually accurate, and above some threshold;
             y = np.greater_equal(confs,conf_thr[t]) # get all the parts that the detector thinks are accurate, and are above some threshold
             # y_no = np.less(conf_dist_no,conf_thr[t]) # tn dist no conf no

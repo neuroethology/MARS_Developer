@@ -1,8 +1,11 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.util import deprecation
 import argparse
 import json
 import os
+
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
 def get_ground_truth(
@@ -10,7 +13,10 @@ def get_ground_truth(
         num_parts=11,
         num_examples=1500
     ):
-    with tf.Session() as sess:
+
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+
+    with tf.compat.v1.Session() as sess:
 
         # A producer to generate tfrecord file paths.
         filename_queue = tf.train.string_input_producer(
@@ -22,23 +28,23 @@ def get_ground_truth(
         _, serialized_example = reader.read(filename_queue)
 
         # Parse an Example to access the Features
-        features = tf.parse_single_example(
+        features = tf.io.parse_single_example(
             serialized_example,
             features={
-                'image/id': tf.FixedLenFeature([], tf.string),
-                'image/filename': tf.FixedLenFeature([], tf.string),
-                'image/encoded': tf.FixedLenFeature([], tf.string),
-                'image/height': tf.FixedLenFeature([], tf.int64),
-                'image/width': tf.FixedLenFeature([], tf.int64),
-                'image/object/bbox/xmin': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/ymin': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/xmax': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/ymax': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/count': tf.FixedLenFeature([], tf.int64),
-                'image/object/bbox/score': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/label': tf.VarLenFeature(dtype=tf.int64),
-                'image/object/parts/x': tf.VarLenFeature(dtype=tf.float32),  # x coord for all parts and all objects
-                'image/object/parts/y': tf.VarLenFeature(dtype=tf.float32)
+                'image/id': tf.io.FixedLenFeature([], tf.string),
+                'image/filename': tf.io.FixedLenFeature([], tf.string),
+                'image/encoded': tf.io.FixedLenFeature([], tf.string),
+                'image/height': tf.io.FixedLenFeature([], tf.int64),
+                'image/width': tf.io.FixedLenFeature([], tf.int64),
+                'image/object/bbox/xmin': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/ymin': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/xmax': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/ymax': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/count': tf.io.FixedLenFeature([], tf.int64),
+                'image/object/bbox/score': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/label': tf.io.VarLenFeature(dtype=tf.int64),
+                'image/object/parts/x': tf.io.VarLenFeature(dtype=tf.float32),  # x coord for all parts and all objects
+                'image/object/parts/y': tf.io.VarLenFeature(dtype=tf.float32)
             }
         )
 
@@ -78,12 +84,12 @@ def get_ground_truth(
         fname_list = []
 
         # Parse each example into the relevant parts.
-        for i in xrange(num_examples):
+        for i in range(num_examples):
             [example_id, example_fname, example_parts] = sess.run([image_id, filename , parts])
 
             # Keep track of the id's and the filenames.
             id_list.append(int(example_id))
-            fname_list.append(example_fname)
+            fname_list.append(example_fname.decode())
 
             # print example_parts
             B = example_parts[0]
@@ -165,7 +171,7 @@ if __name__ == '__main__':
     )
     # If we get something, dump it.
     if len(results) > 0:
-        with open(args.savename, 'wb') as fp:
+        with open(args.savename, 'w') as fp:
             json.dump(results, fp)
     else:
         print("Ground truth generation failed.")

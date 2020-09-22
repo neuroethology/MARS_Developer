@@ -8,14 +8,12 @@ import numpy as np
 import os
 import pprint
 from scipy import interpolate
-from scipy.misc import imresize
 import sys
 import tensorflow as tf
 from tensorflow.contrib import slim
+from tensorflow.python.util import deprecation
 import time
 import cv2
-# from matplotlib import rc
-# rc('text', usetex=True)
 
 
 from config import parse_config_file
@@ -24,12 +22,15 @@ import detect_inputs_imsize as inputs
 import model
 import pdb
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+
 def detect(tfrecords, checkpoint_path, cfg, save_dir):
 
   if not os.path.exists(save_dir + 'figures'):
     os.makedirs(save_dir + 'figures')
 
-  tf.logging.set_verbosity(tf.logging.DEBUG)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   graph = tf.Graph()
   
@@ -47,7 +48,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : False
     }
     # Set activation_fn and parameters for batch_norm.
@@ -70,35 +71,35 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
       for var in slim.get_model_variables()
     }
 
-    saver = tf.train.Saver(shadow_vars, reshape=True)
+    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
     
     fetches = [batched_images, predicted_heatmaps[-1], batched_bboxes, batched_scores, batched_image_ids, batched_labels, batched_image_height_widths, batched_crop_bboxes, batched_ori_images]
 
     # Now create a training coordinator that will control the different threads
     coord = tf.train.Coordinator()
     
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    session = tf.Session(graph=graph, config=sess_config)
+    session = tf.compat.v1.Session(graph=graph, config=sess_config)
     
     with session.as_default():
 
       # make sure to initialize all of the variables
-      tf.global_variables_initializer().run()
-      tf.local_variables_initializer().run()
+      tf.compat.v1.global_variables_initializer().run()
+      tf.compat.v1.local_variables_initializer().run()
       
       # launch the queue runner threads
       threads = tf.train.start_queue_runners(sess=session, coord=coord)
       
       try:
         
-        if tf.gfile.IsDirectory(checkpoint_path):
+        if tf.io.gfile.isdir(checkpoint_path):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
@@ -111,7 +112,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print("Found model for global step: {:d}".format(global_step))
+        print("Found model for global step: %d" % (global_step,))
         
         # we will store results into a tfrecord file
         output_writer_iteration = 0
@@ -120,18 +121,18 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
         
         # plt.ion()
 
-        image_to_convert = tf.placeholder(tf.float32)
-        convert_to_uint8 = tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8)
+        image_to_convert = tf.compat.v1.placeholder(tf.float32)
+        convert_to_uint8 = tf.compat.v1.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8)
         
-        image_to_resize = tf.placeholder(tf.float32)
-        resize_to_input_size = tf.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
+        image_to_resize = tf.compat.v1.placeholder(tf.float32)
+        resize_to_input_size = tf.compat.v1.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
 
         done = False
         step = 0
         print_str = ', '.join([
-          'Step: {:d}',
-          'Time/image network (ms): {:.1f}',
-          'Time/image post proc (ms): {:.1f}'
+          'Step: %d',
+          'Time/image network (ms): %.1f',
+          'Time/image post proc (ms): %.1f'
         ])
 
         fig = plt.figure(figsize=(float(cfg.WIDTH) / 100.0, float(cfg.HEIGHT) / 100.0), dpi=100,
@@ -168,7 +169,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
               ax.axes.get_yaxis().set_visible(False)
               ax.axes.get_xaxis().set_visible(False)
               ax.axison = False
-              ax.set_adjustable('box-forced')
+              ax.set_adjustable('box')
               plt.imshow(ori_image)
 
             ax.plot(np.NaN, np.NaN, 'o', markersize=0, color=c[b], label=r"$\bf{Resident}$" if b == 0 else r"$\bf{Intruder}$")
@@ -236,8 +237,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                 score_pred = np.max(heatmap)
                 ms = min(np.sqrt(score_pred)*15.0,15.0)
                 x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
-                # print "%s %s : x %0.3f, y %0.3f" % (image_id[0], cfg.PARTS.NAMES[j], x, y)
-
+       
                 #back to original image coordinates
                 # imx = int(x/float(new_width) * bbox_w)  + bbox_x1 * image_width
                 # imy = int(y/float(new_height) * bbox_h ) + bbox_y1 * image_height
@@ -272,8 +272,8 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
           # pdb.set_trace()
           #   item.set_visible(False)
           # plt.legend(loc='upper right', fontsize='x-small', bbox_to_anchor=(1.0, 1.))
-          plt.savefig(save_dir + 'figures/' + image_id[0] + '.png', transparent=True)
-          plt.savefig(save_dir + 'figures/' + image_id[0] + '.pdf', transparent=True)
+          plt.savefig(save_dir + 'figures/' + image_id[0].decode() + '.png', transparent=True)
+          plt.savefig(save_dir + 'figures/' + image_id[0].decode() + '.pdf', transparent=True)
           # plt.show()
           # r = raw_input("Push button")
           # if r != "":
@@ -282,7 +282,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
 
 
           dtt = time.time() - t
-          print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000))
+          print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000))
           step += 1
           plt.clf()
 

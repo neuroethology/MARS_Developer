@@ -29,22 +29,22 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
     _, serialized_example = reader.read(filename_queue)
 
     # Parse an Example to access the Features
-    features = tf.parse_single_example(
+    features = tf.io.parse_single_example(
       serialized_example,
       features = {
-        'image/id' : tf.FixedLenFeature([], tf.string),
-        'image/encoded'  : tf.FixedLenFeature([], tf.string),
-        'image/height' : tf.FixedLenFeature([], tf.int64),
-        'image/width' : tf.FixedLenFeature([], tf.int64),
-        'image/object/bbox/xmin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64),
-        'image/object/parts/x' : tf.VarLenFeature(dtype=tf.float32), # x coord for all parts and all objects
-        'image/object/parts/y' : tf.VarLenFeature(dtype=tf.float32), # y coord for all parts and all objects
-        'image/object/parts/v' : tf.VarLenFeature(dtype=tf.int64),   # part visibility for all parts and all objects
-        'image/object/area' : tf.VarLenFeature(dtype=tf.float32), # the area of the object, based on segmentation mask or bounding box mask
+        'image/id' : tf.io.FixedLenFeature([], tf.string),
+        'image/encoded'  : tf.io.FixedLenFeature([], tf.string),
+        'image/height' : tf.io.FixedLenFeature([], tf.int64),
+        'image/width' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/xmax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/count' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/parts/x' : tf.io.VarLenFeature(dtype=tf.float32), # x coord for all parts and all objects
+        'image/object/parts/y' : tf.io.VarLenFeature(dtype=tf.float32), # y coord for all parts and all objects
+        'image/object/parts/v' : tf.io.VarLenFeature(dtype=tf.int64),   # part visibility for all parts and all objects
+        'image/object/area' : tf.io.VarLenFeature(dtype=tf.float32), # the area of the object, based on segmentation mask or bounding box mask
       }
     )
 
@@ -97,14 +97,14 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
 
       # Add this image with a bbox draw on it to the tab of summaries.
-      tf.summary.image('original_image', image_with_bboxes)
+      tf.compat.v1.summary.image('original_image', image_with_bboxes)
 
     if do_augmentations:
 
       # TODO: We need to ensure that the perturbed bbox still contains the parts...
       with tf.name_scope('bbox_perturbation'):
         # Perturb the bounding box coordinates
-        r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+        r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
         do_perturb = tf.logical_and(tf.less(r, cfg.DO_RANDOM_BBOX_SHIFT), tf.greater(num_bboxes, 0))
         xmin, ymin, xmax, ymax = tf.cond(do_perturb,
           lambda: distorted_shifted_bounding_box(xmin, ymin, xmax, ymax, num_bboxes, image_height, image_width, cfg.RANDOM_BBOX_SHIFT_EXTENT),
@@ -114,7 +114,7 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
       # Randomly flip the image:
       with tf.name_scope('random_flip'):
         # Sample randomly.
-        r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+        r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
 
         # Only flip if config allows it, and the sample is less than our threshold.
         do_flip = tf.logical_and(tf.less(r, 0.5),
@@ -133,7 +133,7 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
                              )
         # If we're doing a flip, flip the part locations around as well.
         parts_x, parts_y, parts_v = tf.cond(do_flip,
-          lambda: tf.py_func(flip_parts_left_right, [parts_x, parts_y, parts_v, cfg.PARTS.LEFT_RIGHT_PAIRS, num_parts], [tf.float32, tf.float32, tf.int32]),
+          lambda: tf.numpy_function(flip_parts_left_right, [parts_x, parts_y, parts_v, cfg.PARTS.LEFT_RIGHT_PAIRS, num_parts], [tf.float32, tf.float32, tf.int32]),
           lambda: tf.tuple([parts_x, parts_y, parts_v])
         )
         print( '\n')
@@ -141,7 +141,7 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
 
       with tf.name_scope('distort_color'):
         # Distort the colors
-        r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+        r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
         do_color_distortion = tf.less(r, cfg.DO_COLOR_DISTORTION)
         num_color_cases = 1 if cfg.COLOR_DISTORT_FAST else 4
         distorted_image = apply_with_random_selector(
@@ -158,7 +158,7 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(axis=0, values=[ymin, xmin, ymax, xmax]), [1, 0]))
       bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
-      tf.summary.image('processed_image', image_with_bboxes)
+      tf.compat.v1.summary.image('processed_image', image_with_bboxes)
 
 
     # Create the crops, the bounding boxes, the parts and heatmaps
@@ -187,13 +187,13 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
         cfg.DO_RANDOM_NOISE, cfg.RANDOM_NOISE_FREQ, cfg.RANDOM_NOISE_SCALE,
         cfg.DO_JPEG_ARTIFACTS, cfg.RANDOM_JPEG_FREQ, cfg.RANDOM_JPEG_QUALITY_MIN, cfg.RANDOM_JPEG_QUALITY_MAX
       ]
-      cropped_images, heatmaps, parts, background_heatmaps = tf.py_func(build_heatmaps_etc, params, [tf.uint8, tf.float32, tf.float32, tf.float32])
+      cropped_images, heatmaps, parts, background_heatmaps = tf.numpy_function(build_heatmaps_etc, params, [tf.uint8, tf.float32, tf.float32, tf.float32])
       cropped_images = tf.image.convert_image_dtype(cropped_images, dtype=tf.float32)
 
 
     # Add a summary of the final crops
     if add_summaries:
-      tf.summary.image('cropped_images', cropped_images)
+      tf.compat.v1.summary.image('cropped_images', cropped_images)
 
     # Get the images in the range [-1, 1]
     cropped_images = tf.subtract(cropped_images, 0.5)
@@ -237,7 +237,7 @@ def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summa
           if random.random() < cfg.RANDOM_ROTATION_FREQ:
             # Generate random angles to rotate by.
             delta = math.pi*(cfg.RANDOM_ROTATION_DELTA/180.)
-            angles = tf.random_uniform(tf.constant([batch_size]), -delta, delta)
+            angles = tf.random.uniform(tf.constant([batch_size]), -delta, delta)
 
             # Rotate the image-like stuff for the training set.
             batched_images =  tf.contrib.image.rotate(batched_images, angles)
@@ -261,7 +261,7 @@ def rotate_parts(batched_parts, angles, batch_size, input_size):
   image_width = input_size
   image_height = input_size
 
-  for b in xrange(batch_size):
+  for b in range(batch_size):
     # Break everything up batch-wise.
     parts = batched_parts[b]
     angle = angles[b]
