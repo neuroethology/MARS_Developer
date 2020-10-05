@@ -117,7 +117,8 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
 
     # Set parameters for the EMA.

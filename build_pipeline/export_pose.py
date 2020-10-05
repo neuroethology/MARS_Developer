@@ -25,14 +25,14 @@ import hourglass_pose.model as model_pose
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def export(checkpoint_path, export_dir, export_version, view , num_parts):
+def export(checkpoint_path, export_dir, export_version, view , num_parts, num_stacks):
 
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
     graph = tf.Graph()
 
     input_node_name = "images"
-    output_node_name = None
+    output_node_name = "output"
 
     with graph.as_default():
 
@@ -60,9 +60,11 @@ def export(checkpoint_path, export_dir, export_version, view , num_parts):
                             biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
 
             predicted_heatmaps = model_pose.build(
-                input=images_bboxes,
-                num_parts=num_parts
+                input = images_bboxes,
+                num_parts = num_parts,
+                num_stacks = num_stacks
             )
+            output_node = tf.identity(predicted_heatmaps[-1], output_node_name)
 
         variable_averages = tf.train.ExponentialMovingAverage(0.9999)
         # variables_to_restore = variable_averages.variables_to_restore(slim.get_model_variables())
@@ -107,12 +109,12 @@ def export(checkpoint_path, export_dir, export_version, view , num_parts):
             constant_graph_def = graph_util.convert_variables_to_constants(
                 sess=sess,
                 input_graph_def=input_graph_def,
-                output_node_names=[predicted_heatmaps[-1].name[:-2]])
+                output_node_names=[output_node.name[:-2]])
 
             optimized_graph_def = optimize_for_inference_lib.optimize_for_inference(
                 input_graph_def=constant_graph_def,
                 input_node_names=[input_node_name],
-                output_node_names=[predicted_heatmaps[-1].name[:-2]],
+                output_node_names=[output_node.name[:-2]],
                 placeholder_type_enum=dtypes.float32.as_datatype_enum)
 
             # serialize and dump the putput graph to fs
@@ -124,7 +126,7 @@ def export(checkpoint_path, export_dir, export_version, view , num_parts):
 
             print("Saved optimized model for mobile devices at: %s." % (save_path,))
             print("Input node name: %s" % (input_node_name,))
-            print("Output node name: %s" % (predicted_heatmaps[-1].name[:-2],))
+            print("Output node name: %s" % (output_node.name[:-2],))
             print("%d ops in the final graph." % len(optimized_graph_def.node))
 
 
@@ -152,6 +154,9 @@ def parse_args():
                         help='Number of parts.',
                         required=True, type=int)
 
+    parser.add_argument('--num_stacks', dest='num_stacks',
+                        help='Number of stacks in the model.',
+                        required=True, type=int)
 
     args = parser.parse_args()
 
@@ -161,5 +166,5 @@ if __name__ == '__main__':
 
     args = parse_args()
 
-    export(args.checkpoint_path, args.export_dir, args.export_version, args.view, args.num_parts)
+    export(args.checkpoint_path, args.export_dir, args.export_version, args.view, args.num_parts, args.num_stacks)
 

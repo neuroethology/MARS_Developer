@@ -77,7 +77,8 @@ def train(tfrecords, logdir, cfg):
       # Build the Stacked Hourglass model.
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
       # Add the loss functions to the graph tab of losses.
       heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,

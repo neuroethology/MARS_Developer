@@ -92,5 +92,5 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
           ll_ = slim.conv2d(ll, num_features, activation_fn=None, normalizer_fn=None)
           heatmap_ = slim.conv2d(heatmap, num_features, activation_fn=None, normalizer_fn=None)
           intermediate_features = ll_ + heatmap_ + intermediate_features
-    
+
   return heatmaps

@@ -55,7 +55,8 @@ def detect(tfrecords, checkpoint_path, cfg):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
     
     ema = tf.train.ExponentialMovingAverage(
