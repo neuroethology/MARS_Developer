@@ -32,7 +32,7 @@ def export(checkpoint_path, export_dir, export_version, view , num_parts, num_st
     graph = tf.Graph()
 
     input_node_name = "images"
-    output_node_name = "output"
+    output_node_name = "output_heatmaps"
 
     with graph.as_default():
 
