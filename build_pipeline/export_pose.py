@@ -20,7 +20,7 @@ import pickle
 import numpy as np
 
 sys.path.insert(0, os.path.abspath('..'))
-import hourglass_pose.model as model_pose
+import hourglass_pose.model_pose as model_pose
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
