@@ -23,8 +23,8 @@ Lambda functions are Python scripts that are called when transferring data betwe
 Lucky for us, the Lambdas we need for our labeling job are already written, we just have to import them from Amazon's Serverless Application Repository to our own AWS account. This only has to be done once, the very first time you run a labeling job.
 
 #### To import the Lambda functions:
-1. In your [AWS Management Console](http://console.aws.amazon.com), search for “Serverless Application Repository” and select it. ([screenshot](docs/serverlessapprepo.png))
-2. On the menu on left hand side, click on “Available applications”, search for “Ground Truth” and select “aws-sagemaker-ground-truth-recipe”. ([screenshot](docs/groundtruthlambda.png))
+1. In your [AWS Management Console](http://console.aws.amazon.com), search for “Serverless Application Repository” and select it. ([screenshot](serverlessapprepo.png))
+2. On the menu on left hand side, click on “Available applications”, search for “Ground Truth” and select “aws-sagemaker-ground-truth-recipe”. ([screenshot](groundtruthlambda.png))
 3. In the following screen, scroll down to the bottom to find the “Deploy” button and click on it.
 4.	Deployment of this application may take few minutes. Please wait until you see [this screen](docs/lambdasdeployed.png), showing that 4 AWS resources (2 Lambdas and 2 Roles) were created.
 
@@ -35,7 +35,7 @@ To collect a new set of MARS training data, you must first extract frames from v
 
 ### Uploading images to the cloud
 1. Back on [AWS](http://console.aws.amazon.com), search "S3" in the Find Services menu and go to Amazon S3 (Scalable Storage in the Cloud).
-2. Click the <kbd>+ Create bucket</kbd> button to make a new S3 bucket for your images. ([screenshot](docs/s3bucket.png))
+2. Click the <kbd>+ Create bucket</kbd> button to make a new S3 bucket for your images. ([screenshot](s3bucket.png))
 3. Set a name for your bucket, and set the region to be the same region in which you imported your Lambda functions. You may leave all other default settings as is, then scroll down to click <kbd>Create bucket</kbd>.
     > Note: by default, no one other than you will be able to access images in your bucket (aside from annotators who are served the images via SageMaker.)
 
