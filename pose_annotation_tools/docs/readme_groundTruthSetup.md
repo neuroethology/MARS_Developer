@@ -1,4 +1,4 @@
-#Setting up and running annotation jobs on AWS
+# Setting up and running annotation jobs on AWS
 
 We will be using SageMaker Ground Truth to send batches of images to a public workforce to be annotated for animal pose.
 
