@@ -24,8 +24,8 @@ Lucky for us, the Lambdas we need for our labeling job are already written, we j
 
 #### To import the Lambda functions:
 1. In your [AWS Management Console](http://console.aws.amazon.com), search for “Serverless Application Repository” and select it. ([screenshot](serverlessapprepo.png))
-2. On the menu on left hand side, click on “Available applications”, search for “Ground Truth” and select “aws-sagemaker-ground-truth-recipe”. ([screenshot](groundtruthlambda.png))
-3. In the following screen, scroll down to the bottom to find the “Deploy” button and click on it.
+2. On the menu on left hand side, click on <kbd>Available applications</kbd>, search for “Ground Truth” and select `aws-sagemaker-ground-truth-recipe`. ([screenshot](groundtruthlambda.png))
+3. In the following screen, scroll down to the bottom to find the <kbd>Deploy</kbd> button and click on it.
 4.	Deployment of this application may take few minutes. Please wait until you see [this screen](docs/lambdasdeployed.png), showing that 4 AWS resources (2 Lambdas and 2 Roles) were created.
 
 Now you have custom Lambdas, to be used in running labeling jobs, imported successfully in your account.
