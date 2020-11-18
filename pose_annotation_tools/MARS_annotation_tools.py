@@ -29,7 +29,7 @@ def create_tfrecords(**kwargs):
     Example
     --------
     kpts = ['Nose','EarL','EarR','Neck','HipL','HipR','Tail']
-    prepare_training_data('/media/tracking/human_annotations.manifest', /media/tracking/movies', kpts)
+    create_tfrecords('/media/tracking/human_annotations.manifest', '/media/tracking/movies', kpts)
     --------
     """
     prepare_detector_training_data(**kwargs)
