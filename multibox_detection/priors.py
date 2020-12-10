@@ -93,9 +93,9 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
   cf.sort(key=lambda x: x[1])
   cf.reverse()
   
-  print "Clusters:"
+  print("Clusters:")
   for aspect_ratio, c in cf:
-    print "Aspect ratio %0.4f, membership count %d" % (aspect_ratio, c)
+    print("Aspect ratio {:0.4f}, membership count {:d}".format(aspect_ratio, c))
   
   aspect_ratios = np.array([x[0] for x in cf])
 
@@ -108,12 +108,12 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
     img = np.zeros([img_h, img_w, 3])
     for i, aspect_ratio in enumerate(aspect_ratios):
       
-      print "Cluster %d" % (i,)
+      print(f"Cluster {i:d}")
       
       w = scale * np.sqrt(aspect_ratio)
       h = scale / np.sqrt(aspect_ratio)
       
-      print "%0.3f width x %0.3f height" % (w, h)
+      print(f"{w:0.3f} width x {h:0.3f} height")
       
       center_i = 0.5
       center_j = 0.5
@@ -128,7 +128,8 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
       xmin, ymin, xmax, ymax = x1 * img_w, y1 * img_h, x2 * img_w, y2 * img_h
       bbox_w = xmax - xmin
       bbox_h = ymax - ymin 
-      print "BBox: (%d, %d) to (%d, %d) [%d width x %d height] [%0.3f aspect ratio]" % (int(xmin), int(ymin), int(xmax), int(ymax), int(xmax - xmin), int(ymax - ymin), aspect_ratio)
+      print("BBox: ({:d}, {:d}) to ({:d}, {:d}) [{:d} width x {:d} height] [{:0.3f} aspect ratio]".format(
+        int(xmin), int(ymin), int(xmax), int(ymax), int(xmax - xmin), int(ymax - ymin), aspect_ratio))
       plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
       
       plt.show()

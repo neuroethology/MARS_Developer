@@ -2,9 +2,8 @@
 File for detecting parts on images without ground truth.
 """
 import argparse
-from cStringIO import StringIO
+from io import StringIO
 import json
-import cPickle as pickle
 import numpy as np
 import os
 import pprint
@@ -18,9 +17,9 @@ from pycocotools.cocoeval import COCOeval
 import logging
 from config import parse_config_file
 from detect import get_local_maxima
-import eval_inputs_prep as inputs
+import eval_inputs as inputs
 import model
-import cPickle as pickle
+import pickle
 import pdb
 
 def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
@@ -34,7 +33,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
   with graph.as_default():
     
-    batched_images, batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes,batched_filenames = inputs.input_nodes(
+    batched_images, batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes = inputs.input_nodes(
       tfrecords=tfrecords,
       num_parts = num_parts,
       num_epochs=1,
@@ -73,7 +72,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
     saver = tf.train.Saver(shadow_vars, reshape=True)
     
-    fetches = [predicted_heatmaps[-1], batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes,batched_filenames]
+    fetches = [predicted_heatmaps[-1], batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes]
 
     # Now create a training coordinator that will control the different threads
     coord = tf.train.Coordinator()
@@ -111,7 +110,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -120,7 +119,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,) 
+        print("Found model for global step: %d" % (global_step,))
         
         step = 0
         print_str = ', '.join([
@@ -141,7 +140,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             image_id = outputs[4][b]
             image_height_widths = outputs[5][b]
             crop_bbox = outputs[6][b]
-            filename = outputs[7][b][0]
+            #filename = outputs[7][b][0]
 
             
             #heatmaps = np.clip(heatmaps, 0., 1.)
@@ -216,14 +215,14 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             # Store the results   
             pred_annotations.append({
               'image_id' : int(np.asscalar(image_id)),
-              'filename':filename,
+              #'filename':filename,
               'keypoints' : pred_parts,
               'score' : selected_scores,
             })
 
             pred_annotations_coco.append({
               'image_id': gt_image_id,
-              'filename': filename,
+              #'filename': filename,
               'keypoints': pred_parts,
               'score': avg_score,
               'category_id': 1
@@ -241,7 +240,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             gt_annotations.append({
               "id" : gt_annotation_id,
               "image_id" : int(np.asscalar(image_id)),
-              "filename":filename,
+              #"filename":filename,
               "area" : w * h,
               "bbox" : [x1, y1, w, h],
               "keypoints" : gt_parts,
@@ -250,7 +249,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             gt_annotations_coco.append({
               "id": gt_annotation_id,
               "image_id": gt_image_id,
-              "filename": filename,
+              #"filename": filename,
               "area": w * h,
               'category_id': 1,
               "bbox": [x1, y1, w, h],
@@ -281,7 +280,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       
       results=[pred_annotations, gt_annotations]
       
-      with open(summary_dir + 'results_pose_test.pkl', 'w') as fp:
+      with open(summary_dir + 'results_pose_test.pkl', 'wb') as fp:
         pickle.dump(results, fp)
       print('results_saved')
 
@@ -301,6 +300,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       gt_sigmas = np.array([0.05] * cfg.PARTS.NUM_PARTS)
       # cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmas=gt_sigmas)
       cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints')
+      cocoEval.params.kpt_oks_sigmas = gt_sigmas #np.array([0.02349794, 0.02573029, 0.02574004, 0.02459145, 0.03146337, 0.03146769, 0.02510474])
 
       # cocoEval.params.useCats = 0
       # cocoEval.params.areaRange = ("medium","large") # I just created a different gt annotation file

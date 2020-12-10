@@ -79,8 +79,8 @@ def detect_visualize(tfrecords, cfg, save_dir, jsonstring):
             try:
 
                 print_str = ', '.join([
-                    'Step: %d',
-                    'Time/image (ms): %.1f'
+                    'Step: {:d}',
+                    'Time/image (ms): {:.1f}'
                 ])
 
                 plt.ioff()
@@ -116,7 +116,7 @@ def detect_visualize(tfrecords, cfg, save_dir, jsonstring):
                         for j in range(len(json_results)):
                             # Check that we are not doing something weird (read: futureproof)
                             if j > len(colors):
-                                print "Add more colors!"
+                                print("Add more colors!")
                                 exit()
 
                             # Find all rows that belong to this image id. This could be done way faster
@@ -149,7 +149,7 @@ def detect_visualize(tfrecords, cfg, save_dir, jsonstring):
                         plt.clf()
 
                     step += 1
-                    print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000)
+                    print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
 
             except tf.errors.OutOfRangeError as e:
                 pass
@@ -184,12 +184,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-    print "Command line arguments:"
+    print("Command line arguments:")
     pprint.pprint(vars(args))
     print
 
     cfg = parse_config_file(args.config_file)
-    print "Configurations:"
+    print("Configurations:")
     pprint.pprint(cfg)
     print
 

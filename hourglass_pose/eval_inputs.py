@@ -35,22 +35,22 @@ def input_nodes(
         _, serialized_example = reader.read(filename_queue)
 
         # Parse an Example to access the features
-        features = tf.parse_single_example(
+        features = tf.io.parse_single_example(
             serialized_example,
             features={
-                'image/id': tf.FixedLenFeature([], tf.string),
-                'image/encoded': tf.FixedLenFeature([], tf.string),
-                'image/height': tf.FixedLenFeature([], tf.int64),
-                'image/width': tf.FixedLenFeature([], tf.int64),
-                'image/object/bbox/xmin': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/ymin': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/xmax': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/ymax': tf.VarLenFeature(dtype=tf.float32),
-                'image/object/bbox/count': tf.FixedLenFeature([], tf.int64),
-                'image/object/parts/x': tf.VarLenFeature(dtype=tf.float32),  # x coord for all parts and all objects
-                'image/object/parts/y': tf.VarLenFeature(dtype=tf.float32),  # y coord for all parts and all objects
-                'image/object/parts/v': tf.VarLenFeature(dtype=tf.int64),
-                'image/object/area': tf.VarLenFeature(dtype=tf.float32),
+                'image/id': tf.io.FixedLenFeature([], tf.string),
+                'image/encoded': tf.io.FixedLenFeature([], tf.string),
+                'image/height': tf.io.FixedLenFeature([], tf.int64),
+                'image/width': tf.io.FixedLenFeature([], tf.int64),
+                'image/object/bbox/xmin': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/ymin': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/xmax': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/ymax': tf.io.VarLenFeature(dtype=tf.float32),
+                'image/object/bbox/count': tf.io.FixedLenFeature([], tf.int64),
+                'image/object/parts/x': tf.io.VarLenFeature(dtype=tf.float32),  # x coord for all parts and all objects
+                'image/object/parts/y': tf.io.VarLenFeature(dtype=tf.float32),  # y coord for all parts and all objects
+                'image/object/parts/v': tf.io.VarLenFeature(dtype=tf.int64),
+                'image/object/area': tf.io.VarLenFeature(dtype=tf.float32),
             }
         )
 
@@ -81,7 +81,7 @@ def input_nodes(
 
         # Assign the part visibilities.
         part_visibilities = tf.cast(features['image/object/parts/v'], tf.int32)
-        part_visibilities = tf.reshape(tf.sparse_tensor_to_dense(part_visibilities), tf.stack([num_bboxes, num_parts]))
+        part_visibilities = tf.reshape(tf.sparse.to_dense(part_visibilities), tf.stack([num_bboxes, num_parts]))
 
         areas = features['image/object/area'].values
         areas = tf.reshape(areas, [num_bboxes])

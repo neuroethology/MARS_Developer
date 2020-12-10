@@ -8,10 +8,12 @@ from matplotlib import pyplot as plt
 import numpy as np
 from scipy import interpolate
 import tensorflow as tf
-
+from tensorflow.python.util import deprecation
 
 from config import parse_config_file
 import train_inputs
+
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def create_solid_rgb_image(shape, color):
   image = np.zeros(shape, np.uint8)
@@ -44,19 +46,19 @@ def visualize(tfrecords, cfg):
     )
 
     # Create a placeholder float image.
-    image_to_convert = tf.placeholder(tf.float32)
+    image_to_convert = tf.compat.v1.placeholder(tf.float32)
 
     # Create an op that converts that float image to a uint8.
     convert_to_uint8 = tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8)
 
     # Create a placeholder float image.
-    image_to_resize = tf.placeholder(tf.float32)
+    image_to_resize = tf.compat.v1.placeholder(tf.float32)
     # Create an op that resizes that float image to the size that you'd put into the model.
-    resize_to_input_size = tf.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
+    resize_to_input_size = tf.compat.v1.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
 
     coord = tf.train.Coordinator()
-    tf.global_variables_initializer().run()
-    tf.local_variables_initializer().run()
+    tf.compat.v1.global_variables_initializer().run()
+    tf.compat.v1.local_variables_initializer().run()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     
     num_part_cols = 3
@@ -67,7 +69,7 @@ def visualize(tfrecords, cfg):
     while r == "":
       outputs = sess.run([batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids, batched_background_heatmaps])
       
-      for b in xrange(cfg.BATCH_SIZE):
+      for b in range(cfg.BATCH_SIZE):
         # Create the figure we'll plot the images on.
         image_figure = plt.figure("Image")
         image_figure.clear()
@@ -96,7 +98,7 @@ def visualize(tfrecords, cfg):
         # Plot each heatmap.
         for p in range(num_parts):
           heatmap = heatmaps[:,:,p]
-          print "%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[p], np.max(heatmap), np.min(heatmap))
+          print("%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[p], np.max(heatmap), np.min(heatmap)))
 
         # Cap the heatmaps activation range at 0 and 1.
         heatmaps = np.clip(heatmaps, 0., 1.)
@@ -153,10 +155,13 @@ def visualize(tfrecords, cfg):
           plt.title(cfg.PARTS.NAMES[p])
 
         plt.show()
-        r = raw_input("push button")
+        plt.savefig('tester.png')
         plt.clf()
-        if r != "":
-          break
+
+        # r = raw_input("push button")
+        # plt.clf()
+        # if r != "":
+        #   break
 
 
 def parse_args():

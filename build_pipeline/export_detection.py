@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import sys
 
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
@@ -14,11 +15,11 @@ from tensorflow.python.tools import optimize_for_inference_lib
 
 slim = tf.contrib.slim
 import pdb
-import cPickle as pickle
+import pickle
 import numpy as np
 
-import model_detection
-
+sys.path.insert(0, os.path.abspath('..'))
+import multibox_detection.model_detection as model_detection
 
 def export(checkpoint_path, export_dir, export_version, prior_path, strain, view):
 
@@ -37,8 +38,8 @@ def export(checkpoint_path, export_dir, export_version, prior_path, strain, view
         input_placeholder = tf.placeholder(tf.float32, [None, input_height * input_width * input_depth], name=input_node_name)
         images = tf.reshape( input_placeholder, [-1, input_height,input_width,input_depth])
 
-        with open(prior_path,'r') as f:
-            priors_bbox  =pickle.load(f)
+        with open(prior_path,'rb') as f:
+            priors_bbox  =pickle.load(f, encoding='latin1')
         priors_bbox = np.array(priors_bbox).astype(np.float32)
 
 
@@ -113,7 +114,7 @@ def export(checkpoint_path, export_dir, export_version, prior_path, strain, view
 
             optimized_graph_def = optimize_for_inference_lib.optimize_for_inference(
                 input_graph_def=constant_graph_def,
-                input_node_names=input_node_name,
+                input_node_names=[input_node_name],
                 output_node_names=[predicted_loc.name[:-2],confidences.name[:-2]],
                 placeholder_type_enum=dtypes.float32.as_datatype_enum)
 

@@ -18,11 +18,11 @@ def add_heatmaps_loss(gt_heatmaps, pred_heatmaps, add_summaries, cfg=''):
   for i, pred in enumerate(pred_heatmaps):  # For each hourglass unit...
     l = tf.nn.l2_loss(gt_heatmaps - pred)
 
-    tf.losses.add_loss(l)
+    tf.compat.v1.losses.add_loss(l)
     total_loss += l
 
     if add_summaries:
-      summaries.append(tf.summary.scalar('heatmap_loss_%d' % i, l))
+      summaries.append(tf.compat.v1.summary.scalar('heatmap_loss_%d' % i, l))
 
   return total_loss, summaries
 

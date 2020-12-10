@@ -17,16 +17,6 @@ python train.py \
 --logdir $EXPERIMENT_DIR/ \
 --config $DATASET_DIR/config_train.yaml
 
-#for a more personalized training
-python train_custom.py \
---tfrecords $DATASET_DIR/train* \
---logdir $EXPERIMENT_DIR/ \
---config $DATASET_DIR/config_train.yaml \
---max_number_of_steps 20000 \
---lr 0.00005 \
---lr_decay_type 'fixed' \
---batch_size 4
-
 
 ###################################### evaluate training
 mkdir $EXPERIMENT_DIR/done/

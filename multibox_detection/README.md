@@ -1,9 +1,13 @@
 # Multibox
 
-This is an implementation of the Multibox detection system proposed by Szegedy et al. in [Scalable High Quality Object Detection](https://arxiv.org/abs/1412.1441). Currently this repository uses the [Inception-Reset-v2](https://arxiv.org/abs/1602.07261) network as the base network. The post classification network is not currently incorporated in this repository, but any classification network can be used. 
+This Multibox detection system has been adopted from Grant Van Horn's [Multibox](https://github.com/gvanhorn38/multibox) repository, which itself is an implementation of the Multibox detection system proposed by Szegedy et al. in [Scalable High Quality Object Detection](https://arxiv.org/abs/1412.1441). Currently this repository uses the [Inception-Reset-v2](https://arxiv.org/abs/1602.07261) network as the base network.
 
-This repo supports Python 2.7. Checkout the [requirements file](requirements.txt) to make sure you have the necessary packages. [TensorFlow r0.11](https://www.tensorflow.org/versions/r0.11/get_started/index.html) is *required*. 
+**Modifications from the [source repo](https://github.com/gvanhorn38/multibox):**
+- Code updated from Python 2 to Python 3
+- Now runs in Tensorflow 1.15-gpu
  
+---
+Documentation reproduced from [source repo](https://github.com/gvanhorn38/multibox):
 
 The input functions to the model require a specific dataset format. You can create the dataset using the utility functions found [here](https://github.com/gvanhorn38/inception/tree/master/inputs). You'll also need to genertate the priors for the bounding boxes. In the [priors.py](priors.py) file you will find convenience functions for generating the priors. For example, assuming you are in a python terminal (in the project directory):
 

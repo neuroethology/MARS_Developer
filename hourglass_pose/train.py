@@ -4,11 +4,14 @@ import logging
 import pprint
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.python.util import deprecation
 
 from config import parse_config_file
 import train_inputs
 import loss
 import model
+
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def train(tfrecords, logdir, cfg):
   """
@@ -22,9 +25,7 @@ def train(tfrecords, logdir, cfg):
       This is a cfg file that's already been parsed into EasyDict form from a yaml file.
   """
 
-  # TODO: If you wanted to get rid of all the dubious warnings, you'd do that here.
-  logger = logging.getLogger()
-  logger.setLevel(logging.DEBUG)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   # Make a graph
   graph = tf.Graph()
@@ -32,15 +33,13 @@ def train(tfrecords, logdir, cfg):
   with graph.as_default():
     
     # Create a variable to count the number of train() calls. 
-    global_step = slim.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
 
-    # TODO: If you wanted to make the learning rate non-constant, you'd do it here.
     # Set the learning rate here --we use a constant learning rate.
     lr = tf.constant(cfg.INITIAL_LEARNING_RATE, name='fixed_learning_rate')
 
-    # TODO: If you wanted to change the optimizer, you'd do it here.
     # Create an optimizer that performs gradient descent.
-    optimizer = tf.train.RMSPropOptimizer(
+    optimizer = tf.compat.v1.train.RMSPropOptimizer(
       learning_rate=lr,
       decay=cfg.RMSPROP_DECAY,
       momentum=cfg.RMSPROP_MOMENTUM,
@@ -57,13 +56,13 @@ def train(tfrecords, logdir, cfg):
     )
 
     # Copy the input summaries here, so they don't get overwritten or anything.
-    input_summaries = copy.copy(tf.get_collection(tf.GraphKeys.SUMMARIES))
+    input_summaries = copy.copy(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
     
     # Set up the batch normalization parameters.
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : True
     }
 
@@ -78,14 +77,15 @@ def train(tfrecords, logdir, cfg):
       # Build the Stacked Hourglass model.
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
       # Add the loss functions to the graph tab of losses.
       heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
                                                               True, cfg)
 
     # Pool all the losses we've added together into one readout.
-    total_loss = tf.losses.get_total_loss()
+    total_loss = tf.compat.v1.losses.get_total_loss()
 
     # Track the moving averages of all trainable variables.
     #   At test time we'll restore all variables with the average value.
@@ -102,37 +102,36 @@ def train(tfrecords, logdir, cfg):
 
     # Wrap up the ema into an operation and add it to the collection of update operations, which are called regularly.
     maintain_averages_op = ema.apply(variables_to_average)
-    tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, maintain_averages_op)
+    tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, maintain_averages_op)
 
     # Make a train operation.
     train_op = slim.learning.create_train_op(total_loss, optimizer)
 
     # Create summary operations
-    summary_op = tf.summary.merge([
-      tf.summary.scalar('total_loss', total_loss),
-      tf.summary.scalar('total_heatmap_loss', heatmap_loss),
-      tf.summary.scalar('learning_rate', lr)
+    summary_op = tf.compat.v1.summary.merge([
+      tf.compat.v1.summary.scalar('total_loss', total_loss),
+      tf.compat.v1.summary.scalar('total_heatmap_loss', heatmap_loss),
+      tf.compat.v1.summary.scalar('learning_rate', lr)
     ] + input_summaries + hmloss_summaries)
 
     # Training from scratch, so don't need initial assignment ops or an initial feed dict.
     init_assign_op = tf.no_op()
     init_feed_dict = {}
-    # TODO: If you were gonna use a pretrained model, you'd set that up here.
 
     # Create an initial assignment function.
     def InitAssignFn(sess):
         sess.run(init_assign_op, init_feed_dict)
 
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
 
     # Set up a saver to save a checkpoint every so often.
-    saver = tf.train.Saver(
+    saver = tf.compat.v1.train.Saver(
       max_to_keep = cfg.MAX_TO_KEEP,
       keep_checkpoint_every_n_hours = cfg.KEEP_CHECKPOINT_EVERY_N_HOURS
     )
@@ -175,13 +174,13 @@ def main():
   args = parse_args()
 
   # Display the command-line arguments.
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   # Display the internals of the config_file.
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print
 

@@ -3,7 +3,7 @@ Visualize detections on validation images (where we have ground truth detections
 """
 
 import argparse
-import cPickle as pickle
+import pickle
 import logging
 import pprint
 import time
@@ -14,7 +14,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from matplotlib import pyplot as plt
 
-import model as model
+import model_detection as model
 from config import parse_config_file
 
 
@@ -106,7 +106,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -115,7 +115,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         total_sample_count = 0
         step = 0
@@ -132,8 +132,8 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
           gt_bboxes = outputs[3]
           gt_num_bboxes = outputs[4]
           
-          print locs.shape
-          print confs.shape
+          print(locs.shape)
+          print(confs.shape)
           
           for b in range(cfg.BATCH_SIZE):
             
@@ -144,7 +144,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
             plt.imshow(uint8_image)
             
             num_gt_bboxes_in_image = gt_num_bboxes[b]
-            print "Number of GT Boxes: %d" % (num_gt_bboxes_in_image,)
+            print(f"Number of GT Boxes: {num_gt_bboxes_in_image:d}")
 
             # Draw the GT Boxes in blue
             for i in range(num_gt_bboxes_in_image):
@@ -153,7 +153,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'b-')
 
             indices = np.argsort(confs[b].ravel())[::-1]
-            print "Top 10 Detection Confidences: ", confs[b][indices[:10]].ravel().tolist()
+            print(f"Top 10 Detection Confidences: {confs[b][indices[:10]].ravel().tolist()}")
 
             # Draw the most confident boxes in red
             num_detections_to_render = num_gt_bboxes_in_image if num_gt_bboxes_in_image > 0 else 5
@@ -163,9 +163,9 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
               conf = confs[b][index]
               prior = bbox_priors[index]
               
-              print "Location: ", loc
-              print "Prior: ", prior
-              print "Index: ", index
+              print(f"Location: {loc}")
+              print(f"Prior: {prior}")
+              print(f"Index: {index}") 
               
               # Plot the predicted location in red
               xmin, ymin, xmax, ymax = (prior + loc) * cfg.INPUT_SIZE
@@ -175,8 +175,9 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
               xmin, ymin, xmax, ymax = prior * cfg.INPUT_SIZE
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'g-')
               
-              print "Pred Confidence for box %d: %f" % (i, conf)
-              
+              print(f"Type of conf is {type(conf)}")
+              # print(f"Pred Confidence for box {i:d}: {conf:f}")
+
             plt.show()
             
             
@@ -219,17 +220,17 @@ def parse_args():
 
 def main():
   args = parse_args()
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print 
     
-  with open(args.priors) as f:
-    bbox_priors = pickle.load(f)
+  with open(args.priors, "rb") as f:
+    bbox_priors = pickle.load(f, encoding="latin1")
   bbox_priors = np.array(bbox_priors).astype(np.float32)
 
   

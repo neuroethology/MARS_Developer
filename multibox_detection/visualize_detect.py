@@ -3,7 +3,7 @@ Visualize detection results.
 """
 
 import argparse
-import cPickle as pickle
+import pickle
 import logging
 import pdb
 import pprint
@@ -14,7 +14,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from matplotlib import pyplot as plt
 
-import model
+import model_detection as model
 from config import parse_config_file
 from detect import input_nodes, filter_proposals, convert_proposals
 
@@ -105,7 +105,7 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print ("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -114,11 +114,11 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print ("Found model for global step: {:d}".format(global_step))
         
         print_str = ', '.join([
-          'Step: %d',
-          'Time/image (ms): %.1f'
+          'Step: {:d}',
+          'Time/image (ms): {:.1f}'
         ])
         
         plt.ion()
@@ -147,12 +147,11 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
 
           for b in range(cfg.BATCH_SIZE):
             
-            print "Patch Dims: ", patch_dims[b]
-            print "Patch Offset: ", patch_offsets[b]
-            print "Max to keep: ", patch_max_to_keep[b]
-            print "Patch restrictions: ", patch_bbox_restrictions[b]
-            print "Image HxW: ", image_height_widths[b]
-            print
+            print(f"Patch Dims: {patch_dims[b]}")
+            print(f"Patch Offset: {patch_offsets[b]}")
+            print(f"Max to keep: {patch_max_to_keep[b]}")
+            print(f"Patch restrictions: {patch_bbox_restrictions[b]}")
+            print(f"Image HxW: {image_height_widths[b]}\n")
 
             if current_image_id is None or current_image_id != image_ids[b]:
               original_image = images[b]
@@ -238,7 +237,7 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
 
 
           step += 1
-          print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000) 
+          print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
 
       except tf.errors.OutOfRangeError as e:
         pass
@@ -272,17 +271,17 @@ def parse_args():
 
 def main():
   args = parse_args()
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print 
     
-  with open(args.priors) as f:
-    bbox_priors = pickle.load(f)
+  with open(args.priors, "rb") as f:
+    bbox_priors = pickle.load(f, encoding="latin1")
   bbox_priors = np.array(bbox_priors).astype(np.float32)
   
   detect_visualize(
