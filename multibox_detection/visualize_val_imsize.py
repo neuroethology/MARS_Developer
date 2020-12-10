@@ -3,7 +3,7 @@ Visualize detections on validation images (where we have ground truth detections
 """
 import os, sys
 import argparse
-import cPickle as pickle
+import pickle
 import logging
 import pprint
 import time
@@ -14,7 +14,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from matplotlib import pyplot as plt
 
-import model
+import model_detection as model
 from config import parse_config_file
 import pdb
 
@@ -112,7 +112,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -121,7 +121,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: {:d}".format(global_step))
         
         total_sample_count = 0
         step = 0
@@ -144,8 +144,8 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
 
           im_ids = outputs[5]
           
-          print locs.shape
-          print confs.shape
+          print(locs.shape)
+          print(confs.shape)
           
           for b in range(cfg.BATCH_SIZE):
             
@@ -160,10 +160,10 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
             ax.axes.get_xaxis().set_visible(False)
             fig.add_axes(ax)
             plt.imshow(res_image)
-            plt.text(10, 40, 'ID = ' + image_id, fontsize=12, color='r')
+            plt.text(10, 40, 'ID = ' + image_id.decode(encoding='latin1'), fontsize=12, color='r')
 
             num_gt_bboxes_in_image = gt_num_bboxes[b]
-            print "Number of GT Boxes: %d" % (num_gt_bboxes_in_image,)
+            print("Number of GT Boxes: {:d}".format(num_gt_bboxes_in_image))
 
             # Draw the GT Boxes in blue
             for i in range(num_gt_bboxes_in_image):
@@ -173,7 +173,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'b-')
 
             indices = np.argsort(confs[b].ravel())[::-1]
-            print "Top 10 Detection Confidences: ", confs[b][indices[:10]].ravel().tolist()
+            print(f"Top 10 Detection Confidences: {confs[b][indices[:10]].ravel().tolist()}")
 
             xdt = 80
             # Draw the most confident boxes in red
@@ -181,13 +181,13 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
             for i, index in enumerate(indices[0:num_detections_to_render]):
             
               loc = locs[b][index].ravel()
-              conf = confs[b][index]
+              conf = confs[b][index][0]
               prior = bbox_priors[index]
               
-              print "Location: ", loc
-              print "Prior: ", prior
-              print "Index: ", index
-              print "Image id: ", image_id
+              print(f"Location: {loc}")
+              print(f"Prior: {prior}")
+              print(f"Index: {index}")
+              print(f"Image id: {image_id.decode(encoding='latin1')}")
 
               # Plot the predicted location in red prior +loc
               pred_loc = prior + loc
@@ -202,7 +202,7 @@ def visualize(tfrecords, bbox_priors, checkpoint_path, cfg, save_dir):
 
               plt.text(10, xdt, 'conf bbox = %d: %f' % (i,conf) , fontsize=12, color='r')
 
-              print "Pred Confidence for box %d: %f" % (i, conf)
+              print("Pred Confidence for box {:d}: {:f}".format(i, conf))
               xdt+=40
               
             #plt.show()
@@ -255,17 +255,17 @@ def parse_args():
 
 def main():
   args = parse_args()
-  print "Command line arguments:"
+  print("Command line arguments:")
   pprint.pprint(vars(args))
   print
 
   cfg = parse_config_file(args.config_file)
-  print "Configurations:"
+  print("Configurations:")
   pprint.pprint(cfg)
   print 
     
-  with open(args.priors) as f:
-    bbox_priors = pickle.load(f)
+  with open(args.priors, "rb") as f:
+    bbox_priors = pickle.load(f, encoding="latin1")
   bbox_priors = np.array(bbox_priors).astype(np.float32)
 
   

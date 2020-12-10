@@ -21,7 +21,6 @@ in the tensorflow repo, so I am including their license.
 # ==============================================================================
 
 import numpy as np
-from scipy.misc import imresize
 import tensorflow as tf
 import sys
 from tensorflow.python.ops import control_flow_ops
@@ -37,7 +36,7 @@ def apply_with_random_selector(x, func, num_cases):
     The result of func(x, sel), where func receives the value of the
     selector as a python integer, but sel is sampled dynamically.
   """
-  sel = tf.random_uniform([], maxval=num_cases, dtype=tf.int32)
+  sel = tf.random.uniform([], maxval=num_cases, dtype=tf.int32)
   # Pass the real x only to one of the func calls.
   return control_flow_ops.merge([
       func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
@@ -185,10 +184,10 @@ def distorted_shifted_bounding_box(xmin, ymin, xmax, ymax, num_bboxes, image_hei
   max_width_shift = one_pixel_width * max_num_pixels_to_shift
   max_height_shift = one_pixel_height * max_num_pixels_to_shift
 
-  xmin -= tf.random_uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
-  xmax += tf.random_uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
-  ymin -= tf.random_uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
-  ymax += tf.random_uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
+  xmin -= tf.random.uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
+  xmax += tf.random.uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
+  ymin -= tf.random.uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
+  ymax += tf.random.uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
 
   # ensure that the coordinates are still valid
   ymin = tf.clip_by_value(ymin, 0.0, 1.)
@@ -233,18 +232,18 @@ def input_nodes(
     _, serialized_example = reader.read(filename_queue)
 
     # Parse an Example to access the Features
-    features = tf.parse_single_example(
+    features = tf.io.parse_single_example(
       serialized_example,
       features = {
-        'image/id' : tf.FixedLenFeature([], tf.string),
-        'image/encoded'  : tf.FixedLenFeature([], tf.string),
-        'image/height' : tf.FixedLenFeature([], tf.int64),
-        'image/width' : tf.FixedLenFeature([], tf.int64),
-        'image/object/bbox/xmin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64)
+        'image/id' : tf.io.FixedLenFeature([], tf.string),
+        'image/encoded'  : tf.io.FixedLenFeature([], tf.string),
+        'image/height' : tf.io.FixedLenFeature([], tf.int64),
+        'image/width' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/xmax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/count' : tf.io.FixedLenFeature([], tf.int64)
       }
     )
 
@@ -273,10 +272,10 @@ def input_nodes(
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(axis=0, values=[ymin, xmin, ymax, xmax]), [1, 0]))
       bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
-      tf.summary.image('original_image', image_with_bboxes)
+      tf.compat.v1.summary.image('original_image', image_with_bboxes)
 
     # Perturb the bounding box coordinates
-    r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+    r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
     do_perturb = tf.logical_and(tf.less(r, cfg.DO_RANDOM_BBOX_SHIFT), tf.greater(num_bboxes, 0))
     xmin, ymin, xmax, ymax = tf.cond(do_perturb,
       lambda: distorted_shifted_bounding_box(xmin, ymin, xmax, ymax, num_bboxes, image_height, image_width, cfg.RANDOM_BBOX_SHIFT_EXTENT),
@@ -284,7 +283,7 @@ def input_nodes(
     ) 
 
     # Take a crop from the image
-    r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+    r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
     do_crop = tf.less(r, cfg.DO_RANDOM_CROP)
     cropped_image, xmin, ymin, xmax, ymax, num_bboxes = tf.cond(do_crop,
       lambda: distorted_bounding_box_crop(image, image_height, image_width, xmin, ymin, xmax, ymax, num_bboxes,
@@ -302,7 +301,7 @@ def input_nodes(
     num_resize_cases = 4
     resized_image = apply_with_random_selector(
       cropped_image,
-      lambda x, method: tf.image.resize_images(x, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE], method=method),
+      lambda x, method: tf.image.resize(x, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE], method=method),
       num_cases=num_resize_cases
     )
 
@@ -311,10 +310,10 @@ def input_nodes(
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(axis=0, values=[ymin, xmin, ymax, xmax]), [1, 0]))
       bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(resized_image, 0), bboxes_to_draw)
-      tf.summary.image('cropped_resized_image', image_with_bboxes)
+      tf.compat.v1.summary.image('cropped_resized_image', image_with_bboxes)
 
     # Distort the colors
-    r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+    r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
     do_color_distortion = tf.less(r, cfg.DO_COLOR_DISTORTION)
     num_color_cases = 1 if cfg.COLOR_DISTORT_FAST else 4
     distorted_image = apply_with_random_selector(
@@ -326,7 +325,7 @@ def input_nodes(
 
     # Randomly flip the image:
     if cfg.DO_RANDOM_FLIP_LEFT_RIGHT:
-      r = tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32)
+      r = tf.random.uniform([], minval=0, maxval=1, dtype=tf.float32)
       do_flip = tf.less(r, 0.5)
       image = tf.cond(do_flip, lambda: tf.image.flip_left_right(image), lambda: tf.identity(image))
       xmin, xmax = tf.cond(do_flip, lambda: tf.tuple([1. - xmax, 1. - xmin]), lambda: tf.tuple([xmin, xmax])) 
@@ -336,7 +335,7 @@ def input_nodes(
       bboxes_to_draw = tf.cond(no_bboxes, lambda:  tf.constant([[0, 0, 1, 1]], tf.float32), lambda: tf.transpose(tf.concat(axis=0, values=[ymin, xmin, ymax, xmax]), [1, 0]))
       bboxes_to_draw = tf.reshape(bboxes_to_draw, [1, -1, 4])
       image_with_bboxes = tf.image.draw_bounding_boxes(tf.expand_dims(image, 0), bboxes_to_draw)
-      tf.summary.image('final_distorted_image', image_with_bboxes)
+      tf.compat.v1.summary.image('final_distorted_image', image_with_bboxes)
 
     # combine the bounding boxes (the shape should be [bbox_coords, num_bboxes])
     bboxes = tf.concat(axis=0, values=[xmin, ymin, xmax, ymax])

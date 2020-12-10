@@ -73,7 +73,7 @@ csv_file = 'frames_miniscope_top.csv'
 f = open(csv_file)
 csv_f = csv.reader(f,delimiter=';')
 T = list(csv_f)
-print 'load done'
+print('load done')
 
 headers = T[0]
 T = np.array(T[1:])
@@ -86,7 +86,7 @@ D = []
 # for each frame in the csv file
 errors = []
 for f in range(N_frames):
-    print f
+    print(f)
     idx_t=[]; tmp_t=[]
     #assign the name of the frame to the entry and find all entries with the same name of the current frame name
     idx_t = np.where(filename== unique_filename[f])
@@ -109,7 +109,7 @@ for f in range(N_frames):
     workers = tmp_t[:,3]
     unique_workers = list(set(workers))
     N_workers = len(unique_workers)
-    XB=[];YB=[];XW=[];YW=[];
+    XB=[];YB=[];XW=[];YW=[]
     for w in range(N_workers):
         idx_w=[]; tmp_w=[]
         idx_w = np.where(workers==unique_workers[w])
@@ -232,7 +232,7 @@ for f in range(N_frames):
 # save info into pickle file
 with open('../tf_dataset_detection/top_separate_allset/AMT5K_csv.pkl','w') as fp:
     pickle.dump(D,fp)
-print 'saved'
+print('saved')
 
 if errors:
-    print errors
+    print(errors)

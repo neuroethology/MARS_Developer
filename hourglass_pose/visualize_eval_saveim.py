@@ -8,10 +8,11 @@ import numpy as np
 import os
 import pprint
 from scipy import interpolate
-from scipy.misc import imresize
+from PIL import Image
 import sys
 import tensorflow as tf
 from tensorflow.contrib import slim
+from tensorflow.python.util import deprecation
 import time
 
 from config import parse_config_file
@@ -19,12 +20,14 @@ import eval_inputs as inputs
 import model
 import pdb
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 
 def visualize(tfrecords, checkpoint_path, cfg,savedir):
 
   if not os.path.exists(savedir):os.makedirs(savedir)
 
-  tf.logging.set_verbosity(tf.logging.DEBUG)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   graph = tf.Graph()
   
@@ -46,7 +49,7 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : False
     }
     # Set activation_fn and parameters for batch_norm.
@@ -58,7 +61,8 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
     
     ema = tf.train.ExponentialMovingAverage(
@@ -69,7 +73,7 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
       for var in slim.get_model_variables()
     }
 
-    saver = tf.train.Saver(shadow_vars, reshape=True)
+    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
 
     # Bundle up a graph that gets everything we need.
     fetches = [predicted_heatmaps[-1], batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes, batched_images]
@@ -78,21 +82,21 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
     coord = tf.train.Coordinator()
 
     # Set up our session to use the correct amount of GPU memory.
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    session = tf.Session(graph=graph, config=sess_config) # Setup session.
+    session = tf.compat.v1.Session(graph=graph, config=sess_config) # Setup session.
     
     with session.as_default():
 
       # make sure to initialize all of the variables
-      tf.global_variables_initializer().run()
-      tf.local_variables_initializer().run()
+      tf.compat.v1.global_variables_initializer().run()
+      tf.compat.v1.local_variables_initializer().run()
       
       # launch the queue runner threads
       threads = tf.train.start_queue_runners(sess=session, coord=coord)
@@ -100,11 +104,11 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
       # Attempt to load the existing model from a checkpoint.
       try:
         
-        if tf.gfile.IsDirectory(checkpoint_path):
+        if tf.io.gfile.isdir(checkpoint_path):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores the model from the checkpoint we found.
@@ -113,7 +117,7 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: %d" % (global_step,))
         
         # we will store results into a tfrecord file
         output_writer_iteration = 0
@@ -216,12 +220,13 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
 
                 # We need to transform the ground truth annotations to the crop space
                 input_size = cfg.INPUT_SIZE
+                #print(part_x, crop_x1, crop_x2, part_y, crop_y1, crop_y2)
                 part_x = (part_x - crop_x1) * input_size / (crop_x2 - crop_x1)
                 part_y = (part_y - crop_y1) * input_size / (crop_y2 - crop_y1)
 
                 plt.plot(part_x, part_y, color=cfg.PARTS.COLORS[j], marker='*',markersize=15, label=cfg.PARTS.NAMES[j])
               else:
-                print "Part not visible"
+                print("Part not visible")
 
               # print(str(image_id[0]))
 
@@ -237,7 +242,7 @@ def visualize(tfrecords, checkpoint_path, cfg,savedir):
             #   done = True
             #   break
           dtt = time.time() - t
-          print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000)
+          print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000))
           step += 1
 
           
@@ -282,8 +287,8 @@ if __name__ == '__main__':
     args = parse_args()
     cfg = parse_config_file(args.config_file)
 
-    print "Configurations:"
-    print pprint.pprint(cfg)
+    print("Configurations:")
+    print(pprint.pprint(cfg))
 
     visualize(
       tfrecords=args.tfrecords,

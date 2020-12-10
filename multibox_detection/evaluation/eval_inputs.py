@@ -36,19 +36,19 @@ def input_nodes(
     _, serialized_example = reader.read(filename_queue)
 
     # Parse an Example to access the Features
-    features = tf.parse_single_example(
+    features = tf.io.parse_single_example(
       serialized_example,
       features = {
-        'image/id' : tf.FixedLenFeature([], tf.string),
-        'image/encoded'  : tf.FixedLenFeature([], tf.string),
-        'image/height' : tf.FixedLenFeature([], tf.int64),
-        'image/width' : tf.FixedLenFeature([], tf.int64),
-        'image/object/bbox/xmin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64),
-        'image/object/area' : tf.VarLenFeature(dtype=tf.float32) # the area of the object, in the original image space
+        'image/id' : tf.io.FixedLenFeature([], tf.string),
+        'image/encoded'  : tf.io.FixedLenFeature([], tf.string),
+        'image/height' : tf.io.FixedLenFeature([], tf.int64),
+        'image/width' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/xmax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/count' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/area' : tf.io.VarLenFeature(dtype=tf.float32) # the area of the object, in the original image space
       }
     )
 
@@ -72,7 +72,7 @@ def input_nodes(
     num_bboxes = tf.cast(features['image/object/bbox/count'], tf.int32)
     no_bboxes = tf.equal(num_bboxes, 0)
 
-    image = tf.image.resize_bilinear(tf.expand_dims(image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE], align_corners=False)
+    image = tf.compat.v1.image.resize_bilinear(tf.expand_dims(image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE], align_corners=False)
     image = tf.squeeze(image)
 
     # combine the bounding boxes (the shape should be [bbox_coords, num_bboxes])

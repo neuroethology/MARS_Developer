@@ -24,7 +24,7 @@ im_path = '/PATH_TO_FRAMES_IMG/'
 #load extracted info from annotations
 open_file = '/PATH_TO/AMT15K_front_csv.pkl'
 with open(open_file,'rb') as fp:    D = pickle.load(fp)
-print 'load'
+print('load')
 
 
 #prepare a dict with the info needed for the next step of preparing the tf records
@@ -93,7 +93,7 @@ test = v_info[ntrain + nval:]
 
 for i in range(len(v_info)):
     if not v_info[i]['object']['area'][0]>0 or not v_info[i]['object']['area'][1]>0:
-        print i
+        print(i)
 
 
 # create tf records

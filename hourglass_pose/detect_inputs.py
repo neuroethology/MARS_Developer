@@ -34,21 +34,21 @@ def input_nodes(
     _, serialized_example = reader.read(filename_queue)
 
     # Parse an Example to access the Features
-    features = tf.parse_single_example(
+    features = tf.io.parse_single_example(
       serialized_example,
       features = {
-        'image/id' : tf.FixedLenFeature([], tf.string),
-        'image/filename': tf.FixedLenFeature([], tf.string),
-        'image/encoded'  : tf.FixedLenFeature([], tf.string),
-        'image/height' : tf.FixedLenFeature([], tf.int64),
-        'image/width' : tf.FixedLenFeature([], tf.int64),
-        'image/object/bbox/xmin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.FixedLenFeature([], tf.int64),
-        'image/object/bbox/score' : tf.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/label' : tf.VarLenFeature(dtype=tf.int64)
+        'image/id' : tf.io.FixedLenFeature([], tf.string),
+        'image/filename': tf.io.FixedLenFeature([], tf.string),
+        'image/encoded'  : tf.io.FixedLenFeature([], tf.string),
+        'image/height' : tf.io.FixedLenFeature([], tf.int64),
+        'image/width' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymin' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/xmax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymax' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/count' : tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/score' : tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/label' : tf.io.VarLenFeature(dtype=tf.int64)
       }
     )
 

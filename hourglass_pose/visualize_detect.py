@@ -8,10 +8,10 @@ import numpy as np
 import os
 import pprint
 from scipy import interpolate
-from scipy.misc import imresize
 import sys
 import tensorflow as tf
 from tensorflow.contrib import slim
+from tensorflow.python.util import deprecation
 import time
 
 from config import parse_config_file
@@ -20,9 +20,12 @@ import detect_inputs as inputs
 import model
 import pdb
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+
 def detect(tfrecords, checkpoint_path, cfg):
 
-  tf.logging.set_verbosity(tf.logging.DEBUG)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   graph = tf.Graph()
   
@@ -40,7 +43,7 @@ def detect(tfrecords, checkpoint_path, cfg):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : False
     }
     # Set activation_fn and parameters for batch_norm.
@@ -52,7 +55,8 @@ def detect(tfrecords, checkpoint_path, cfg):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
     
     ema = tf.train.ExponentialMovingAverage(
@@ -63,39 +67,39 @@ def detect(tfrecords, checkpoint_path, cfg):
       for var in slim.get_model_variables()
     }
 
-    saver = tf.train.Saver(shadow_vars, reshape=True)
+    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
     
     fetches = [batched_images, predicted_heatmaps[-1], batched_bboxes, batched_scores, batched_image_ids, batched_labels, batched_image_height_widths, batched_crop_bboxes]
 
     # Now create a training coordinator that will control the different threads
     coord = tf.train.Coordinator()
     
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    session = tf.Session(graph=graph, config=sess_config)
+    session = tf.compat.v1.Session(graph=graph, config=sess_config)
     
     with session.as_default():
 
       # make sure to initialize all of the variables
-      tf.global_variables_initializer().run()
-      tf.local_variables_initializer().run()
+      tf.compat.v1.global_variables_initializer().run()
+      tf.compat.v1.local_variables_initializer().run()
       
       # launch the queue runner threads
       threads = tf.train.start_queue_runners(sess=session, coord=coord)
       
       try:
         
-        if tf.gfile.IsDirectory(checkpoint_path):
+        if tf.io.gfile.isdir(checkpoint_path):
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
         
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -104,20 +108,18 @@ def detect(tfrecords, checkpoint_path, cfg):
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: %d" % (global_step,))
         
         # we will store results into a tfrecord file
         output_writer_iteration = 0
-        #output_path = os.path.join(save_dir, 'heatmap_results-%d-%d.tfrecords' % (global_step, output_writer_iteration))
-        #output_writer = tf.python_io.TFRecordWriter(output_path)
         
         plt.ion()
 
-        image_to_convert = tf.placeholder(tf.float32)
-        convert_to_uint8 = tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8)
+        image_to_convert = tf.compat.v1.placeholder(tf.float32)
+        convert_to_uint8 = tf.compat.v1.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8)
         
-        image_to_resize = tf.placeholder(tf.float32)
-        resize_to_input_size = tf.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
+        image_to_resize = tf.compat.v1.placeholder(tf.float32)
+        resize_to_input_size = tf.compat.v1.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
 
         num_part_cols = 3
         num_part_rows = int(np.ceil(cfg.PARTS.NUM_PARTS / (num_part_cols * 1.)))
@@ -145,9 +147,6 @@ def detect(tfrecords, checkpoint_path, cfg):
             fig = plt.figure("heat maps")
             plt.clf()
 
-            # print bbox
-            # print crop_bbox
-            # return
             int8_image = session.run(convert_to_uint8, {image_to_convert : image})
 
             heatmaps = np.clip(heatmaps, 0., 1.)
@@ -176,13 +175,12 @@ def detect(tfrecords, checkpoint_path, cfg):
               plt.title(cfg.PARTS.NAMES[j])
               # Render the argmax point
               plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
-              print "%s %s : x %0.3f, y %0.3f" % (image_id[0], cfg.PARTS.NAMES[j], x, y)
+              print("%s %s : x %0.3f, y %0.3f" % (image_id[0], cfg.PARTS.NAMES[j], x, y))
               plt.show(block=False)
 
 
-            #plt.pause(0.0001)
-            print image_id[0]
-            r = raw_input("Push button")
+            print(image_id[0])
+            r = input("Push button")
             if r != "":
               done = True
               break
@@ -225,8 +223,8 @@ if __name__ == '__main__':
     args = parse_args()
     cfg = parse_config_file(args.config_file)
 
-    print "Configurations:"
-    print pprint.pprint(cfg)
+    print("Configurations:")
+    print(pprint.pprint(cfg))
 
     detect(
       tfrecords=args.tfrecords,

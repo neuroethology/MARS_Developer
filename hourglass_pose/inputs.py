@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-from scipy.misc import imresize
 import tensorflow as tf
+from PIL import Image
 from tensorflow.python.ops import control_flow_ops
 import random
 
@@ -191,10 +191,7 @@ def extract_resized_crop_bboxes(image, bboxes, input_size=256):
             new_height = int(np.round(bbox_h * height_factor))
             im_scale = height_factor
 
-        im = imresize(
-            bbox_image,
-            (new_height, new_width)
-        )
+        im = Image.fromarray(bbox_image).resize((new_height, new_width))
         im = np.pad(im, ((0, input_size - new_height), (0, input_size - new_width), (0, 0)), 'constant')
         # preped_images[i, 0:im.shape[0], 0:im.shape[1], :] = im
 
@@ -306,7 +303,7 @@ def build_heatmaps_etc(image, bboxes,
             bbox_y1 = int(bbox_y1)
             bbox_y2 = int(bbox_y2)
 
-
+        # ?????
         bbox_image = image[bbox_y1:bbox_y2, bbox_x1:bbox_x2]
 
         bbox_h, bbox_w = bbox_image.shape[:2]
@@ -322,6 +319,7 @@ def build_heatmaps_etc(image, bboxes,
             im_scale = height_factor
 
         # Resize the image from its extracted bbox dimensions, to the input dimensions
+        #print("XXXXXXXXXXXXXXXXXXXXXXXXX ", image.shape, bbox_image.shape, bbox_x1, bbox_x2, bbox_y1, bbox_y2, input_size)
         if im_scale > 1.:
             im = cv2.resize(bbox_image, (input_size, input_size), interpolation=cv2.INTER_LINEAR)
         else:
@@ -356,7 +354,7 @@ def build_heatmaps_etc(image, bboxes,
                 if np.random.random() < random_jpeg_freq:
                     quality_to_use = random.randrange(random_jpeg_qual_min, random_jpeg_qual_max)
                     _ , imj = cv2.imencode('.jpg', im, (cv2.IMWRITE_JPEG_QUALITY, quality_to_use))
-                    im = cv2.imdecode(imj, cv2.CV_LOAD_IMAGE_COLOR)
+                    im = cv2.imdecode(imj, cv2.IMREAD_COLOR)
 
 
         cropped_bbox_images[i] = im
@@ -574,7 +572,7 @@ def apply_with_random_selector(x, func, num_cases):
     The result of func(x, sel), where func receives the value of the
     selector as a python integer, but sel is sampled dynamically.
   """
-    sel = tf.random_uniform([], maxval=num_cases, dtype=tf.int32)
+    sel = tf.random.uniform([], maxval=num_cases, dtype=tf.int32)
     # Pass the real x only to one of the func calls.
     return control_flow_ops.merge([
         func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
@@ -663,10 +661,10 @@ def distorted_shifted_bounding_box(xmin, ymin, xmax, ymax, num_bboxes, image_hei
     max_width_shift = one_pixel_width * max_num_pixels_to_shift
     max_height_shift = one_pixel_height * max_num_pixels_to_shift
 
-    xmin -= tf.random_uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
-    xmax += tf.random_uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
-    ymin -= tf.random_uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
-    ymax += tf.random_uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
+    xmin -= tf.random.uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
+    xmax += tf.random.uniform([1, num_bboxes], minval=0, maxval=max_width_shift, dtype=tf.float32)
+    ymin -= tf.random.uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
+    ymax += tf.random.uniform([1, num_bboxes], minval=0, maxval=max_height_shift, dtype=tf.float32)
 
     # ensure that the coordinates are still valid
     ymin = tf.clip_by_value(ymin, 0.0, 1.)
@@ -703,7 +701,7 @@ def flip_parts_left_right(parts_x, parts_y, parts_v, left_right_pairs, num_parts
     flipped_parts = np.vstack([np.squeeze(parts_x), np.squeeze(parts_y), np.squeeze(parts_v)]).transpose([1, 0])
     flipped_parts[:, 0] = 1. - flipped_parts[:, 0]
 
-    num_instances = flipped_parts.shape[0] / num_parts
+    num_instances = int(flipped_parts.shape[0] / num_parts)
 
     for i in range(num_instances):
         for left_idx, right_idx in left_right_pairs:

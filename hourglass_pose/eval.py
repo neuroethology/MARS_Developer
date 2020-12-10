@@ -2,7 +2,7 @@
 File for detecting parts on images without ground truth.
 """
 import argparse
-from cStringIO import StringIO
+from io import StringIO
 import json
 import numpy as np
 import os
@@ -10,6 +10,7 @@ import pprint
 import sys
 import tensorflow as tf
 from tensorflow.contrib import slim
+from tensorflow.python.util import deprecation
 import time
 
 
@@ -24,6 +25,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import pdb
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
                      neighborhood_size=15):
@@ -47,7 +49,7 @@ def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_
   image_width = float(image_width)
   image_height = float(image_height)
 
-  for k in xrange(num_parts):
+  for k in range(num_parts):
 
     data1 = data[:, :, k]
     data_max = filters.maximum_filter(data1, neighborhood_size)
@@ -80,7 +82,7 @@ def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_
 def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
   # Set the logging level.
-  logging.getLogger("tensorflow").setLevel(logging.ERROR)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   # Initialize the graph.
   graph = tf.Graph()
@@ -102,7 +104,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : False
     }
 
@@ -115,7 +117,8 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
 
     # Set parameters for the EMA.
@@ -127,7 +130,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       for var in slim.get_model_variables()
     }
 
-    saver = tf.train.Saver(shadow_vars, reshape=True)
+    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
 
     # Set up a node to fetch values from when we run the graph.
     fetches = [predicted_heatmaps[-1],
@@ -142,21 +145,21 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
     coord = tf.train.Coordinator()
 
     # Set up GPU according to config.
-    sess_config = tf.ConfigProto(
+    sess_config = tf.compat.v1.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.GPUOptions(
+      gpu_options = tf.compat.v1.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    session = tf.Session(graph=graph, config=sess_config)
+    session = tf.compat.v1.Session(graph=graph, config=sess_config)
     
     with session.as_default():
 
       # Initialize all the variables.
-      tf.global_variables_initializer().run()
-      tf.local_variables_initializer().run()
+      tf.compat.v1.global_variables_initializer().run()
+      tf.compat.v1.local_variables_initializer().run()
       
       # Launch the queue runner threads
       threads = tf.train.start_queue_runners(sess=session, coord=coord)
@@ -168,13 +171,13 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       gt_image_id = 1
       try:
         
-        if tf.gfile.IsDirectory(checkpoint_path):
+        if tf.io.gfile.isdir(checkpoint_path):
           print(checkpoint_path)
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
           print(''.join(['is now:', checkpoint_path]))
 
         if checkpoint_path is None:
-          print "ERROR: No checkpoint file found."
+          print("ERROR: No checkpoint file found.")
           return
 
         # Restores from checkpoint
@@ -184,7 +187,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
         #   /my-favorite-path/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
-        print "Found model for global step: %d" % (global_step,)
+        print("Found model for global step: %d" % (global_step,))
 
 
         step = 0
@@ -240,7 +243,6 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
                 y = 0
                 v = 0
               else:
-                # print k
                 x = k['x'][s_idx[0]] * image_width
                 y = k['y'][s_idx[0]] * image_height
                 v = 1
@@ -287,7 +289,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
 
 
-          print print_str % (step, (dt / cfg.BATCH_SIZE) * 1000)
+          print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000))
           step += 1
 
           if max_iterations > 0 and step == max_iterations:
@@ -316,6 +318,8 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       # Actually perform the evaluation.
       pred_coco = gt_coco.loadRes(pred_annotations)
       cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints')
+      # Sigmas for the mouse dataset.
+      cocoEval.params.kpt_oks_sigmas = np.array([0.02349794, 0.02573029, 0.02574004, 0.02459145, 0.03146337, 0.03146769, 0.02510474])
 
       cocoEval.evaluate()
       cocoEval.accumulate()
@@ -327,9 +331,9 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       sys.stdout = old_stdout
 
       # Store the output as a TF summary, so we can view it in Tensorboard.
-      summary_op = tf.summary.merge_all()
-      summary_writer = tf.summary.FileWriter(summary_dir)
-      summary = tf.Summary()
+      summary_op = tf.compat.v1.summary.merge_all()
+      summary_writer = tf.compat.v1.summary.FileWriter(summary_dir)
+      summary = tf.compat.v1.Summary()
       summary.ParseFromString(session.run(summary_op))
 
       # Since we captured the stdout while we were outputting commandline summaries, we can parse that for our TF
@@ -342,7 +346,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
           summary.value.add(tag=description, simple_value=score)
 
-          print "%s: %0.3f" % (description, score)
+          print("%s: %0.3f" % (description, score))
       
       summary_writer.add_summary(summary, global_step)
       summary_writer.flush()

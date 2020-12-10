@@ -12,7 +12,7 @@ from create_tfrecords import create
 #load extracted info from annotations
 with open('PATH_TO/AMT15K_csv_front.pkl','rb') as fp:
     D = pickle.load(fp)
-print 'load'
+print('load')
 
 im_path = '/PATH_TO_FRAMES/'
 
@@ -43,7 +43,7 @@ im_path = '/PATH_TO_FRAMES/'
 idg = 1
 v_infob = []
 for i in range(len(D)):
-    print i
+    print(i)
     # image name and id
     # bbox/label allows to separate between black or white mouse
     # from the annotation 0 is the black mouse, 1 is the white mouse
@@ -73,7 +73,7 @@ for i in range(len(D)):
 idg = 1
 v_infow = []
 for i in range(len(D)):
-    print i
+    print(i)
     # image name and id
     # bbox/label allows to separate between black or white mouse
     # from the annotation 0 is the black mouse, 1 is the white mouse

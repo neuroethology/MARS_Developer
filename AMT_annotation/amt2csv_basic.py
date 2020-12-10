@@ -260,7 +260,7 @@ if (PARAM_DETRLSWAP == True) or (PARAM_FIXRLSWAP == True):
 
     report("done.\n")
     n_frames = len(annotations)/(AT_W_BASE + AT_TTIP + 1)
-    print "\tVerification complete. Detected", str(errors), "errors on", str(frame_errors), "frames (", str(100*float(errors)/float(n_frames*4)) ,"/", str(100*float(frame_errors)/float(n_frames)) ,"% )."
+    print(f"\tVerification complete. Detected {errors} errors on {frame_errors} frames ({(100*float(errors)/float(n_frames*4))}/{(100*float(frame_errors)/float(n_frames))}% ).")
 
 ## Output CSV file if necessary
 if PARAM_EXPORTCSV == True:
@@ -275,7 +275,7 @@ if PARAM_EXPORTCSV == True:
         for annotation in annotations:
             writer.writerow(annotation)
     report("done.\n")
-    print "\tCSV file saved as " + args.out_file
+    print("\tCSV file saved as " + args.out_file)
 
 
 ## Compute metrics

@@ -27,7 +27,7 @@ with open(open_file,'rb') as fp:    D = pickle.load(fp)
 open_file = 'PATH_TO/AMT5K_csv_top.pkl'
 with open(open_file,'rb') as fp:    Dm = pickle.load(fp)
 D = D + Dm
-print 'load'
+print('load')
 
 
 #prepare a dict with the info needed for the next step of preparing the tf records
@@ -35,7 +35,7 @@ idg = 1
 v_info = []
 areas =[]
 for i in range(len(D)):
-    print i
+    print(i)
     # image name and id
     # bbox/label allows to separate between black or white mouse
     # from the annotation 0 is the black mouse, 1 is the white mouse
@@ -96,7 +96,7 @@ test = v_info[ntrain + nval:]
 
 for i in range(len(v_info)):
     if not v_info[i]['object']['area'][0]>0 or not v_info[i]['object']['area'][1]>0:
-        print i
+        print(i)
 
 
 # create tf records

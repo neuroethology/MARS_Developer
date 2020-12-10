@@ -131,11 +131,11 @@ im_path = './'
 
 with open(filename, 'rb') as fp:
     D = pickle.load(fp)
-print 'load'
+print('load')
 plt.ion()
 
 for i in range(10):
-    print i
+    print(i)
     plot_annotations(D, i, 0,1,0,1)
 
 
