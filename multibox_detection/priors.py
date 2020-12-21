@@ -5,7 +5,13 @@ Code to cluster aspect ratios, for generating dataset specific priors.
 from collections import Counter
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.misc import imread, imresize
+import tensorflow as tf
+#### START ANDREW EDIT 
+# from scipy.misc import imread, imresize
+from cv2 import imread, resize
+#### END ANDREW EDIT
+
+
 from sklearn.cluster import KMeans
 import pdb
 
@@ -28,10 +34,10 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
 
   for image_data in dataset:
     
-    bbox_xmin =  np.atleast_2d(image_data['object']['bbox']['xmin']).T
-    bbox_xmax =  np.atleast_2d(image_data['object']['bbox']['xmax']).T 
-    bbox_ymin =  np.atleast_2d(image_data['object']['bbox']['ymin']).T
-    bbox_ymax =  np.atleast_2d(image_data['object']['bbox']['ymax']).T 
+    bbox_xmin =  np.copy(np.atleast_2d(tf.sparse.to_dense(image_data['object']['bbox']['xmin'])).T)
+    bbox_xmax =  np.copy(np.atleast_2d(tf.sparse.to_dense(image_data['object']['bbox']['xmax'])).T)
+    bbox_ymin =  np.copy(np.atleast_2d(tf.sparse.to_dense(image_data['object']['bbox']['ymin'])).T)
+    bbox_ymax =  np.copy(np.atleast_2d(tf.sparse.to_dense(image_data['object']['bbox']['ymax'])).T)
     
     bboxes = np.hstack([bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax])
     original_bboxes.extend(bboxes.tolist())
@@ -48,7 +54,7 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
         s = image_height / image_width
         bbox_xmin *= s
         bbox_xmax *= s
-      
+        
     aspect_ratios = (bbox_xmax - bbox_xmin) / (bbox_ymax - bbox_ymin)
 
     feature_vectors.extend(aspect_ratios.tolist())
@@ -95,7 +101,7 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
   
   print("Clusters:")
   for aspect_ratio, c in cf:
-    print("Aspect ratio {:0.4f}, membership count {:d}".format(aspect_ratio, c))
+    print("Aspect ratio {:0.4f}, membership count {:d}".format(float(aspect_ratio), c))
   
   aspect_ratios = np.array([x[0] for x in cf])
 
@@ -113,6 +119,8 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
       w = scale * np.sqrt(aspect_ratio)
       h = scale / np.sqrt(aspect_ratio)
       
+      w = float(w)
+      h = float(h)
       print(f"{w:0.3f} width x {h:0.3f} height")
       
       center_i = 0.5
@@ -129,12 +137,12 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
       bbox_w = xmax - xmin
       bbox_h = ymax - ymin 
       print("BBox: ({:d}, {:d}) to ({:d}, {:d}) [{:d} width x {:d} height] [{:0.3f} aspect ratio]".format(
-        int(xmin), int(ymin), int(xmax), int(ymax), int(xmax - xmin), int(ymax - ymin), aspect_ratio))
+        int(xmin), int(ymin), int(xmax), int(ymax), int(xmax - xmin), int(ymax - ymin), float(aspect_ratio)))
       plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
       
       plt.show()
       
-      t = raw_input("push enter")
+      t = input("push enter")
       if t != '':
         break
       
@@ -178,7 +186,7 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
       
       plt.show()
     
-      t = raw_input("push enter")
+      t = input("push enter")
       if t != '':
         break
 
@@ -355,6 +363,6 @@ def visualize_priors(priors, num_priors_per_cell=11, image_height=299, image_wid
     plt.title(cell_name)
     plt.show()
     
-    t = raw_input("push enter")
+    t = input("push enter")
     if t != '':
       break
