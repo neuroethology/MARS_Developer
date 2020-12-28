@@ -6,11 +6,7 @@ from collections import Counter
 import numpy as np
 from matplotlib import pyplot as plt
 import tensorflow as tf
-#### START ANDREW EDIT 
-# from scipy.misc import imread, imresize
 from cv2 import imread, resize
-#### END ANDREW EDIT
-
 
 from sklearn.cluster import KMeans
 import pdb

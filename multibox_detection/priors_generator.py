@@ -53,25 +53,35 @@ def parse_args():
 	args = parser.parse_args()
 	return args
 
-def main():
-	args = parse_args()
+def generate_priors_from_data(dataset=None, aspect_ratios=None):
 	# Generate the apspect ratios from the training data
-	if args.aspect_ratios == None:
-		if not args.dataset.endswith(".pkl"):
-			dataset = convert([args.dataset])
+	if aspect_ratios == None:
+		dataset_name = dataset
+		if not dataset.endswith(".pkl"):
+			dataset = convert([dataset])
 		else:
-			with open(args.dataset,'rb') as fp:
+			with open(dataset,'rb') as fp:
 				dataset = pickle.load(fp, encoding='latin1')
 		aspect_ratios = generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=False, warp_bboxes=True)
 		p = generate_priors(aspect_ratios, min_scale=0.1, max_scale=0.95, restrict_to_image_bounds=True)
-		with open(args.dataset.split('/')[-1]+'_priors.pkl', 'wb') as f:
+		with open(dataset_name.split('/')[-1]+'_priors.pkl', 'wb') as f:
 			pickle.dump(p, f)
 	# aspect_ratios are hand-defined
 	else:
-		aspect_ratios = [float(aspect_ratio) for aspect_ratio in args.aspect_ratios]	
+		aspect_ratios = [float(aspect_ratio) for aspect_ratio in aspect_ratios]	
 		p = generate_priors(aspect_ratios, min_scale=0.1, max_scale=0.95, restrict_to_image_bounds=True)
 		with open('priors_hand_gen.pkl', 'wb') as f:
 			pickle.dump(p, f)
+
+	return p
+
+def main():
+	args = parse_args()
+	p = generate_priors_from_data(
+		dataset=args.dataset,
+		aspect_ratios=args.aspect_ratios
+	)
+
 
 if __name__ == "__main__":
 	tf.compat.v1.enable_eager_execution()
