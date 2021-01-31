@@ -28,7 +28,7 @@ These Lambdas are already written, we just have to import them from Amazon's Ser
 1. In your [AWS Management Console](http://console.aws.amazon.com), search for “Serverless Application Repository” and select it. ([screenshot](serverlessapprepo.png))
 2. On the menu on left hand side, click on <kbd>Available applications</kbd>, search for “Ground Truth” and select `aws-sagemaker-ground-truth-recipe`. ([screenshot](groundtruthlambda.png))
 3. In the following screen, scroll down to the bottom to find the <kbd>Deploy</kbd> button and click on it.
-4.	Deployment of this application may take few minutes. Please wait until you see [this screen](docs/lambdasdeployed.png), showing that 4 AWS resources (2 Lambdas and 2 Roles) were created.
+4.	Deployment of this application may take few minutes. Please wait until you see [this screen](lambdasdeployed.png), showing that 4 AWS resources (2 Lambdas and 2 Roles) were created.
 
 Now you have custom Lambdas, to be used in running labeling jobs, imported successfully in your account.
 
@@ -44,7 +44,7 @@ To collect a new set of MARS training data, you must first extract frames from v
 4. Click the name of your new bucket, then select <kbd>Upload</kbd> in the next screen. In the Upload page, add files/folders, then scroll to the bottom and click <kbd>Upload</kbd>.
 
 ### Creating a data manifest and setting up bucket access
-The data manifest is a .json file that tells Ground Truth which files from your S3 bucket should be annotated. If you have metadata that you would like to keep associated with your images, you can [generate this file yourself](docs/readme_customManifests.md) and upload it to your S3 bucket. Otherwise, SageMaker can crawl an S3 bucket and generate a manifest automatically.
+The data manifest is a .json file that tells Ground Truth which files from your S3 bucket should be annotated. If you have metadata that you would like to keep associated with your images, you can [generate this file yourself](readme_customManifests.md) and upload it to your S3 bucket. Otherwise, SageMaker can crawl an S3 bucket and generate a manifest automatically.
 
 We will now create a manifest for your data (if you don't have one), and while we're there create an element called an "IAM Role" that will allow SageMaker to access the contents of your bucket.
 
@@ -59,7 +59,7 @@ We will now create a manifest for your data (if you don't have one), and while w
 ## (Optional) Creating a private annotation workforce
 Ground Truth sends your data to human annotators to label your animal's pose. By default, these annotators will be users of [Amazon Mechanical Turk](https://www.mturk.com/) (MTurk), a crowdsourcing marketplace that sends your task to a global workforce. MTurk annotations can be noisy- we compensate for this in the next step by having 5 workers label each image (a minimum of 3 workers/image is recommended.)
 
-If your data is sensitive or especially difficult to annotate, you may not want to rely on a public workforce. In this case, you can create your own **private annotation team**, allowing you and your colleagues to annotate data within the Ground Truth interface. If desired, follow [these instructions to create a private workforce](docs/readme_privateWorkforce.md).
+If your data is sensitive or especially difficult to annotate, you may not want to rely on a public workforce. In this case, you can create your own **private annotation team**, allowing you and your colleagues to annotate data within the Ground Truth interface. If desired, follow [these instructions to create a private workforce](readme_privateWorkforce.md).
 
 ## Submitting your labeling job
 Finally, it's time to make a labeling job. This consists of uploading an annotation interface, and then setting some job parameters within a Jupyter notebook.
