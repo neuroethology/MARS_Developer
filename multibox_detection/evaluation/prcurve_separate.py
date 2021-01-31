@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 
-#path ='../../results_detection/top_separate_allset/black/'
-#save_name = path +'pr_curve'
-#with open(path + 'cocoEval.pkl', 'rb') as fp: cocoEval = pickle.load(fp)
-#print('load')
+path ='../../results_detection/top_separate_allset/black/'
+save_name = path +'pr_curve'
+with open(path + 'cocoEval.pkl', 'rb') as fp: cocoEval = pickle.load(fp)
+print('load')
 
 #### PR CURVE
 def pr_curve(cocoEval, save_name):
