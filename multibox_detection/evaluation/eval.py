@@ -18,8 +18,8 @@ import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 
 sys.path.insert(0, os.path.abspath('../..'))
-sys.path.append('./')
-sys.path.append('./evaluation/')
+#sys.path.append('./')
+#sys.path.append('./evaluation/')
 
 import multibox_detection.model_detection as model
 from multibox_detection.config import parse_config_file

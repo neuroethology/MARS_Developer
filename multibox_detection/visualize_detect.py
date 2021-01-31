@@ -228,7 +228,7 @@ def detect_visualize(tfrecords, bbox_priors, checkpoint_path, cfg):
               xmin, ymin, xmax, ymax = loc * cfg.INPUT_SIZE
               plt.plot([xmin, xmax, xmax, xmin, xmin], [ymin, ymin, ymax, ymax, ymin], 'r-')
 
-            r = raw_input("press button: ")
+            r = input("press button: ")
             if r == "q":
               done=True
               break

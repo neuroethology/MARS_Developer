@@ -52,7 +52,7 @@ def visualize(tfrecords, cfg):
           
           plt.show(block=False)
           
-          t = raw_input("push button")
+          t = input("push button")
           if t != '':
             done = True
             break 

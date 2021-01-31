@@ -12,7 +12,7 @@ Documentation reproduced from [source repo](https://github.com/gvanhorn38/multib
 The input functions to the model require a specific dataset format. You can create the dataset using the utility functions found [here](https://github.com/gvanhorn38/inception/tree/master/inputs). You'll also need to genertate the priors for the bounding boxes. In the [priors.py](priors.py) file you will find convenience functions for generating the priors. For example, assuming you are in a python terminal (in the project directory):
 
 ```python
-import cPickle as pickle
+import pickle
 import priors
 
 aspect_ratios = [1, 2, 3, 1./2, 1./3]
