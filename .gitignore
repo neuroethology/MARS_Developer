@@ -1,2 +1,4 @@
 .ipynb_checkpoints\*
 *.ckpt
+.ipynb_checkpoints
+.idea
