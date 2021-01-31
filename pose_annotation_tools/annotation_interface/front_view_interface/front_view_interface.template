@@ -1,0 +1,91 @@
+<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
+
+<!-- Update the code of crowd-form to suite your task. -->
+<crowd-form>
+  <div id="errorBox">
+  </div>
+    <crowd-keypoint
+        src="{{ task.input.taskObject | grant_read_access }}"
+        labels="['black mouse nose','black mouse right ear','black mouse left ear','black mouse top of neck','black mouse right rear knee','black mouse left rear knee','black mouse base of tail','white mouse nose','white mouse right ear','white mouse left ear','white mouse top of neck','white mouse right rear knee','white mouse left rear knee','white mouse base of tail']"
+        header="Label body parts of the two mice."
+        name="annotatedResult">
+		
+          <short-instructions> <!-- Replace these with the instructions for your task! -->
+            Label each body part of interest on the two mice.
+            <br><br>
+            <b>Please view Full Instructions for examples.</b>
+            <br><br>
+            <b>Nose:</b> upper tip of the nose.<br>
+            <b>Ears:</b> middle front edge of each ear.<br>
+            <b>Neck:</b> top of the neck, at the base of the skull.<br>
+            <b>Legs:</b> "knee" at the <b>front curve</b> of each rear leg (see Full Instructions for examples.)<br>
+            <b>Tail:</b> base of the tail, where it emerges from the mouse's body.
+          </short-instructions>
+
+          <full-instructions header="Instructions" > <!-- Replace these with the full instructions for your task! -->
+			  <p> Examples and detailed instructions for each body part:</p>
+			  <img src="https://s3.us-east-2.amazonaws.com/REPLACE_WITH_YOUR_BUCKET_NAME/instruction_image_bodyparts.png" width="100%">
+			  <br><br>
+			  <img src="https://s3.us-east-2.amazonaws.com/REPLACE_WITH_YOUR_BUCKET_NAME/device_note.png" width="100%">
+          </full-instructions>
+		  
+    </crowd-keypoint>
+<br></br>
+<!--Additional instructions/sample images-->
+
+<img id="device-note" style="width:50%" src="https://caltechpublic.s3.us-east-2.amazonaws.com/instructions/device_note.png"/>
+</crowd-form>
+
+
+
+<!----------------------------------------Script to ensure each body part is annotated exactly once---------------------------------------------- -->
+<script>
+  var num_obj = 1; // modify this if you are tracking more than one animal (and don't have separate keypoint names for each animal.)
+
+  document.querySelector('crowd-form').onsubmit = function(e) {
+    const keypoints = document.querySelector('crowd-keypoint').value.keypoints || document.querySelector('crowd-keypoint')._submittableValue.keypoints;
+    const labels = keypoints.map(function(p) {
+    return p.label;
+    });
+
+    // 1. Make sure total number of keypoints is correct.
+    var original_num_labels = document.getElementsByTagName("crowd-keypoint")[0].getAttribute("labels");
+
+    original_num_labels = original_num_labels.substring(2, original_num_labels.length - 2).split("\",\"");
+    var goalNumKeypoints = num_obj*original_num_labels.length;
+    if (keypoints.length != goalNumKeypoints) {
+      e.preventDefault();
+      errorBox.innerHTML = '<crowd-alert type="error">You must add all keypoint annotations and use each label only once.</crowd-alert>';
+      errorBox.scrollIntoView();
+      return;
+    }
+
+    // 2. Make sure all labels are unique.
+    labelCounts = {};
+    for (var i = 0; i < labels.length; i++) {
+      if(!labelCounts[labels[i]]) {
+        labelCounts[labels[i]] = 0;
+      }
+      labelCounts[labels[i]]++;
+    }
+    const goalNumSingleLabel = num_obj;
+
+    const numLabels = Object.keys(labelCounts).length;
+
+    Object.entries(labelCounts).forEach(entry => {
+      if (entry[1] != goalNumSingleLabel) {
+        e.preventDefault();
+        errorBox.innerHTML = '<crowd-alert type="error">You must use each label only once.</crowd-alert>';
+        errorBox.scrollIntoView();
+      }
+    })
+  };
+</script>
+
+<style>
+img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>

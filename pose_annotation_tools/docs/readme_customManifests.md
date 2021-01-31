@@ -1,3 +1,3 @@
-# Creating a data manifest programmatically
+# Generating a data manifest programmatically
 
 This is a thing you can do!
