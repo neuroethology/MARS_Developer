@@ -13,8 +13,8 @@ import time
 from matplotlib import pyplot as plt
 from scipy import interpolate
 
-from MARS_pycocotools.coco import COCO
-from MARS_pycocotools.cocoeval import COCOeval
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 from config import parse_config_file
 from evaluation import eval_inputs as inputs
 import model_pose
@@ -259,7 +259,8 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
 
   with graph.as_default():
     
-    batched_images, batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes = inputs.input_nodes(
+    batched_images, batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, \
+     batched_image_height_widths, batched_crop_bboxes = inputs.input_nodes(
       tfrecords=tfrecords,
       num_parts = cfg.PARTS.NUM_PARTS,
       num_epochs=1,
