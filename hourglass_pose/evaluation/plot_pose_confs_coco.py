@@ -19,7 +19,7 @@ import cv2
 from config import parse_config_file
 from detect import get_local_maxima
 import detect_inputs_imsize as inputs
-import model
+import model_pose
 import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -58,7 +58,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
-      predicted_heatmaps = model.build(
+      predicted_heatmaps = model_pose.build(
         input = batched_images, 
         num_parts = cfg.PARTS.NUM_PARTS
       )

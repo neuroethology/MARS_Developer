@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow.python.util import deprecation
 
 from config import parse_config_file
-import train_inputs
+import training_input
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -35,7 +35,7 @@ def visualize(tfrecords, cfg):
   with sess.as_default(), graph.as_default():
 
     # Get the input nodes.
-    input_nodes = train_inputs.input_nodes
+    input_nodes = training_input.input_nodes
 
     # Actually get the input nodes.
     batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids, batched_background_heatmaps = input_nodes(

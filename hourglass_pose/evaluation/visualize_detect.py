@@ -8,7 +8,6 @@ import numpy as np
 import os
 import pprint
 from scipy import interpolate
-from PIL import Image
 import sys
 import tensorflow as tf
 from tensorflow.contrib import slim
@@ -16,30 +15,28 @@ from tensorflow.python.util import deprecation
 import time
 
 from config import parse_config_file
-import eval_inputs as inputs
-import model
+from detect import get_local_maxima
+import detect_inputs as inputs
+import model_pose
+import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def visualize(tfrecords, checkpoint_path, cfg):
+def detect(tfrecords, checkpoint_path, cfg):
 
   tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
   graph = tf.Graph()
   
-  num_parts = cfg.PARTS.NUM_PARTS
-  
   with graph.as_default():
     
-    batched_images, batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes = inputs.input_nodes(
+    batched_images, batched_bboxes, batched_scores, batched_image_ids, batched_labels, batched_image_height_widths, batched_crop_bboxes,batched_filenames = inputs.input_nodes(
       tfrecords=tfrecords,
-      num_parts = num_parts,
       num_epochs=1,
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       capacity = cfg.QUEUE_CAPACITY,
-      shuffle_batch=False,
       cfg=cfg
     )
     
@@ -56,7 +53,7 @@ def visualize(tfrecords, checkpoint_path, cfg):
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
-      predicted_heatmaps = model.build(
+      predicted_heatmaps = model_pose.build(
         input = batched_images, 
         num_parts = cfg.PARTS.NUM_PARTS,
         num_stacks = cfg.NUM_STACKS
@@ -72,7 +69,7 @@ def visualize(tfrecords, checkpoint_path, cfg):
 
     saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
     
-    fetches = [batched_bboxes, batched_parts, batched_part_visibilities, batched_image_ids, batched_image_height_widths, batched_crop_bboxes, batched_images] + predicted_heatmaps
+    fetches = [batched_images, predicted_heatmaps[-1], batched_bboxes, batched_scores, batched_image_ids, batched_labels, batched_image_height_widths, batched_crop_bboxes]
 
     # Now create a training coordinator that will control the different threads
     coord = tf.train.Coordinator()
@@ -107,12 +104,14 @@ def visualize(tfrecords, checkpoint_path, cfg):
 
         # Restores from checkpoint
         saver.restore(session, checkpoint_path)
-
         # Assuming model_checkpoint_path looks something like:
         #   /my-favorite-path/cifar10_train/model.ckpt-0,
         # extract global_step from it.
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
         print("Found model for global step: %d" % (global_step,))
+        
+        # we will store results into a tfrecord file
+        output_writer_iteration = 0
         
         plt.ion()
 
@@ -122,106 +121,66 @@ def visualize(tfrecords, checkpoint_path, cfg):
         image_to_resize = tf.compat.v1.placeholder(tf.float32)
         resize_to_input_size = tf.compat.v1.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE])
 
-        num_subplot_cols = num_parts
-        num_subplot_rows = 8 # TODO: This should be the # of hourglass units in use.
+        num_part_cols = 3
+        num_part_rows = int(np.ceil(cfg.PARTS.NUM_PARTS / (num_part_cols * 1.)))
 
         done = False
-
+        step = 0
+        print_str = ', '.join([
+          'Step: %d',
+          'Time/image network (ms): %.1f',
+          'Time/image post proc (ms): %.1f'
+        ])
         while not coord.should_stop() and not done:
          
           outputs = session.run(fetches)
           
           for b in range(cfg.BATCH_SIZE):
 
-            
-    
-            bbox = outputs[0][b]
-            parts = outputs[1][b]
-            part_visibilities = outputs[2][b]
-            image_id = outputs[3][b]
-            image_height_widths = outputs[4][b]
-            crop_bbox = outputs[5][b]
-            image = outputs[6][b]
+            image = outputs[0][b]
+            heatmaps = outputs[1][b]
+            bbox = outputs[2][b]
+            score = outputs[3][b]
+            image_id = outputs[4][b]
+
+            crop_bbox = outputs[7][b]
+            fig = plt.figure("heat maps")
+            plt.clf()
 
             int8_image = session.run(convert_to_uint8, {image_to_convert : image})
 
-            fig = plt.figure('cropped image', figsize=(8,8))
-            plt.clf()
-            plt.imshow(int8_image)
+            heatmaps = np.clip(heatmaps, 0., 1.)
+            heatmaps = np.expand_dims(heatmaps, 0)
+            resized_heatmaps = session.run(resize_to_input_size, {image_to_resize : heatmaps})
+            resized_heatmaps = np.squeeze(resized_heatmaps)
 
-            image_height, image_width = image_height_widths
-            crop_x1, crop_y1, crop_x2, crop_y2 = crop_bbox
+            for j in range(cfg.PARTS.NUM_PARTS):
             
-            fig = plt.figure("heatmaps", figsize=(8,8))
-            plt.clf() 
+              heatmap = resized_heatmaps[:,:,j]
+
+              # rescale the values of the heatmap 
+              f = interpolate.interp1d([0., 1.], [0, 255])
+              int_heatmap = f(heatmap).astype(np.uint8)
+
+              # Add the heatmap as an alpha channel over the image
+              blank_image = np.zeros(image.shape, np.uint8)
+              blank_image[:] = [255, 0, 0]
+              heat_map_alpha = np.dstack((blank_image, int_heatmap))
+              x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
+
+              fig.add_subplot(num_part_rows, num_part_cols, j + 1)
+              plt.imshow(int8_image)
+              plt.imshow(heat_map_alpha)
+              plt.axis('off')
+              plt.title(cfg.PARTS.NAMES[j])
+              # Render the argmax point
+              plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
+              print("%s %s : x %0.3f, y %0.3f" % (image_id[0], cfg.PARTS.NAMES[j], x, y))
+              plt.show(block=False)
 
 
-            for i in range(8):
-                # For each hourglass subunit...
-              # Extract out its heatmaps.
-              heatmaps = outputs[7 + i][b]
-              # Constrain the values to 0 and 1.
-              heatmaps = np.clip(heatmaps, 0., 1.)
-              heatmaps = np.expand_dims(heatmaps, 0)
-
-              resized_heatmaps = session.run(resize_to_input_size, {image_to_resize : heatmaps})
-              resized_heatmaps = np.squeeze(resized_heatmaps)
-
-              for j in range(cfg.PARTS.NUM_PARTS):
-                # Get the heatmap for each part.
-                heatmap = resized_heatmaps[:,:,j]
-                
-                ax = fig.add_subplot(num_subplot_rows, num_subplot_cols, i * num_subplot_cols + j+1)
-                # Plot the heatmap.
-                plt.imshow(heatmap)
-
-                # Rescale the values of the heatmap.
-                f = interpolate.interp1d([0., 1.], [0, 255])
-                int_heatmap = f(heatmap).astype(np.uint8)
-
-                # Add the heatmap as an alpha channel over the image
-                blank_image = np.zeros(image.shape, np.uint8)
-                blank_image[:] = [255, 0, 0]
-                plt.axis('off')
-                if i == 0:
-                  plt.title(cfg.PARTS.NAMES[j])
-                
-                # Render the argmax point.
-                x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
-                plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
-
-                # Render the ground truth part location
-                part_v = part_visibilities[j]
-                if part_v:
-                  indx = j*2
-                  part_x, part_y = parts[indx:indx+2]
-
-                  # Transform the ground truth annotations to the crop space.
-                  input_size = cfg.INPUT_SIZE
-                  w = (crop_x2 -crop_x1)
-                  h = (crop_y2 - crop_y1)
-
-                  part_x = (part_x - crop_x1)/w * input_size
-                  part_y = (part_y - crop_y1)/h * input_size
-
-                  plt.plot(part_x, part_y, color=cfg.PARTS.COLORS[j], marker='*', label=cfg.PARTS.NAMES[j])
-
-                  if i == cfg.PARTS.NUM_PARTS:
-                    ax.set_xlabel("%0.3f" % (np.linalg.norm(np.array([part_x, part_y]) - np.array([x, y]))),)
-
-                else:
-                  if i == cfg.PARTS.NUM_PARTS:
-                    ax.set_xlabel("Not Visible")
-
-                  print("Part not visible")
-
-                print("%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap)))
-                
-            fig.subplots_adjust(wspace=0, hspace=0)
-
-            plt.show()
-            #plt.pause(0.0001)
-            r = raw_input("Push button")
+            print(image_id[0])
+            r = input("Push button")
             if r != "":
               done = True
               break
@@ -267,7 +226,7 @@ if __name__ == '__main__':
     print("Configurations:")
     print(pprint.pprint(cfg))
 
-    visualize(
+    detect(
       tfrecords=args.tfrecords,
       checkpoint_path=args.checkpoint_path,
       cfg=cfg

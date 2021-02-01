@@ -3,29 +3,46 @@ File for detecting parts on images without ground truth.
 """
 import argparse
 from io import StringIO
-import json
 import numpy as np
-import os
-import pprint
-import sys
-import tensorflow as tf
+import sys, os
+import json
+import tensorflow.compat.v1 as tf
 from tensorflow.contrib import slim
 from tensorflow.python.util import deprecation
 import time
+from matplotlib import pyplot as plt
+from scipy import interpolate
 
-
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-import logging
+from MARS_pycocotools.coco import COCO
+from MARS_pycocotools.cocoeval import COCOeval
 from config import parse_config_file
-import eval_inputs as inputs
-import model
-import scipy
+from evaluation import eval_inputs as inputs
+import model_pose
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
-import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+
+def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[]):
+  if infile:
+    with open(infile) as jsonfile:
+      cocodata = json.load(jsonfile)
+    gt_keypoints = cocodata['gt_keypoints']
+    pred_keypoints = cocodata['pred_keypoints']
+
+  # Parse things for COCO evaluation.
+  gt_coco = COCO()
+  gt_coco.dataset = gt_keypoints
+  gt_coco.createIndex()
+  pred_coco = gt_coco.loadRes(pred_keypoints)
+
+  # Actually perform the evaluation.
+  cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top')
+  cocoEval.evaluate()
+  cocoEval.accumulate()
+  cocoEval.summarize()
+
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
                      neighborhood_size=15):
@@ -79,10 +96,163 @@ def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_
   return keypoints
 
 
-def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
+def show_final_heatmaps(session, outputs, plotcfg, cfg):
+  # Extract the outputs
+  heatmaps = outputs[0][b]
+  parts = outputs[2][b]
+  part_visibilities = outputs[3][b]
+  image_height_widths = outputs[5][b]
+  crop_bbox = outputs[6][b]
+  image = outputs[7][b]
+
+  # Convert the image to uint8
+  int8_image = session.run(plotcfg['convert_to_uint8'], {image_to_convert: image})
+
+  fig = plt.figure("heat maps")
+  plt.clf()
+
+  heatmaps = np.clip(heatmaps, 0., 1.)  # Enable double-ended saturation of the image.
+  heatmaps = np.expand_dims(heatmaps, 0)  # Add another row to the heatmaps array; (Necessary because it has 3 channels?)
+  resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {image_to_resize: heatmaps})  # Resize the heatmaps
+  resized_heatmaps = np.squeeze(resized_heatmaps)  # Get rid of that row we added.
+
+  image_height, image_width = image_height_widths
+  crop_x1, crop_y1, crop_x2, crop_y2 = crop_bbox
+  crop_w, crop_h = np.array([crop_x2 - crop_x1, crop_y2 - crop_y1]) * np.array([image_width, image_height],
+                                                                               dtype=np.float32)
+
+  for j in range(cfg.PARTS.NUM_PARTS):
+    heatmap = resized_heatmaps[:, :, j]
+
+    fig.add_subplot(plotcfg['num_heatmap_rows'], plotcfg['num_heatmap_cols'], j + 1)
+    plt.imshow(int8_image)
+
+    # Rescale the values of the heatmap
+    f = interpolate.interp1d([0., 1.], [0, 255])
+    int_heatmap = f(heatmap).astype(np.uint8)
+
+    # Add the heatmap as an alpha channel over the image
+    blank_image = np.zeros(image.shape, np.uint8)
+    blank_image[:] = [255, 0, 0]
+    heat_map_alpha = np.dstack((blank_image, int_heatmap))
+    plt.imshow(heat_map_alpha)
+    plt.axis('off')
+    plt.title(cfg.PARTS.NAMES[j])
+
+    # Render the argmax point
+    x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
+    plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
+
+    # Render the ground truth part location
+    part_v = part_visibilities[j]
+    if part_v:
+      indx = j * 2  # There's an x and a y, so we have to go two parts by two parts
+      part_x, part_y = parts[indx:indx + 2]
+
+      # We need to transform the ground truth annotations to the crop space
+      input_size = cfg.INPUT_SIZE
+      part_x = (part_x - crop_x1) * input_size / (crop_x2 - crop_x1)
+      part_y = (part_y - crop_y1) * input_size / (crop_y2 - crop_y1)
+
+      plt.plot(part_x, part_y, color=cfg.PARTS.COLORS[j], marker='*', label=cfg.PARTS.NAMES[j])
+
+    print("%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap)))
+    return fig
+
+
+def show_all_heatmaps(session, outputs, plotcfg, cfg):
+  parts = outputs[1][b]
+  part_visibilities = outputs[2][b]
+  image_height_widths = outputs[4][b]
+  crop_bbox = outputs[5][b]
+  image = outputs[6][b]
+
+  int8_image = session.run(plotcfg['convert_to_uint8'], {image_to_convert: image})
+
+  fig = plt.figure('cropped image', figsize=(8, 8))
+  plt.clf()
+  plt.imshow(int8_image)
+
+  image_height, image_width = image_height_widths
+  crop_x1, crop_y1, crop_x2, crop_y2 = crop_bbox
+
+  fig = plt.figure("heatmaps", figsize=(8, 8))
+  plt.clf()
+
+  for i in range(8):
+    # For each hourglass subunit...
+    # Extract out its heatmaps.
+    heatmaps = outputs[7 + i][b]
+    # Constrain the values to 0 and 1.
+    heatmaps = np.clip(heatmaps, 0., 1.)
+    heatmaps = np.expand_dims(heatmaps, 0)
+
+    resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {image_to_resize: heatmaps})
+    resized_heatmaps = np.squeeze(resized_heatmaps)
+
+    for j in range(cfg.PARTS.NUM_PARTS):
+      heatmap = resized_heatmaps[:, :, j]
+
+      ax = fig.add_subplot(plotcfg['num_layer_rows'], plotcfg['num_layer_cols'],
+                           i * plotcfg['num_layer_cols'] + j + 1)
+      # Plot the heatmap.
+      plt.imshow(heatmap)
+
+      # Rescale the values of the heatmap.
+      f = interpolate.interp1d([0., 1.], [0, 255])
+      int_heatmap = f(heatmap).astype(np.uint8)
+
+      # Add the heatmap as an alpha channel over the image
+      blank_image = np.zeros(image.shape, np.uint8)
+      blank_image[:] = [255, 0, 0]
+      plt.axis('off')
+      if i == 0:
+        plt.title(cfg.PARTS.NAMES[j])
+
+      # Render the argmax point.
+      x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
+      plt.plot(x, y, color=cfg.PARTS.COLORS[j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j])
+
+      # Render the ground truth part location
+      part_v = part_visibilities[j]
+      if part_v:
+        indx = j * 2
+        part_x, part_y = parts[indx:indx + 2]
+
+        # Transform the ground truth annotations to the crop space.
+        input_size = cfg.INPUT_SIZE
+        w = (crop_x2 - crop_x1)
+        h = (crop_y2 - crop_y1)
+
+        part_x = (part_x - crop_x1) / w * input_size
+        part_y = (part_y - crop_y1) / h * input_size
+
+        plt.plot(part_x, part_y, color=cfg.PARTS.COLORS[j], marker='*', label=cfg.PARTS.NAMES[j])
+
+        if i == cfg.PARTS.NUM_PARTS:
+          ax.set_xlabel("%0.3f" % (np.linalg.norm(np.array([part_x, part_y]) - np.array([x, y]))), )
+
+      else:
+        if i == cfg.PARTS.NUM_PARTS:
+          ax.set_xlabel("Not Visible")
+
+        print("Part not visible")
+
+      print("%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap)))
+
+  fig.subplots_adjust(wspace=0, hspace=0)
+
+  plt.show()
+  return fig
+
+
+def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_heatmaps=False, show_layer_heatmaps=False, prep_cocoEval=True):
+
+  # parse the config file.
+  cfg = parse_config_file(cfg)
 
   # Set the logging level.
-  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+  tf.logging.set_verbosity(tf.logging.DEBUG)
 
   # Initialize the graph.
   graph = tf.Graph()
@@ -104,7 +274,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
-        'variables_collections' : [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'variables_collections' : [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
         'is_training' : False
     }
 
@@ -115,7 +285,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
-      predicted_heatmaps = model.build(
+      predicted_heatmaps = model_pose.build(
         input = batched_images, 
         num_parts = cfg.PARTS.NUM_PARTS,
         num_stacks = cfg.NUM_STACKS
@@ -130,7 +300,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
       for var in slim.get_model_variables()
     }
 
-    saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
+    saver = tf.train.Saver(shadow_vars, reshape=True)
 
     # Set up a node to fetch values from when we run the graph.
     fetches = [predicted_heatmaps[-1],
@@ -145,21 +315,21 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
     coord = tf.train.Coordinator()
 
     # Set up GPU according to config.
-    sess_config = tf.compat.v1.ConfigProto(
+    sess_config = tf.ConfigProto(
       log_device_placement=False,
       #device_filters = device_filters,
       allow_soft_placement = True,
-      gpu_options = tf.compat.v1.GPUOptions(
+      gpu_options = tf.GPUOptions(
           per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
       )
     )
-    session = tf.compat.v1.Session(graph=graph, config=sess_config)
+    session = tf.Session(graph=graph, config=sess_config)
     
     with session.as_default():
 
       # Initialize all the variables.
-      tf.compat.v1.global_variables_initializer().run()
-      tf.compat.v1.local_variables_initializer().run()
+      tf.global_variables_initializer().run()
+      tf.local_variables_initializer().run()
       
       # Launch the queue runner threads
       threads = tf.train.start_queue_runners(sess=session, coord=coord)
@@ -189,19 +359,37 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
         global_step = int(checkpoint_path.split('/')[-1].split('-')[-1])
         print("Found model for global step: %d" % (global_step,))
 
+        if show_heatmaps or show_layer_heatmaps:
+          # set up interactive plotting
+          plt.ion()
+
+          # Set up image converting and image resizing graphs
+          image_to_convert = tf.placeholder(tf.float32)
+          image_to_resize = tf.placeholder(tf.float32)
+
+          plotcfg = {
+            'convert_to_uint8':     tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8),
+            'resize_to_input_size': tf.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE]),
+
+            # for plotting intermediate heatmaps
+            'num_layers_cols': cfg.PARTS.NUM_PARTS,
+            'num_layers_rows': 8, # TODO: This should be the # of hourglass units in use.
+
+            # for plotting final heatmaps
+            'num_heatmap_cols': 3,
+            'num_heatmap_rows': int(np.ceil(cfg.PARTS.NUM_PARTS /3.))
+          }
 
         step = 0
-        print_str = ', '.join([
-          'Step: %d',
-          'Time/image network (ms): %.1f'
-        ])
-        while not coord.should_stop():
+        done = False
+        print_str = ', '.join(['Step: %d', 'Time/image network (ms): %.1f'])
+
+        while not coord.should_stop() and not done:
           t = time.time()
           outputs = session.run(fetches)
           dt = time.time() - t
 
           for b in range(cfg.BATCH_SIZE):
-
             heatmaps = outputs[0][b]
             bbox = outputs[1][b]
             parts = outputs[2][b]
@@ -209,6 +397,27 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             image_id = outputs[4][b]
             image_height_widths = outputs[5][b]
             crop_bboxes = outputs[6][b]
+
+            fig_heatmaps = []
+            fig_layers = []
+            if show_heatmaps:
+              fig_heatmaps = show_final_heatmaps(session, outputs, plotcfg, cfg)
+            if show_layer_heatmaps:
+              fig_layers = show_all_heatmaps(session, outputs, plotcfg, cfg)
+            r = input("Press Enter to continue, s to save the current figure, or any other key to exit")
+            if r == 's' or r == 'S':
+              savedir = os.path.join(summary_dir,'saved_images')
+              if not os.path.exists(savedir):
+                os.makedirs(savedir)
+              if fig_heatmaps:
+                fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.png'))
+                fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.pdf'))
+              if fig_layers:
+                fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.png'))
+                fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.pdf'))
+            elif r != "":
+              done = True
+              break
 
              # Transform the keypoints back to the original image space.
             image_height, image_width = image_height_widths
@@ -249,12 +458,13 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
                 selected_scores.append(k['score'][s_idx[0]])
               # Store the predicted parts in a list.
               pred_parts += [x, y, v]
-            # avg_score = np.mean(selected_scores)
+
+            avg_score = np.mean(selected_scores)
             # Store the results
             pred_annotations.append({
               'image_id' : gt_image_id,
               'keypoints' : pred_parts,
-              'score' : 1.,#avg_score,
+              'score' : avg_score,
               'category_id' : 1
             })
 
@@ -267,7 +477,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
             gt_parts = gt_parts.ravel().tolist()
 
             # Get the bbox coordinates again.
-            x1, y1, x2, y2 = bbox * np.array([image_width, image_height, image_width, image_height])
+            x1, y1, x2, y2 = crop_bboxes * np.array([image_width, image_height, image_width, image_height])
             w = x2 - x1
             h = y2 - y1
 
@@ -279,15 +489,13 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
               "bbox" : [x1, y1, w, h],
               "iscrowd" : 0,
               "keypoints" : gt_parts,
-              "num_keypoints" : np.sum(part_visibilities)
+              "num_keypoints" : np.sum(part_visibilities>0 )
             })
 
             dataset_image_ids.add(gt_image_id)
 
             gt_annotation_id += 1
             gt_image_id += 1
-
-
 
           print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000))
           step += 1
@@ -310,30 +518,22 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
         'categories' : [{ 'id' : 1 }]
       }
 
-      # Parse things for COCO evaluation.
-      gt_coco = COCO()
-      gt_coco.dataset = gt_dataset
-      gt_coco.createIndex()
+      captured_stdout = StringIO()
 
-      # Actually perform the evaluation.
-      pred_coco = gt_coco.loadRes(pred_annotations)
-      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints')
-      # Sigmas for the mouse dataset.
-      cocoEval.params.kpt_oks_sigmas = np.array([0.02349794, 0.02573029, 0.02574004, 0.02459145, 0.03146337, 0.03146769, 0.02510474])
+      if prep_cocoEval:
+        cocodata = {'gt_keypoints': gt_dataset, 'pred_keypoints': pred_annotations}
+        with open(os.path.join(summary_dir,'MARS_results_CoCo.json'),'w') as jsonfile:
+          json.dump(cocodata,jsonfile)
 
-      cocoEval.evaluate()
-      cocoEval.accumulate()
-
-      # Have COCO output summaries of the evaluation.
-      old_stdout = sys.stdout
-      sys.stdout = captured_stdout = StringIO()
-      cocoEval.summarize()
-      sys.stdout = old_stdout
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+        eval_coco(gt_keypoints=gt_dataset, pred_keypoints=pred_annotations)
+        sys.stdout = old_stdout
 
       # Store the output as a TF summary, so we can view it in Tensorboard.
-      summary_op = tf.compat.v1.summary.merge_all()
-      summary_writer = tf.compat.v1.summary.FileWriter(summary_dir)
-      summary = tf.compat.v1.Summary()
+      summary_op = tf.summary.merge_all()
+      summary_writer = tf.summary.FileWriter(summary_dir)
+      summary = tf.Summary()
       summary.ParseFromString(session.run(summary_op))
 
       # Since we captured the stdout while we were outputting commandline summaries, we can parse that for our TF
@@ -355,7 +555,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, max_iterations, cfg):
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(description='Test an Inception V3 network')
+    parser = argparse.ArgumentParser(description='Evaluate pose model on a tfrecord file')
 
     parser.add_argument('--tfrecords', dest='tfrecords',
                         help='paths to tfrecords files', type=str,
@@ -363,7 +563,7 @@ def parse_args():
 
     parser.add_argument('--checkpoint_path', dest='checkpoint_path',
                           help='path to directory where the checkpoint files are stored. The latest model will be tested against.', type=str,
-                          required=False, default=None)
+                          required=True)
                           
     parser.add_argument('--summary_dir', dest='summary_dir',
                         help='Path to the directory where the results will be saved',
@@ -377,6 +577,20 @@ def parse_args():
                         help='Maximum number of iterations to run. Set to 0 to run on all records.',
                         required=False, type=int, default=0)
 
+    parser.add_argument('--show_heatmaps', dest='show_heatmaps',
+                        help='Make figure of final heatmaps for all body parts.',
+                        action='store_true')
+
+    parser.add_argument('--show_layer_heatmaps', dest='show_layer_heatmaps',
+                        help='Make figure of heatmaps after each hourglass layer.',
+                        action='store_true')
+
+    parser.add_argument('--no_coco', dest='prep_cocoEval',
+                        help='Skip saving CoCo evaluation files.',
+                        action='store_false')
+
+    parser.set_defaults(show_heatmaps=False,show_layer_heatmaps=False,prep_cocoEval=True)
+
     args = parser.parse_args()
     
     return args
@@ -385,12 +599,14 @@ def parse_args():
 if __name__ == '__main__':
 
     args = parse_args()
-    cfg = parse_config_file(args.config_file)
 
     eval(
       tfrecords=args.tfrecords,
       checkpoint_path=args.checkpoint_path,
-      summary_dir = args.summary_dir,
-      max_iterations = args.max_iterations,
-      cfg=cfg
+      summary_dir=args.summary_dir,
+      cfg=args.config_file,
+      max_iterations=args.max_iterations,
+      show_heatmaps = args.show_heatmaps,
+      show_layer_heatmaps = args.show_layer_heatmaps,
+      prep_cocoEval = args.prep_cocoEval
     )

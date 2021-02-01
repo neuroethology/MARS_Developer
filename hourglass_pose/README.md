@@ -1,21 +1,20 @@
 # POSE ESTIMATION - STACKED HOURGLASS NETWORK
 
-This is an implementation of **Stacked Hourglass Networks for Human Pose Estimation**, proposed by Newell et al. and
-adapted by us for mouse pose estimation (for use in the MARS system).
+This is an implementation of **Stacked Hourglass Networks for Human Pose Estimation**, proposed by Newell et al. and adapted by us for mouse pose estimation in MARS.
 
-[https://arxiv.org/abs/1603.06937](https://arxiv.org/abs/1603.06937)
+The original Stacked Hourglass paper can be found at [https://arxiv.org/abs/1603.06937](https://arxiv.org/abs/1603.06937). Towards Data Science also has [a helpful write-up](https://towardsdatascience.com/human-pose-estimation-with-stacked-hourglass-network-and-tensorflow-c4e9f84fd3ce) on human pose estimation using the stacked hourglass network, by Ethan Yanjia Li.
 
-All the related files of dataset and model can be found [here](https://www.dropbox.com/home/team_folder/MARS/tf_dataset_keypoints/top_correct)
+All the related files of dataset and model can be found [here](https://www.dropbox.com/home/team_folder/MARS/tf_dataset_keypoints/top_correct). **TODO: fix this link!**
 
-![alt text](http://www-personal.umich.edu/~alnewell/images/stacked-hg.png)
+![hourglass model architecture](docs/stacked_hg.png)
 
-###  TRAIN AND TEST HOURGLASS POSE DETECTION
+###  Training the stacked hourglass network
 
 ##### STEPS:
 
 1. Use files in AMT_annotation folder to recreate the tf format files with the parts included.
 2. (Optional) Use `compute_sigmas.py` to compute sigmas (the standard deviation in 'turker click distance --analogous to the spatial ambiguity of a part's location) and save them for use in the config file.
-    We can also simply define sigma ourselves --it's simply the standard deviation of the gaussian being generated around each keypoint.
+    We can also define sigma ourselves-- it's simply the standard deviation of the gaussian being generated around each keypoint.
 3. Next we need a configuration file: save it in the dataset folder, one file for each type of dateset.  
     Parameters are described in detail below.
 4. `visualize_inputs.py` to visualize if the inputs created are correct  
@@ -42,7 +41,7 @@ GPU --we've also trained models using a GTX 960, but that can take ~30-50% more 
 
 ##### COCO evaluation
 
-Note: You can download COCO evaluation tool from [here](https://github.com/pdollar/coco). Remember to run make on PythonAPI in order to get it work
+We evaluate keypoint accuracy using the [COCO API](https://github.com/cocodataset/cocoapi). This repository includes a fork of the API, MARS_pycocotools, that has been modified for use with MARS pose estimates.
 
 ##### Dataset Setup:
 
@@ -322,11 +321,8 @@ python export_pose.py \
 |heatmaps_tfrecords.py       |       if you want to precompute heatmaps|
 |inputs.py                   |       utility to prepare input pipeline to network|
 |train_inputs.py               |     input nodes to pipeline|
-|train_inputs_precomputed.py    |    this is used when you precomputed the heatmaps using heatmaps_tfrecords|
-|train_inputs_old.py            |    ignore this|
 |visualize_inputs.py           |     visualize that the tf records created are ok as well as the heatmaps|
-|model.py                      |     hourglass model|
-|model_old.py                  |     ignore this|
+|model_pose.py                  |     hourglass model|
 |loss.py                        |    loss function|
 |train.py                        |   train|
 |train_custom.py                 |   train with possibility to set on the fly parameters of learning and optimization regardless the config file|

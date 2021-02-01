@@ -20,7 +20,7 @@ from matplotlib import pyplot as plt
 
 from config import parse_config_file
 import detect_inputs as inputs
-import model
+import model_pose
 
 import scipy
 import scipy.ndimage as ndimage
@@ -111,7 +111,7 @@ def detect(tfrecords, checkpoint_path, save_dir, max_iterations, iterations_per_
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
-      predicted_heatmaps = model.build(
+      predicted_heatmaps = model_pose.build(
         input = batched_images, 
         num_parts = cfg.PARTS.NUM_PARTS,
         num_stacks = cfg.NUM_STACKS

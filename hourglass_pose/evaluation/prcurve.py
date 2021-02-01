@@ -1,30 +1,23 @@
-import pickle
+import json
 import argparse
-import os
-import sys
+import os, sys
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.spatial.distance as dist
-import pdb
 from scipy.stats import gaussian_kde
 eps = np.spacing(1)
 from scipy import stats
 
 
+def plot_pr(f, figtitle, NUM_PARTS):
 
-# with open ('./results_pose_test_white.pkl','r')  as fp:
-#   results = pickle.load(fp)
-#
-# with open ('./results_pose_test_black.pkl','r')  as fp:
-#   results = pickle.load(fp)
-def plot_pr(f, figtitle, savename, NUM_PARTS):
-    fname = ''.join([f, '/results_pose_test.pkl'])
-    with open (fname,'rb')  as fp:
-      results = pickle.load(fp)
+    fname = os.path.join(f, 'MARS_results_CoCo.json')
+    with open(fname) as jsonfile:
+        cocodata = json.load(jsonfile)
 
-    dt = results[0]
-    gt = results[1]
-    # NUM_PARTS = 7
+    dt = cocodata['pred_keypoints']
+    gt = cocodata['gt_keypoints']
+
     ## turn the keypoints dictionaries into lists of [1,2]-arrays, then flatten them.
     gt_keys = [(np.asarray(gt[k]['keypoints']).reshape(NUM_PARTS,3)[:,:2]).tolist() for k in range(len(gt))]
     gt_keys_flat = np.array([gt_keys[i][k] for i in range(len(gt)) for k in range(NUM_PARTS)])
@@ -85,8 +78,8 @@ def plot_pr(f, figtitle, savename, NUM_PARTS):
     plt.title('Precision-Recall curve %s view' % figtitle)
     plt.xlim([0,1])
     plt.ylim([0,1])
-    plt.savefig(f + savename+'.png')
-    plt.savefig(f + savename+'.pdf')
+    plt.savefig(f + 'PR_curve.png')
+    plt.savefig(f + 'PR_curve.pdf')
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Test an Inception V3 network')
@@ -96,9 +89,6 @@ def parse_args():
                         required=True, type=str)
     parser.add_argument('--t', dest='title',
                         help='title of the pr_curve figure',
-                        required=False, type=str, default='')
-    parser.add_argument('--s', dest='savename',
-                        help='folder containing the results_pose.pkl file',
                         required=False, type=str, default='')
     parser.add_argument('--n', dest='num_parts',
                         help='the number of parts there are',
@@ -115,4 +105,4 @@ if __name__ == '__main__':
     # print "Configurations:"
     # print pprint.pprint(cfg)
 
-    plot_pr(args.f, args.title, args.savename, args.num_parts)
+    plot_pr(args.f, args.title, args.num_parts)

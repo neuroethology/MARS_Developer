@@ -1,0 +1,3 @@
+[submodule "MARS_pycocotools"]
+	path = MARS_pycocotools
+	url = https://github.com/neuroethology/MARS_pycocotools
