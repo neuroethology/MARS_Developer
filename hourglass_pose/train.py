@@ -9,7 +9,9 @@ from tensorflow.python.util import deprecation
 from config import parse_config_file
 import train_inputs
 import loss
-import model
+import model_pose as model
+
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 

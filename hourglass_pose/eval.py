@@ -19,7 +19,7 @@ from pycocotools.cocoeval import COCOeval
 import logging
 from config import parse_config_file
 import eval_inputs as inputs
-import model
+import model_pose as model
 import scipy
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters

@@ -20,7 +20,7 @@ from matplotlib import pyplot as plt
 
 from config import parse_config_file
 import detect_inputs as inputs
-import model
+import model_pose as model
 
 import scipy
 import scipy.ndimage as ndimage

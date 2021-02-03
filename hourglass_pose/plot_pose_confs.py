@@ -19,7 +19,7 @@ import cv2
 from config import parse_config_file
 from detect import get_local_maxima
 import detect_inputs_imsize as inputs
-import model
+import model_pose as model
 import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -60,7 +60,8 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
       
       predicted_heatmaps = model.build(
         input = batched_images, 
-        num_parts = cfg.PARTS.NUM_PARTS
+        num_parts = cfg.PARTS.NUM_PARTS,
+        num_stacks = cfg.NUM_STACKS
       )
     
     ema = tf.train.ExponentialMovingAverage(
@@ -83,7 +84,8 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
       #device_filters = device_filters,
       allow_soft_placement = True,
       gpu_options = tf.compat.v1.GPUOptions(
-          per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
+          per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION,
+          allow_growth=True
       )
     )
     session = tf.compat.v1.Session(graph=graph, config=sess_config)
