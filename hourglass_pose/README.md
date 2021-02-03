@@ -264,7 +264,7 @@ python train_custom.py \
 ```
 If you want to evalaute the prediction on the validadation set you can run 
 ```sh
-python eval.py \
+python evaluation.py \
 --tfrecords $DATASET_DIR/test*
 --checkpoint_path $EXPERIMENT_DIR/
 --summar_dir $EXPERIMENT_DIR/

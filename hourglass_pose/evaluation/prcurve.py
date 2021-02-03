@@ -9,7 +9,7 @@ eps = np.spacing(1)
 from scipy import stats
 
 
-def plot_pr(f, figtitle, NUM_PARTS):
+def plot_pr(f):
 
     fname = os.path.join(f, 'MARS_results_CoCo.json')
     with open(fname) as jsonfile:
@@ -17,6 +17,8 @@ def plot_pr(f, figtitle, NUM_PARTS):
 
     dt = cocodata['pred_keypoints']
     gt = cocodata['gt_keypoints']
+    NUM_PARTS = len(cocodata['partNames'])
+    view = cocodata['view']
 
     ## turn the keypoints dictionaries into lists of [1,2]-arrays, then flatten them.
     gt_keys = [(np.asarray(gt[k]['keypoints']).reshape(NUM_PARTS,3)[:,:2]).tolist() for k in range(len(gt))]
@@ -75,7 +77,7 @@ def plot_pr(f, figtitle, NUM_PARTS):
     plt.legend(loc='right', ncol=1)
     plt.xlabel('Recall')
     plt.ylabel('Precision')
-    plt.title('Precision-Recall curve %s view' % figtitle)
+    plt.title('Precision-Recall curve for %s view' % view)
     plt.xlim([0,1])
     plt.ylim([0,1])
     plt.savefig(f + 'PR_curve.png')
@@ -87,12 +89,6 @@ def parse_args():
     parser.add_argument('--f', dest='f',
                         help='folder containing the results_pose.pkl file',
                         required=True, type=str)
-    parser.add_argument('--t', dest='title',
-                        help='title of the pr_curve figure',
-                        required=False, type=str, default='')
-    parser.add_argument('--n', dest='num_parts',
-                        help='the number of parts there are',
-                        required=False, type=int, default=11)
 
     args = parser.parse_args()
 
@@ -105,4 +101,4 @@ if __name__ == '__main__':
     # print "Configurations:"
     # print pprint.pprint(cfg)
 
-    plot_pr(args.f, args.title, args.num_parts)
+    plot_pr(args.f)

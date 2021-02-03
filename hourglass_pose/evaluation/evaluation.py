@@ -1,6 +1,7 @@
 """
 File for detecting parts on images without ground truth.
 """
+import pdb
 import argparse
 from io import StringIO
 import numpy as np
@@ -10,9 +11,9 @@ import tensorflow.compat.v1 as tf
 from tensorflow.contrib import slim
 from tensorflow.python.util import deprecation
 import time
+import matplotlib
 from matplotlib import pyplot as plt
 from scipy import interpolate
-import pdb
 from MARSeval.coco import COCO
 from MARSeval.cocoeval import COCOeval
 from config import parse_config_file
@@ -23,24 +24,22 @@ import scipy.ndimage.filters as filters
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
+# change our plotting if we're running in a notebook
+try:
+  cfg = get_ipython().config
+  if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+    get_ipython().run_line_magic('matplotlib', 'inline')
+except NameError:
+  pass
 
-def in_ipynb():
-  try:
-    cfg = get_ipython().config
-    if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
-      return True
-    else:
-      return False
-  except NameError:
-    return False
-
-
-def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], parts=[]):
+def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[]):
   if infile:
     with open(infile) as jsonfile:
       cocodata = json.load(jsonfile)
     gt_keypoints = cocodata['gt_keypoints']
     pred_keypoints = cocodata['pred_keypoints']
+    view = cocodata['view']
+    parts = cocodata['parts']
 
   # Parse things for COCO evaluation.
   gt_coco = COCO()
@@ -49,7 +48,12 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], parts=[]):
   pred_coco = gt_coco.loadRes(pred_keypoints)
 
   # Actually perform the evaluation.
-  cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
+  if view.lower() == 'top':
+    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
+  elif view.lower() == 'front':
+    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=parts)
+  else:
+    raise ValueError('Camera view must be either top or front')
   cocoEval.evaluate()
   cocoEval.accumulate()
   cocoEval.summarize()
@@ -107,24 +111,24 @@ def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_
   return keypoints
 
 
-def show_final_heatmaps(session, outputs, plotcfg, cfg):
+def show_final_heatmaps(session, outputs, batch, plotcfg, cfg):
   # Extract the outputs
-  heatmaps = outputs[0][b]
-  parts = outputs[2][b]
-  part_visibilities = outputs[3][b]
-  image_height_widths = outputs[5][b]
-  crop_bbox = outputs[6][b]
-  image = outputs[7][b]
+  parts = outputs[1][batch]
+  part_visibilities = outputs[2][batch]
+  image_height_widths = outputs[4][batch]
+  crop_bbox = outputs[5][batch]
+  image = outputs[6][batch]
+  heatmaps = outputs[-1][batch]
 
   # Convert the image to uint8
-  int8_image = session.run(plotcfg['convert_to_uint8'], {image_to_convert: image})
+  int8_image = session.run(plotcfg['convert_to_uint8'], {plotcfg['image_to_convert']: image})
 
   fig = plt.figure("heat maps")
   plt.clf()
 
   heatmaps = np.clip(heatmaps, 0., 1.)  # Enable double-ended saturation of the image.
   heatmaps = np.expand_dims(heatmaps, 0)  # Add another row to the heatmaps array; (Necessary because it has 3 channels?)
-  resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {image_to_resize: heatmaps})  # Resize the heatmaps
+  resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {plotcfg['image_to_resize']: heatmaps})  # Resize the heatmaps
   resized_heatmaps = np.squeeze(resized_heatmaps)  # Get rid of that row we added.
 
   image_height, image_width = image_height_widths
@@ -167,18 +171,19 @@ def show_final_heatmaps(session, outputs, plotcfg, cfg):
 
       plt.plot(part_x, part_y, color=cfg.PARTS.COLORS[j], marker='*', label=cfg.PARTS.NAMES[j])
 
-    print("%s : max %0.3f, min %0.3f" % (cfg.PARTS.NAMES[j], np.max(heatmap), np.min(heatmap)))
+    plt.show()
     return fig
 
 
-def show_all_heatmaps(session, outputs, plotcfg, cfg):
-  parts = outputs[1][b]
-  part_visibilities = outputs[2][b]
-  image_height_widths = outputs[4][b]
-  crop_bbox = outputs[5][b]
-  image = outputs[6][b]
+def show_all_heatmaps(session, outputs, batch, plotcfg, cfg):
+  # Extract the outputs
+  parts = outputs[1][batch]
+  part_visibilities = outputs[2][batch]
+  image_height_widths = outputs[4][batch]
+  crop_bbox = outputs[5][batch]
+  image = outputs[6][batch]
 
-  int8_image = session.run(plotcfg['convert_to_uint8'], {image_to_convert: image})
+  int8_image = session.run(plotcfg['convert_to_uint8'], {plotcfg['image_to_convert']: image})
 
   fig = plt.figure('cropped image', figsize=(8, 8))
   plt.clf()
@@ -193,12 +198,12 @@ def show_all_heatmaps(session, outputs, plotcfg, cfg):
   for i in range(8):
     # For each hourglass subunit...
     # Extract out its heatmaps.
-    heatmaps = outputs[7 + i][b]
+    heatmaps = outputs[-8+i][batch]
     # Constrain the values to 0 and 1.
     heatmaps = np.clip(heatmaps, 0., 1.)
     heatmaps = np.expand_dims(heatmaps, 0)
 
-    resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {image_to_resize: heatmaps})
+    resized_heatmaps = session.run(plotcfg['resize_to_input_size'], {plotcfg['image_to_resize']: heatmaps})
     resized_heatmaps = np.squeeze(resized_heatmaps)
 
     for j in range(cfg.PARTS.NUM_PARTS):
@@ -257,11 +262,11 @@ def show_all_heatmaps(session, outputs, plotcfg, cfg):
   return fig
 
 
-def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_heatmaps=False, show_layer_heatmaps=False, prep_cocoEval=True):
+def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', max_iterations=0, show_heatmaps=False, show_layer_heatmaps=False, prep_cocoEval=True):
 
   # parse the config file.
   cfg = parse_config_file(cfg)
-  parts = cfg['PARTS']['NAMES'] #note, these names should match the names of parts we have defined sigmas for in MARS_pycocotools
+  partNames = cfg['PARTS']['NAMES'] #note, these names should match the names of parts we have defined sigmas for in MARS_pycocotools
 
   # Set the logging level.
   tf.logging.set_verbosity(tf.logging.DEBUG)
@@ -316,13 +321,13 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
     saver = tf.train.Saver(shadow_vars, reshape=True)
 
     # Set up a node to fetch values from when we run the graph.
-    fetches = [predicted_heatmaps[-1],
-               batched_bboxes,
+    fetches = [batched_bboxes,
                batched_parts,
                batched_part_visibilities,
                batched_image_ids,
                batched_image_height_widths,
-               batched_crop_bboxes]
+               batched_crop_bboxes,
+               batched_images] + predicted_heatmaps
 
     # Create a training coordinator that will control the different threads.
     coord = tf.train.Coordinator()
@@ -381,7 +386,9 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
           image_to_resize = tf.placeholder(tf.float32)
 
           plotcfg = {
+            'image_to_convert': image_to_convert,
             'convert_to_uint8':     tf.image.convert_image_dtype(tf.add(tf.div(image_to_convert, 2.0), 0.5), tf.uint8),
+            'image_to_resize': image_to_resize,
             'resize_to_input_size': tf.image.resize_bilinear(image_to_resize, size=[cfg.INPUT_SIZE, cfg.INPUT_SIZE]),
 
             # for plotting intermediate heatmaps
@@ -403,20 +410,20 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
           dt = time.time() - t
 
           for b in range(cfg.BATCH_SIZE):
-            heatmaps = outputs[0][b]
-            bbox = outputs[1][b]
-            parts = outputs[2][b]
-            part_visibilities = outputs[3][b]
-            image_id = outputs[4][b]
-            image_height_widths = outputs[5][b]
-            crop_bboxes = outputs[6][b]
+            bbox                = outputs[0][b]
+            parts               = outputs[1][b]
+            part_visibilities   = outputs[2][b]
+            image_id            = outputs[3][b]
+            image_height_widths = outputs[4][b]
+            crop_bboxes         = outputs[5][b]
+            heatmaps            = outputs[-1][b]
 
             fig_heatmaps = []
             fig_layers = []
             if show_heatmaps:
-              fig_heatmaps = show_final_heatmaps(session, outputs, plotcfg, cfg)
+              fig_heatmaps = show_final_heatmaps(session, outputs, b, plotcfg, cfg)
             if show_layer_heatmaps:
-              fig_layers = show_all_heatmaps(session, outputs, plotcfg, cfg)
+              fig_layers = show_all_heatmaps(session, outputs, b, plotcfg, cfg)
             if show_heatmaps or show_layer_heatmaps:
               r = input("Press Enter to continue, s to save the current figure, or any other key to exit")
               if r == 's' or r == 'S':
@@ -535,13 +542,13 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
       captured_stdout = StringIO()
 
       if prep_cocoEval:
-        cocodata = {'gt_keypoints': gt_dataset, 'pred_keypoints': pred_annotations}
+        cocodata = {'gt_keypoints': gt_dataset, 'pred_keypoints': pred_annotations, 'view':view, 'partNames': partNames}
         with open(os.path.join(summary_dir,'MARS_results_CoCo.json'),'w') as jsonfile:
           json.dump(cocodata,jsonfile)
 
         old_stdout = sys.stdout
         sys.stdout = StringIO()
-        eval_coco(gt_keypoints=gt_dataset, pred_keypoints=pred_annotations, parts=parts)
+        eval_coco(gt_keypoints=gt_dataset, pred_keypoints=pred_annotations, view=view, parts=partNames)
         sys.stdout = old_stdout
 
       # Store the output as a TF summary, so we can view it in Tensorboard.
@@ -586,6 +593,10 @@ def parse_args():
     parser.add_argument('--config', dest='config_file',
                         help='Path to the configuration file',
                         required=True, type=str)
+
+    parser.add_argument('--view', dest='view',
+                        help='Camera position, (Top) or Front',
+                        required=False, type=str, default='Top')
     
     parser.add_argument('--max_iterations', dest='max_iterations',
                         help='Maximum number of iterations to run. Set to 0 to run on all records.',
@@ -614,11 +625,12 @@ if __name__ == '__main__':
 
     args = parse_args()
 
-    eval(
+    process_tfrecord(
       tfrecords=args.tfrecords,
       checkpoint_path=args.checkpoint_path,
       summary_dir=args.summary_dir,
       cfg=args.config_file,
+      view=args.view,
       max_iterations=args.max_iterations,
       show_heatmaps = args.show_heatmaps,
       show_layer_heatmaps = args.show_layer_heatmaps,
