@@ -12,9 +12,9 @@ from tensorflow.python.util import deprecation
 import time
 from matplotlib import pyplot as plt
 from scipy import interpolate
-
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+import pdb
+from MARSeval.coco import COCO
+from MARSeval.cocoeval import COCOeval
 from config import parse_config_file
 from evaluation import eval_inputs as inputs
 import model_pose
@@ -24,7 +24,18 @@ import scipy.ndimage.filters as filters
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[]):
+def in_ipynb():
+  try:
+    cfg = get_ipython().config
+    if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+      return True
+    else:
+      return False
+  except NameError:
+    return False
+
+
+def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], parts=[]):
   if infile:
     with open(infile) as jsonfile:
       cocodata = json.load(jsonfile)
@@ -38,7 +49,7 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[]):
   pred_coco = gt_coco.loadRes(pred_keypoints)
 
   # Actually perform the evaluation.
-  cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top')
+  cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
   cocoEval.evaluate()
   cocoEval.accumulate()
   cocoEval.summarize()
@@ -250,6 +261,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
 
   # parse the config file.
   cfg = parse_config_file(cfg)
+  parts = cfg['PARTS']['NAMES'] #note, these names should match the names of parts we have defined sigmas for in MARS_pycocotools
 
   # Set the logging level.
   tf.logging.set_verbosity(tf.logging.DEBUG)
@@ -405,20 +417,21 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
               fig_heatmaps = show_final_heatmaps(session, outputs, plotcfg, cfg)
             if show_layer_heatmaps:
               fig_layers = show_all_heatmaps(session, outputs, plotcfg, cfg)
-            r = input("Press Enter to continue, s to save the current figure, or any other key to exit")
-            if r == 's' or r == 'S':
-              savedir = os.path.join(summary_dir,'saved_images')
-              if not os.path.exists(savedir):
-                os.makedirs(savedir)
-              if fig_heatmaps:
-                fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.png'))
-                fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.pdf'))
-              if fig_layers:
-                fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.png'))
-                fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.pdf'))
-            elif r != "":
-              done = True
-              break
+            if show_heatmaps or show_layer_heatmaps:
+              r = input("Press Enter to continue, s to save the current figure, or any other key to exit")
+              if r == 's' or r == 'S':
+                savedir = os.path.join(summary_dir,'saved_images')
+                if not os.path.exists(savedir):
+                  os.makedirs(savedir)
+                if fig_heatmaps:
+                  fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.png'))
+                  fig_heatmaps.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'heatmaps.pdf'))
+                if fig_layers:
+                  fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.png'))
+                  fig_layers.savefig(os.path.join(savedir, str(image_id[0]) + '_' + str(step) + 'layers.pdf'))
+              elif r != "":
+                done = True
+                break
 
              # Transform the keypoints back to the original image space.
             image_height, image_width = image_height_widths
@@ -465,7 +478,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
             pred_annotations.append({
               'image_id' : gt_image_id,
               'keypoints' : pred_parts,
-              'score' : avg_score,
+              'score' : avg_score.item(),
               'category_id' : 1
             })
 
@@ -486,11 +499,11 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
               "id" : gt_annotation_id,
               "image_id" : gt_image_id,
               "category_id" : 1,
-              "area" : w * h,
-              "bbox" : [x1, y1, w, h],
+              "area" : (w * h).item(),
+              "bbox" : [x1.item(), y1.item(), w.item(), h.item()],
               "iscrowd" : 0,
               "keypoints" : gt_parts,
-              "num_keypoints" : np.sum(part_visibilities>0 )
+              "num_keypoints" : int(np.sum(part_visibilities>0 ))
             })
 
             dataset_image_ids.add(gt_image_id)
@@ -528,7 +541,7 @@ def eval(tfrecords, checkpoint_path, summary_dir, cfg, max_iterations=0, show_he
 
         old_stdout = sys.stdout
         sys.stdout = StringIO()
-        eval_coco(gt_keypoints=gt_dataset, pred_keypoints=pred_annotations)
+        eval_coco(gt_keypoints=gt_dataset, pred_keypoints=pred_annotations, parts=parts)
         sys.stdout = old_stdout
 
       # Store the output as a TF summary, so we can view it in Tensorboard.
