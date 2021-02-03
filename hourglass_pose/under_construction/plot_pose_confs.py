@@ -19,7 +19,7 @@ import cv2
 from config import parse_config_file
 from detect import get_local_maxima
 import detect_inputs_imsize as inputs
-import model
+import model_pose
 import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -27,8 +27,8 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def detect(tfrecords, checkpoint_path, cfg, save_dir):
 
-  if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
+  if not os.path.exists(save_dir + 'figures'):
+    os.makedirs(save_dir + 'figures')
 
   tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
@@ -58,7 +58,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
       
-      predicted_heatmaps = model.build(
+      predicted_heatmaps = model_pose.build(
         input = batched_images, 
         num_parts = cfg.PARTS.NUM_PARTS
       )
@@ -138,12 +138,9 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
         fig = plt.figure(figsize=(float(cfg.WIDTH) / 100.0, float(cfg.HEIGHT) / 100.0), dpi=100,
                          frameon=False)
         fig.patch.set_visible(False)
-        mi = ['k','w']
-        c = np.array([['b','r','g','orange','r','g','c','r','g','r','g'],
-                      ['#21a5f2','#ed42b9','#46db41','#ef571a','#ed42b9','#46db41','#35fbff','#ed42b9','#46db41','#ed42b9','#46db41']])
-        sk = np.array([['#cd87ff','#74c8f9','#feff95'],['#ae16f9','#21a5f2','#f99c4a']])
-        ec = np.array([['#cd87ff','#cd87ff','#cd87ff','#74c8f9','#74c8f9','#feff95','#feff95','#74c8f9','#74c8f9','#feff95','#feff95',],
-                       ['#ae16f9', '#ae16f9', '#ae16f9', '#21a5f2', '#21a5f2', '#f99c4a', '#f99c4a','#21a5f2', '#21a5f2', '#f99c4a', '#f99c4a']])
+        c = ['yellow', 'blue']
+        sh = [['red', '#ffa07a', 'yellow'], ['#000080', '#6495ed', 'blue']]
+        sb = [['orange', '#ff1493'], ['chartreuse', 'cyan']]
 
         while not coord.should_stop() and not done:
 
@@ -175,8 +172,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
               ax.set_adjustable('box')
               plt.imshow(ori_image)
 
-            ax.plot(np.NaN, np.NaN, '*', color=mi[b], markeredgecolor='k',markersize=20,
-                    label=r"$\bf{Resident}$" if b == 0 else r"$\bf{Intruder}$")
+            ax.plot(np.NaN, np.NaN, 'o', markersize=0, color=c[b], label=r"$\bf{Resident}$" if b == 0 else r"$\bf{Intruder}$")
 
             image_height, image_width = image_height_widths
 
@@ -205,6 +201,7 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                 # Get the current heatmap.
                 hm = rescaled_heatmaps[:, :, j]
                 score_pred = float(np.max(hm))
+                ms = min(np.sqrt(score_pred)*15.0,15.0)
 
                 # Extract out the keypoint.
                 x, y = np.array(np.unravel_index(np.argmax(hm), hm.shape)[::-1])
@@ -214,7 +211,8 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                 imy = y + bbox_y1 * image_height
 
                 # Store it.
-                keypoints[j, :] = [imx, imy, score_pred]
+                keypoints[j, :] = [imx, imy, score]
+                plt.plot(imx,imy,color=c[b], marker=cfg.PARTS.SYMBOLS[j],label=cfg.PARTS.NAMES[j] + ' %.3f' % (score_pred), markersize= ms,linestyle = 'None')
             else:
 
               if bbox_h > bbox_w:
@@ -235,7 +233,11 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
               for j in range(cfg.PARTS.NUM_PARTS):
 
                 heatmap = resized_heatmaps[:,:,j]
-
+                # Render the argmax point
+                score_pred = np.max(heatmap)
+                ms = min(np.sqrt(score_pred)*15.0,15.0)
+                x, y = np.array(np.unravel_index(np.argmax(heatmap), heatmap.shape)[::-1])
+       
                 #back to original image coordinates
                 # imx = int(x/float(new_width) * bbox_w)  + bbox_x1 * image_width
                 # imy = int(y/float(new_height) * bbox_h ) + bbox_y1 * image_height
@@ -250,29 +252,34 @@ def detect(tfrecords, checkpoint_path, cfg, save_dir):
                 imy = y + bbox_y1 * image_height
                 keypoints[j,:]=[imx,imy,score_pred_res]
                 #plot detection
+                plt.plot(imx,imy,color=c[b], marker=cfg.PARTS.SYMBOLS[j],label=cfg.PARTS.NAMES[j] + ' %.3f' % (score_pred), markersize= ms,linestyle = 'None')
             # plot skeleton
             xs = keypoints[:,0]; ys = keypoints[:,1]; ss = keypoints[:,2]
-            plt.plot([xs[0], xs[2]], [ys[0], ys[2]], color = sk[b,0],lw = 1. if np.min([ss[0],ss[2]]) < 0.5 else 3.)  # right head
-            plt.plot([xs[0], xs[1]], [ys[0], ys[1]], color = sk[b,0],lw = 1. if np.min(ss[0:2]) < 0.5 else 3.)  # left head
-            plt.plot([xs[1], xs[2]], [ys[1], ys[2]], color = sk[b,0],lw = 1.  if np.min(ss[1:3]) < 0.5 else 3.) #neck
-            plt.plot([xs[3], xs[4]], [ys[3], ys[4]], color = sk[b,1],lw = 1. if np.min([ss[3],ss[4]]) < 0.5 else 3.) #left side
-            plt.plot([xs[4], xs[6]], [ys[4], ys[6]], color = sk[b,2],lw = 1. if np.min([ss[4], ss[6]]) < 0.5 else 3.) #left side
-            plt.plot([xs[3], xs[5]], [ys[3], ys[5]], color = sk[b,1],lw = 1. if np.min([ss[3],ss[5]]) < 0.5 else 3.) #right side
-            plt.plot([xs[5], xs[6]], [ys[5], ys[6]], color = sk[b,2],lw = 1. if np.min([ss[5],ss[6]]) < 0.5 else 3.) #right side
-            if len(xs)>7:
-              plt.plot([xs[3], xs[7]], [ys[3], ys[7]], color=sk[b, 1], lw=1. if np.min([ss[3], ss[7]]) < 0.5 else 3.)  # right paw front
-              plt.plot([xs[3], xs[8]], [ys[3], ys[8]], color=sk[b, 1], lw=1. if np.min([ss[3], ss[8]]) < 0.5 else 3.)  # left paw front
-              plt.plot([xs[4], xs[9]], [ys[4], ys[9]], color=sk[b, 2], lw=1. if np.min([ss[4], ss[9]]) < 0.5 else 3.)  # rigth paw rear
-              plt.plot([xs[5], xs[10]], [ys[5], ys[10]], color=sk[b, 2], lw=1. if np.min([ss[5], ss[10]]) < 0.5 else 3.)  # left paw rear
+            plt.plot([xs[1],xs[2]],[ys[1],ys[2]], color=sh[b][2],lw=1.5 if np.min(ss[1:3]) < 0.5 else 3.5) #neck
+            plt.plot([xs[0], xs[1]], [ys[0], ys[1]], color = sh[b][0],lw = 1.5 if np.min(ss[0:2]) < 0.5 else 3.5)  # left head
+            plt.plot([xs[0], xs[2]], [ys[0], ys[2]], color = sh[b][1],lw = 1.5 if np.min([ss[0],ss[2]]) < 0.5 else 3.5)  # right head
+            plt.plot([xs[3], xs[4]], [ys[3], ys[4]], color = sb[b][0],lw = 1.5 if np.min([ss[3],ss[4]]) < 0.5 else 3.5) #left side
+            plt.plot([xs[4], xs[6]], [ys[4], ys[6]], color = sb[b][0],lw = 1.5 if np.min([ss[4], ss[6]]) < 0.5 else 3.5) #left side
+            plt.plot([xs[3], xs[5]], [ys[3], ys[5]], color = sb[b][1],lw = 1.5 if np.min([ss[3],ss[5]]) < 0.5 else 3.5) #right side
+            plt.plot([xs[5], xs[6]], [ys[5], ys[6]], color = sb[b][1],lw = 1.5 if np.min([ss[5],ss[6]]) < 0.5 else 3.5) #right side
 
-            for j in range(cfg.PARTS.NUM_PARTS):
-              ms = min(np.sqrt(ss[j]) * 10.0, 10.0)
-              plt.plot(xs[j], ys[j], color=c[b,j], marker=cfg.PARTS.SYMBOLS[j], label=cfg.PARTS.NAMES[j] + ' %.3f' % (ss[j]),
-                       markersize=ms, markeredgecolor=ec[b,j],linestyle='None')
 
+          # plt.text(1030, 20,'ID = ' + image_id[0],size=12, color='red')
           leg=plt.legend(loc='upper right', fontsize='x-small',numpoints=1,markerscale=0.7,handlelength=1,handletextpad=1)
-          plt.savefig(save_dir  + image_id[0].decode() + '.png', transparent=True)
-          plt.savefig(save_dir  + image_id[0].decode() + '.pdf', transparent=True)
+          # plt.ion()
+          # plt.show()
+          # for item in leg.legendHandles:
+          # pdb.set_trace()
+          #   item.set_visible(False)
+          # plt.legend(loc='upper right', fontsize='x-small', bbox_to_anchor=(1.0, 1.))
+          plt.savefig(save_dir + 'figures/' + image_id[0].decode() + '.png', transparent=True)
+          plt.savefig(save_dir + 'figures/' + image_id[0].decode() + '.pdf', transparent=True)
+          # plt.show()
+          # r = raw_input("Push button")
+          # if r != "":
+          #   done = True
+          #   break
+
 
           dtt = time.time() - t
           print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000, (dtt / cfg.BATCH_SIZE) * 1000))
