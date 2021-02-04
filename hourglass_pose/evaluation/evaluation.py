@@ -32,14 +32,14 @@ try:
 except NameError:
   pass
 
-def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[]):
+def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
   if infile:
     with open(infile) as jsonfile:
       cocodata = json.load(jsonfile)
     gt_keypoints = cocodata['gt_keypoints']
     pred_keypoints = cocodata['pred_keypoints']
     view = cocodata['view']
-    parts = cocodata['parts']
+    parts = cocodata['partNames']
 
   # Parse things for COCO evaluation.
   gt_coco = COCO()
@@ -48,7 +48,10 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
   pred_coco = gt_coco.loadRes(pred_keypoints)
 
   # Actually perform the evaluation.
-  if view.lower() == 'top':
+  if fixedSigma:
+    assert fixedSigma in ['narrow','moderate','wide','ultrawide']
+    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
+  elif view.lower() == 'top':
     cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
   elif view.lower() == 'front':
     cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=parts)
