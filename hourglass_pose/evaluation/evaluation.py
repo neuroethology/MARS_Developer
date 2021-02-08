@@ -60,6 +60,7 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
   cocoEval.evaluate()
   cocoEval.accumulate()
   cocoEval.summarize()
+  return cocoEval
 
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
@@ -287,7 +288,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       capacity = cfg.QUEUE_CAPACITY,
-      shuffle_batch=True,
+      shuffle_batch=False,
       cfg=cfg
     )
 
@@ -345,7 +346,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       )
     )
     session = tf.Session(graph=graph, config=sess_config)
-    
+
     with session.as_default():
 
       # Initialize all the variables.
@@ -361,7 +362,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       gt_annotation_id = 1
       gt_image_id = 1
       try:
-        
+
         if tf.io.gfile.isdir(checkpoint_path):
           print(checkpoint_path)
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
@@ -373,7 +374,6 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
         # Restores from checkpoint
         saver.restore(session, checkpoint_path)
-
         # Assuming the model_checkpoint_path looks something like:
         #   /my-favorite-path/model.ckpt-0,
         # extract global_step from it.
@@ -396,13 +396,12 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
             # for plotting intermediate heatmaps
             'num_layers_cols': cfg.PARTS.NUM_PARTS,
-            'num_layers_rows': 8, # TODO: This should be the # of hourglass units in use.
+            'num_layers_rows': cfg.NUM_STACKS,
 
             # for plotting final heatmaps
             'num_heatmap_cols': 3,
             'num_heatmap_rows': int(np.ceil(cfg.PARTS.NUM_PARTS /3.))
           }
-
         step = 0
         done = False
         print_str = ', '.join(['Step: %d', 'Time/image network (ms): %.1f'])
@@ -546,7 +545,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
       if prep_cocoEval:
         cocodata = {'gt_keypoints': gt_dataset, 'pred_keypoints': pred_annotations, 'view':view, 'partNames': partNames}
-        with open(os.path.join(summary_dir,'MARS_results_CoCo.json'),'w') as jsonfile:
+        with open(os.path.join(summary_dir,'MARS_performance_pose.json'),'w') as jsonfile:
           json.dump(cocodata,jsonfile)
 
         old_stdout = sys.stdout
