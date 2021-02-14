@@ -2,4 +2,4 @@
 *.ckpt
 .ipynb_checkpoints
 .idea
-hourglass_pose\__pycache__\*
+*\__pycache__\*
