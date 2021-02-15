@@ -3,6 +3,7 @@ File for detecting parts on images without ground truth.
 """
 import pdb
 import argparse
+import io
 from io import StringIO
 import numpy as np
 import sys, os
@@ -21,6 +22,7 @@ from evaluation import eval_inputs as inputs
 import model_pose
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+import copy
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -42,25 +44,38 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
     parts = cocodata['partNames']
 
   # Parse things for COCO evaluation.
-  gt_coco = COCO()
-  gt_coco.dataset = gt_keypoints
-  gt_coco.createIndex()
-  pred_coco = gt_coco.loadRes(pred_keypoints)
+  savedEvals = []
+  for partNum in range(len(parts)+1):
 
-  # Actually perform the evaluation.
-  if fixedSigma:
-    assert fixedSigma in ['narrow','moderate','wide','ultrawide']
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
-  elif view.lower() == 'top':
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
-  elif view.lower() == 'front':
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=parts)
-  else:
-    raise ValueError('Camera view must be either top or front')
-  cocoEval.evaluate()
-  cocoEval.accumulate()
-  cocoEval.summarize()
-  return cocoEval
+    MARS_gt = copy.deepcopy(gt_keypoints)
+    MARS_gt['annotations'] = [d for d in MARS_gt['annotations'] if d['category_id'] == (partNum + 1)]
+    MARS_pred = [d for d in pred_keypoints if d['category_id'] == (partNum + 1)]
+
+    gt_coco = COCO()
+    gt_coco.dataset = MARS_gt
+    gt_coco.createIndex()
+    pred_coco = gt_coco.loadRes(MARS_pred)
+
+    # Actually perform the evaluation.
+    part = [parts[partNum-1]] if partNum else parts
+    if fixedSigma:
+      assert fixedSigma in ['narrow','moderate','wide','ultrawide']
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
+    elif view.lower() == 'top':
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=part)
+    elif view.lower() == 'front':
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=part)
+    else:
+      raise ValueError('Camera view must be either top or front')
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    print('Performance for keypoint: ' + part[0] + ' -----------' if partNum
+          else 'Mean performance across keypoints -----------')
+    print('using sigma(s):')
+    print(cocoEval.params.kpt_oks_sigmas)
+    cocoEval.summarize()
+    savedEvals.append(cocoEval)
+  return savedEvals
 
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
@@ -464,7 +479,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
             selected_scores = []
             pred_parts = []
-            for k in keypoints:
+            for count,k in enumerate(keypoints):
               # Each keypoint prediction may actually have multiple prediction loci
               # --pick the one with the highest score.
               s_idx = np.argsort(k['score']).tolist()
@@ -481,6 +496,13 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
                 selected_scores.append(k['score'][s_idx[0]])
               # Store the predicted parts in a list.
               pred_parts += [x, y, v]
+              # and as separate entries of pred_annotations for part-wise evaluation
+              pred_annotations.append({
+                'image_id': gt_image_id,
+                'keypoints': [x, y, v],
+                'score': selected_scores[-1],
+                'category_id': count+2
+              })
 
             avg_score = np.mean(selected_scores)
             # Store the results
@@ -504,6 +526,17 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
             w = x2 - x1
             h = y2 - y1
 
+            for eval_part in range(int(np.sum(part_visibilities>0 ))):
+              gt_annotations.append({
+                "id": gt_annotation_id,
+                "image_id": gt_image_id,
+                "category_id": eval_part+2,
+                "area": (w * h).item(),
+                "bbox": [x1.item(), y1.item(), w.item(), h.item()],
+                "iscrowd": 0,
+                "keypoints": gt_parts[(eval_part*3):(eval_part*3+3)],
+                "num_keypoints": 1
+              })
             gt_annotations.append({
               "id" : gt_annotation_id,
               "image_id" : gt_image_id,
@@ -538,7 +571,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       gt_dataset = {
         'annotations' : gt_annotations,
         'images' : [{'id' : img_id} for img_id in dataset_image_ids],
-        'categories' : [{ 'id' : 1 }]
+        'categories' : [{ 'id' : id+1 } for id in range(int(np.sum(part_visibilities>0))+1)]
       }
 
       captured_stdout = StringIO()
