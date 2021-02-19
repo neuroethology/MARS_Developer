@@ -1,5 +1,7 @@
 import numpy as np
 import os
+import pandas as pd
+from PIL import Image
 import json
 from scipy.spatial.distance import cdist, euclidean
 
@@ -88,7 +90,7 @@ def csv_to_dict(csv_file, im_path, save_file, keypoint_names=[]):
     for f, image in enumerate(data.index):
 
         # Use the path to the image data to open the image.
-        im = Image.open(im_path + os.path.split(image)[-1])
+        im = Image.open(im_path + os.path.split(str(image))[-1])
         im = (np.asarray(im)).astype(float)
 
         # convert our dataframe to a dict
@@ -123,7 +125,7 @@ def csv_to_dict(csv_file, im_path, save_file, keypoint_names=[]):
             YW.append(white_mouse_y)
 
         # Compute some statistics for the tfrecord and append.
-        frame_dict = make_frame_dict(XB, YB, XW, YW, keypoint_names, im.shape, os.path.split(image)[-1])
+        frame_dict = make_frame_dict(XB, YB, XW, YW, keypoint_names, im.shape, os.path.split(str(image))[-1])
         D.append(frame_dict)
 
     # save info to file
