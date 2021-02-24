@@ -34,7 +34,8 @@ try:
 except NameError:
   pass
 
-def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
+
+def coco_eval(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
   if infile:
     with open(infile) as jsonfile:
       cocodata = json.load(jsonfile)
@@ -44,7 +45,7 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
     parts = cocodata['partNames']
 
   # Parse things for COCO evaluation.
-  savedEvals = []
+  savedEvals = {}
   for partNum in range(len(parts)+1):
 
     MARS_gt = copy.deepcopy(gt_keypoints)
@@ -69,13 +70,34 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
       raise ValueError('Camera view must be either top or front')
     cocoEval.evaluate()
     cocoEval.accumulate()
-    print('Performance for keypoint: ' + part[0] + ' -----------' if partNum
-          else 'Mean performance across keypoints -----------')
-    print('using sigma(s):')
-    print(cocoEval.params.kpt_oks_sigmas)
-    cocoEval.summarize()
-    savedEvals.append(cocoEval)
+    partstr = part[0] if partNum else 'all'
+    savedEvals[partstr] = cocoEval
   return savedEvals
+
+
+def compute_oks_histogram(cocoEval, bins=[]):
+  oks = []
+  partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
+  for i in cocoEval.params.imgIds:
+    oks.append(cocoEval.computeOks(i, partID)[0][0])
+  if not bins:
+    counts, bins = np.histogram(oks, 20, (0, 1))
+  else:
+    counts, bins = np.histogram(oks, bins=bins)
+  return counts, bins
+
+
+def compute_pck_cdf(cocoEval, lims=()):
+  pck = []
+  partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
+  for i in cocoEval.params.imgIds:
+    pck.append(cocoEval.computePcks(i, partID)[0][0])
+  if not lims:
+    lims = (0, max(pck))
+  counts, bins = np.histogram(pck, 1000, lims)
+  cdf = np.cumsum(counts)/sum(counts)
+  binctrs = (bins[:-1] + bins[1:])/2
+  return cdf, binctrs
 
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
