@@ -5,22 +5,15 @@ from inputs import reshape_bboxes, extract_resized_crop_bboxes
 
 
 def input_nodes(
-
         tfrecords,
-
         num_parts,
-
-        # number of times to read the tfrecords
-        num_epochs=1,
-
-        # Data queue feeding the model
-        batch_size=8,
+        num_epochs=1,   # number of times to read the tfrecords
+        batch_size=8,   # Data queue feeding the model
         num_threads=2,
         shuffle_batch=True,
         capacity=1000,
+        cfg=None):      # Global configuration
 
-        # Global configuration
-        cfg=None):
     with tf.name_scope('inputs'):
 
         # A producer to generate tfrecord file paths

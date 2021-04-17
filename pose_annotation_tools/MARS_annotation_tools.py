@@ -1,6 +1,65 @@
 from tfrecord_util import *
 from json_util import *
 
+# detection and pose preparation functions -----------------------------------------------------------------------------
+def prepare_detector_training_data(annotation_file, im_path, keypoints, save_path='',
+                               split_train_val_test = False, overwrite_json = False, manifest_key='annotatedResult'):
+    """
+    Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
+    files that are used to train MARS's detectors and pose estimators for black and white mice.
+    """
+    if not save_path:
+        save_path,_ = os.path.split(annotation_file)
+
+    # extract info from annotations
+    dictionary_file_path = os.path.join(save_path, 'processed_keypoints.json')  # Path to save intermediate dict.
+    if overwrite_json or not os.path.exists(dictionary_file_path):
+        make_annot_dict(annotation_file, im_path=im_path, save_file=dictionary_file_path,
+                        keypoints=keypoints, manifest_key=manifest_key)
+
+    with open(dictionary_file_path, 'r') as fp:
+        D = json.load(fp)
+
+    detection_black_tfrecord_output_name = os.path.join(save_path,'detection_black_tfrecords')
+    detection_white_tfrecord_output_name = os.path.join(save_path, 'detection_white_tfrecords')
+    if not os.path.exists(detection_black_tfrecord_output_name):
+        os.makedirs(detection_black_tfrecord_output_name)
+    if not os.path.exists(detection_white_tfrecord_output_name):
+        os.makedirs(detection_white_tfrecord_output_name)
+
+    v_infob = make_bbox_dict(D, im_path, 'black')
+    v_infow = make_bbox_dict(D, im_path, 'white')
+    v_info = list(zip(v_infob, v_infow))
+    random.shuffle(v_info)
+    v_infob, v_infow = zip(*v_info)
+
+    write_to_tfrecord(v_infob, detection_black_tfrecord_output_name, split_train_val_test=split_train_val_test)
+    write_to_tfrecord(v_infow, detection_white_tfrecord_output_name, split_train_val_test=split_train_val_test)
+
+
+def prepare_pose_training_data(annotation_file, im_path, keypoints, save_path='',
+                               split_train_val_test = False, overwrite_json = False, manifest_key='annotatedResult'):
+    """
+    Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
+    files that are used to train MARS's detectors and pose estimators for black and white mice.
+    """
+    if not save_path:
+        save_path,_ = os.path.split(annotation_file)
+
+    # extract info from annotations
+    dictionary_file_path = os.path.join(save_path, 'processed_keypoints.json')  # Path to save the intermediate dictionary file.
+    if overwrite_json or not os.path.exists(dictionary_file_path):
+        make_annot_dict(annotation_file, image_path=im_path, save_file=dictionary_file_path,
+                        keypoint_names=keypoints, manifest_key=manifest_key)
+    with open(dictionary_file_path, 'r') as fp:
+        D = json.load(fp)
+
+    pose_estimation_tfrecord_output_name = os.path.join(save_path,'pose_estimation_tfrecords')  # Path to save the pose estimation tfrecord.
+    if not os.path.exists(pose_estimation_tfrecord_output_name):
+        os.makedirs(pose_estimation_tfrecord_output_name)
+    v_info = make_pose_dict(D, im_path)
+    random.shuffle(v_info)
+    write_to_tfrecord(v_info, pose_estimation_tfrecord_output_name, split_train_val_test=split_train_val_test)
 
 def create_tfrecords(**kwargs):
     """

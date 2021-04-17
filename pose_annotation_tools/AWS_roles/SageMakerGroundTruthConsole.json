@@ -1,0 +1,100 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "SageMakerApis",
+            "Effect": "Allow",
+            "Action": [
+                "sagemaker:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "KmsKeysForCreateForms",
+            "Effect": "Allow",
+            "Action": [
+                "kms:DescribeKey",
+                "kms:ListAliases"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AccessAwsMarketplaceSubscriptions",
+            "Effect": "Allow",
+            "Action": [
+                "aws-marketplace:ViewSubscriptions",
+                "aws-marketplace:DescribeListings"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:CreateSecret",
+                "secretsmanager:DescribeSecret",
+                "secretsmanager:ListSecrets"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ListAndCreateExecutionRoles",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListRoles",
+                "iam:CreateRole",
+                "iam:CreatePolicy",
+                "iam:AttachRolePolicy"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "PassRoleForExecutionRoles",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "sagemaker.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "GroundTruthConsole",
+            "Effect": "Allow",
+            "Action": [
+                "groundtruthlabeling:*",
+                "lambda:InvokeFunction",
+                "lambda:ListFunctions",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:GetBucketCors",
+                "s3:PutBucketCors",
+                "s3:SelectObjectContent",
+                "cognito-idp:AdminAddUserToGroup",
+                "cognito-idp:AdminCreateUser",
+                "cognito-idp:AdminDeleteUser",
+                "cognito-idp:AdminDisableUser",
+                "cognito-idp:AdminEnableUser",
+                "cognito-idp:AdminRemoveUserFromGroup",
+                "cognito-idp:CreateGroup",
+                "cognito-idp:CreateUserPool",
+                "cognito-idp:CreateUserPoolClient",
+                "cognito-idp:CreateUserPoolDomain",
+                "cognito-idp:DescribeUserPool",
+                "cognito-idp:DescribeUserPoolClient",
+                "cognito-idp:ListGroups",
+                "cognito-idp:ListIdentityProviders",
+                "cognito-idp:ListUsers",
+                "cognito-idp:ListUsersInGroup",
+                "cognito-idp:ListUserPoolClients",
+                "cognito-idp:ListUserPools",
+                "cognito-idp:UpdateUserPool",
+                "cognito-idp:UpdateUserPoolClient"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
