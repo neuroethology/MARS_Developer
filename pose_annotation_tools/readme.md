@@ -1,6 +1,6 @@
-# Pose annotation tools
+# MARS Pose Annotation Tools: a module for crowdsourcing pose estimation
 
-Before you can fine-tune MARS's pose model to your recording setup, you need to generate some training data, in the form of manually annotations of animal poses. This directory contains all the tools needed to collect and process manual annotations from a public workforce on Amazon SageMaker Ground Truth.
+Before you can fine-tune MARS to your experiment, you need to generate some training data, in the form of manually annotations of animal poses. This directory contains all the tools needed to collect and process manual annotations from a public workforce on Amazon SageMaker Ground Truth.
 
 This involves the following steps:
 
