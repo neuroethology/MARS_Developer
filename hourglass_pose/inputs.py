@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from PIL import Image
 from tensorflow.python.ops import control_flow_ops
 import random
+import pdb
 
 
 def reshape_bboxes(xmin, ymin, xmax, ymax, pad_percentage=0.25):
@@ -192,7 +193,8 @@ def extract_resized_crop_bboxes(image, bboxes, input_size=256):
             im_scale = height_factor
 
         im = Image.fromarray(bbox_image).resize((new_height, new_width))
-        im = np.pad(im, ((0, input_size - new_height), (0, input_size - new_width), (0, 0)), 'constant')
+        print('hello world!')
+        im = np.pad(im, ((0, input_size - np.shape(im)[0]), (0, input_size - np.shape(im)[1]), (0, 0)), 'constant')
         # preped_images[i, 0:im.shape[0], 0:im.shape[1], :] = im
 
         im = np.expand_dims(im, 0)

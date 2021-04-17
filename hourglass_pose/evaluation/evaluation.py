@@ -3,6 +3,7 @@ File for detecting parts on images without ground truth.
 """
 import pdb
 import argparse
+import io
 from io import StringIO
 import numpy as np
 import sys, os
@@ -21,6 +22,7 @@ from evaluation import eval_inputs as inputs
 import model_pose
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+import copy
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -32,7 +34,7 @@ try:
 except NameError:
   pass
 
-def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
+def coco_eval(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
   if infile:
     with open(infile) as jsonfile:
       cocodata = json.load(jsonfile)
@@ -42,24 +44,59 @@ def eval_coco(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[
     parts = cocodata['partNames']
 
   # Parse things for COCO evaluation.
-  gt_coco = COCO()
-  gt_coco.dataset = gt_keypoints
-  gt_coco.createIndex()
-  pred_coco = gt_coco.loadRes(pred_keypoints)
+  savedEvals = {}
+  for partNum in range(len(parts)+1):
 
-  # Actually perform the evaluation.
-  if fixedSigma:
-    assert fixedSigma in ['narrow','moderate','wide','ultrawide']
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
-  elif view.lower() == 'top':
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=parts)
-  elif view.lower() == 'front':
-    cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=parts)
+    MARS_gt = copy.deepcopy(gt_keypoints)
+    MARS_gt['annotations'] = [d for d in MARS_gt['annotations'] if d['category_id'] == (partNum + 1)]
+    MARS_pred = [d for d in pred_keypoints if d['category_id'] == (partNum + 1)]
+
+    gt_coco = COCO()
+    gt_coco.dataset = MARS_gt
+    gt_coco.createIndex()
+    pred_coco = gt_coco.loadRes(MARS_pred)
+
+    # Actually perform the evaluation.
+    part = [parts[partNum-1]] if partNum else parts
+    if fixedSigma:
+      assert fixedSigma in ['narrow','moderate','wide','ultrawide']
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
+    elif view.lower() == 'top':
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=part)
+    elif view.lower() == 'front':
+      cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=part)
+    else:
+      raise ValueError('Camera view must be either top or front')
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    partstr = part[0] if partNum else 'all'
+    savedEvals[partstr] = cocoEval
+  return savedEvals
+
+
+def compute_oks_histogram(cocoEval, bins=[]):
+  oks = []
+  partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
+  for i in cocoEval.params.imgIds:
+    oks.append(cocoEval.computeOks(i, partID)[0][0])
+  if not bins:
+    counts, bins = np.histogram(oks, 20, (0, 1))
   else:
-    raise ValueError('Camera view must be either top or front')
-  cocoEval.evaluate()
-  cocoEval.accumulate()
-  cocoEval.summarize()
+    counts, bins = np.histogram(oks, bins=bins)
+  return counts, bins
+
+
+def compute_pck_cdf(cocoEval, lims=()):
+  pck = []
+  partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
+  for i in cocoEval.params.imgIds:
+    pck.append(cocoEval.computePcks(i, partID)[0][0])
+  if not lims:
+    lims = (0, max(pck))
+  counts, bins = np.histogram(pck, 1000, lims)
+  cdf = np.cumsum(counts)/sum(counts)
+  binctrs = (bins[:-1] + bins[1:])/2
+  return cdf, binctrs
 
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
@@ -287,7 +324,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       batch_size=cfg.BATCH_SIZE,
       num_threads=cfg.NUM_INPUT_THREADS,
       capacity = cfg.QUEUE_CAPACITY,
-      shuffle_batch=True,
+      shuffle_batch=False,
       cfg=cfg
     )
 
@@ -345,9 +382,8 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       )
     )
     session = tf.Session(graph=graph, config=sess_config)
-    
-    with session.as_default():
 
+    with session.as_default():
       # Initialize all the variables.
       tf.global_variables_initializer().run()
       tf.local_variables_initializer().run()
@@ -361,7 +397,6 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       gt_annotation_id = 1
       gt_image_id = 1
       try:
-        
         if tf.io.gfile.isdir(checkpoint_path):
           print(checkpoint_path)
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
@@ -396,13 +431,12 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
             # for plotting intermediate heatmaps
             'num_layers_cols': cfg.PARTS.NUM_PARTS,
-            'num_layers_rows': 8, # TODO: This should be the # of hourglass units in use.
+            'num_layers_rows': cfg.NUM_STACKS,
 
             # for plotting final heatmaps
             'num_heatmap_cols': 3,
             'num_heatmap_rows': int(np.ceil(cfg.PARTS.NUM_PARTS /3.))
           }
-
         step = 0
         done = False
         print_str = ', '.join(['Step: %d', 'Time/image network (ms): %.1f'])
@@ -465,7 +499,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
             selected_scores = []
             pred_parts = []
-            for k in keypoints:
+            for count,k in enumerate(keypoints):
               # Each keypoint prediction may actually have multiple prediction loci
               # --pick the one with the highest score.
               s_idx = np.argsort(k['score']).tolist()
@@ -482,6 +516,13 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
                 selected_scores.append(k['score'][s_idx[0]])
               # Store the predicted parts in a list.
               pred_parts += [x, y, v]
+              # and as separate entries of pred_annotations for part-wise evaluation
+              pred_annotations.append({
+                'image_id': gt_image_id,
+                'keypoints': [x, y, v],
+                'score': selected_scores[-1],
+                'category_id': count+2
+              })
 
             avg_score = np.mean(selected_scores)
             # Store the results
@@ -505,6 +546,17 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
             w = x2 - x1
             h = y2 - y1
 
+            for eval_part in range(int(np.sum(part_visibilities>0 ))):
+              gt_annotations.append({
+                "id": gt_annotation_id,
+                "image_id": gt_image_id,
+                "category_id": eval_part+2,
+                "area": (w * h).item(),
+                "bbox": [x1.item(), y1.item(), w.item(), h.item()],
+                "iscrowd": 0,
+                "keypoints": gt_parts[(eval_part*3):(eval_part*3+3)],
+                "num_keypoints": 1
+              })
             gt_annotations.append({
               "id" : gt_annotation_id,
               "image_id" : gt_image_id,
@@ -539,14 +591,14 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       gt_dataset = {
         'annotations' : gt_annotations,
         'images' : [{'id' : img_id} for img_id in dataset_image_ids],
-        'categories' : [{ 'id' : 1 }]
+        'categories' : [{ 'id' : id+1 } for id in range(int(np.sum(part_visibilities>0))+1)]
       }
 
       captured_stdout = StringIO()
 
       if prep_cocoEval:
         cocodata = {'gt_keypoints': gt_dataset, 'pred_keypoints': pred_annotations, 'view':view, 'partNames': partNames}
-        with open(os.path.join(summary_dir,'MARS_results_CoCo.json'),'w') as jsonfile:
+        with open(os.path.join(summary_dir,'MARS_performance_pose.json'),'w') as jsonfile:
           json.dump(cocodata,jsonfile)
 
         old_stdout = sys.stdout
