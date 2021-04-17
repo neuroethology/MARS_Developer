@@ -38,7 +38,7 @@ def configure_workforce(task):
     return human_task_config
 
 
-def configure_workforce(task, human_task_config, role):
+def configure_ground_truth(task, human_task_config, role):
     # Info about the task dataset.
     ground_truth_request = {
             "InputConfig" : {

@@ -1,0 +1,123 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:DeleteStackInstances",
+                "cloudformation:ListExports",
+                "cloudformation:ListStackInstances",
+                "cloudformation:DescribeStackResource",
+                "cloudformation:UpdateStackSet",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:ListTypeRegistrations",
+                "cloudformation:ContinueUpdateRollback",
+                "cloudformation:ListStackSetOperationResults",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:UpdateStack",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:CreateStackSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:ListStackResources",
+                "cloudformation:DescribeStackInstance",
+                "cloudformation:DescribeStackResources",
+                "cloudformation:SignalResource",
+                "cloudformation:DescribeStacks",
+                "cloudformation:DescribeStackResourceDrifts",
+                "cloudformation:GetStackPolicy",
+                "cloudformation:GetTemplate",
+                "cloudformation:DeleteStack",
+                "cloudformation:UntagResource",
+                "cloudformation:ValidateTemplate",
+                "cloudformation:ListTypeVersions",
+                "cloudformation:RegisterType",
+                "cloudformation:CreateUploadBucket",
+                "cloudformation:DetectStackSetDrift",
+                "cloudformation:DescribeStackDriftDetectionStatus",
+                "cloudformation:DetectStackDrift",
+                "cloudformation:CancelUpdateStack",
+                "cloudformation:SetTypeDefaultVersion",
+                "cloudformation:UpdateStackInstances",
+                "cloudformation:ListStackSetOperations",
+                "cloudformation:ListTypes",
+                "cloudformation:UpdateTerminationProtection",
+                "cloudformation:CreateStackInstances",
+                "cloudformation:DeregisterType",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:EstimateTemplateCost",
+                "cloudformation:DetectStackResourceDrift",
+                "cloudformation:DescribeStackSetOperation",
+                "cloudformation:DescribeAccountLimits",
+                "cloudformation:StopStackSetOperation",
+                "cloudformation:SetStackPolicy",
+                "cloudformation:ListStacks",
+                "cloudformation:DescribeType",
+                "cloudformation:ListImports",
+                "cloudformation:DeleteStackSet",
+                "cloudformation:DescribeTypeRegistration",
+                "cloudformation:GetTemplateSummary",
+                "cloudformation:DescribeStackSet",
+                "cloudformation:ListStackSets",
+                "cloudformation:CreateStack",
+                "cloudformation:TagResource",
+                "cloudformation:ListChangeSets"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-2"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:LookupEvents",
+                "cloudtrail:GetTrail",
+                "cloudtrail:ListTrails",
+                "cloudtrail:ListPublicKeys",
+                "cloudtrail:ListTags",
+                "cloudtrail:GetTrailStatus",
+                "cloudtrail:GetEventSelectors",
+                "cloudtrail:GetInsightSelectors",
+                "cloudtrail:DescribeTrails"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-2"
+                }
+            }
+        },
+        {
+            "Sid": "VisualEditor3",
+            "Effect": "Allow",
+            "Action": [
+                "serverlessrepo:ListApplications",
+                "serverlessrepo:ListApplicationVersions",
+                "serverlessrepo:CreateApplication",
+                "serverlessrepo:GetApplication",
+                "serverlessrepo:CreateCloudFormationTemplate",
+                "serverlessrepo:CreateApplicationVersion",
+                "serverlessrepo:GetApplicationPolicy",
+                "serverlessrepo:SearchApplications",
+                "serverlessrepo:GetCloudFormationTemplate",
+                "serverlessrepo:UpdateApplication",
+                "serverlessrepo:UnshareApplication",
+                "serverlessrepo:ListApplicationDependencies",
+                "serverlessrepo:CreateCloudFormationChangeSet",
+                "serverlessrepo:PutApplicationPolicy",
+                "serverlessrepo:DeleteApplication"
+            ],
+            "Resource": "*",
+        }
+    ]
+}

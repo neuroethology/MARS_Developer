@@ -34,7 +34,6 @@ try:
 except NameError:
   pass
 
-
 def coco_eval(infile=[], gt_keypoints=[], pred_keypoints=[], view='top', parts=[], fixedSigma=''):
   if infile:
     with open(infile) as jsonfile:
@@ -385,7 +384,6 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
     session = tf.Session(graph=graph, config=sess_config)
 
     with session.as_default():
-
       # Initialize all the variables.
       tf.global_variables_initializer().run()
       tf.local_variables_initializer().run()
@@ -399,7 +397,6 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
       gt_annotation_id = 1
       gt_image_id = 1
       try:
-
         if tf.io.gfile.isdir(checkpoint_path):
           print(checkpoint_path)
           checkpoint_path = tf.train.latest_checkpoint(checkpoint_path)
@@ -411,6 +408,7 @@ def process_tfrecord(tfrecords, checkpoint_path, summary_dir, cfg, view='Top', m
 
         # Restores from checkpoint
         saver.restore(session, checkpoint_path)
+
         # Assuming the model_checkpoint_path looks something like:
         #   /my-favorite-path/model.ckpt-0,
         # extract global_step from it.
