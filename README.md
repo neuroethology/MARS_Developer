@@ -26,12 +26,12 @@ MARS processes your videos in three steps:
 
 Each of these steps can be fine-tuned to your own data using the code in this repository.
 
-## Tutorial Overview
-If you would like to train MARS to run on your own experiments, you will need to carry out the following steps. We'll assume you have already settled on your experimental recording setup, and have a set of videos on hand to be analyzed.
+## Master Tutorial
+If you would like to train MARS to run on your own experiments, you will need to carry out the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
 ### 1) Collect a "training set" of manually annotated animal poses.
-We provide code for crowdsourcing of pose annotation to a public workforce on Amazon SageMaker. Running this code requires an AWS account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68c/image.
- - Step-by-step instructions are found in [The MARS Pose Annotation Tools module](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools):
+We provide code for crowdsourcing of pose annotation to a public workforce via Amazon SageMaker. Running this code requires an AWS account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68c/image.
+ - [The MARS Pose Annotation Tools module](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools) covers the following step-by-step instructions:
    -  1.1 [Extract video frames for annotation](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#1-extract-video-frames-for-annotation).
    -  1.2 [Run an annotation job on AWS](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#2-run-an-annotation-job-on-aws).
    -  1.3 [Visualize your manual pose annotations](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#3-visualize-manual-pose-annotations).
