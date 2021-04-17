@@ -11,7 +11,7 @@ This involves the following steps:
 > **Note**: If you have already collected annotation data from Ground Truth or with the DeepLabCut annotation interface, you can skip this section.
 
 ### 1. Extract video frames for annotation
-The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
+First, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
 
 * `input_dir`: directory path to look for video files.
 * `output_dir`: directory path to put extracted frames in as jpg files.
@@ -19,7 +19,7 @@ The script `extract_frames.py` will sample frames from all videos found in a dir
 * `to_skip`: (optional) number of frames to skip at the beginning of each video.
 
 Call it from terminal with:
-`python extract_frames.py input_dir '/path/to/videodir' output_dir '/path/to/savedir' n_frames 500 to_skip 100`
+```python extract_frames.py input_dir '/path/to/videodir' output_dir '/path/to/savedir' n_frames 500 to_skip 100```
 
 Or use `extract_frames` from within Python by calling:
 ```
