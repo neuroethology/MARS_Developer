@@ -37,7 +37,7 @@ We provide code for crowdsourcing of pose annotation to a public workforce via A
    -  1.3 [Visualize your manual pose annotations](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#3-visualize-manual-pose-annotations).
 
 ### 2) Create a new MARS Training Project.
-Given some pose annotation data (either collected via AWS or from another pose annotation interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), we will set up a new Project folder containing all the files you'll need to train a new MARS detector or pose estimator.
+Now that you've collected some pose annotation data (either via AWS or from another pose annotation interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), we will set up a new Project folder containing all the files you'll need to train a new MARS detector or pose estimator.
  - Step-by-step: [something]()
 
 ### 3) Fine-tune the MARS mouse detector to your data.
