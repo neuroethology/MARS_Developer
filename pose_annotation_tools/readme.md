@@ -40,4 +40,4 @@ Follow these [instructions to set up and run annotation jobs](docs/readme_ground
 (picture of GT workflow goes here)
 
 ### 3. Visualize manual pose annotations
-Under construction.
+You should now have a folder `output_dir` full of video frames from step 1, and a file called `output.manifest` from your annotation job in step 2. Place a copy of `output.manifest` into `output_dir`, then
