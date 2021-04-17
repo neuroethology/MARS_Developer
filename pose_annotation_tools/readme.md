@@ -35,10 +35,9 @@ ef.extract_frames(input_dir, output_dir, n_frames, to_skip)
 ### 2. Run an annotation job on AWS
 We use Amazon SageMaker Ground Truth to collect manual annotations of animal pose from an annotator workforce. Your annotator workforce can consist of either private annotators (eg lab members), or you can submit jobs to a paid, public workforce.
 
-* First, follow these [instructions for setting up and running annotation jobs](docs/readme_groundTruthSetup.md).
-* Next, open the [MARS_annotation_tools_demo](MARS_annotation_tools_demo.ipynb) Jupyter notebook from a SageMaker Notebook Instance to launch your labeling job.
+Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
 (picture of GT workflow goes here)
 
 ### 3. Visualize manual pose annotations
-Under construction.
+You should now have a folder `output_dir` full of video frames from step 1, and a file called `output.manifest` from your annotation job in step 2. Place a copy of `output.manifest` into `output_dir`, then
