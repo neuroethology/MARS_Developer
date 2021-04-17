@@ -5,18 +5,18 @@ We will be using SageMaker Ground Truth to send batches of images to a human wor
 These instructions require an AWS account (with a linked credit card if you are using a paid or public workforce). You can create an account by visiting [console.aws.amazon.com](http://console.aws.amazon.com).
 
 This tutorial will walk you through the following steps:
-* [Importing data pre- and post-processing functions](#importing-the-pre--and-post-processing-lambda-functions) (one time only)
-* [Preparing your data for annotation](#preparing-your-data-for-annotation)
+1. [Importing data pre- and post-processing functions](#1-importing-the-pre--and-post-processing-lambda-functions) (one time only)
+2. [Preparing your data for annotation](#2-preparing-your-data-for-annotation)
     * [Uploading images to the cloud](#uploading-images-to-the-cloud)
     * [Creating a data manifest and setting up bucket access](#creating-a-data-manifest-and-setting-up-bucket-access)
-* [(Optional) Creating a private annotation workforce](#(optional)-creating-a-private-annotation-workforce) (one time only)
-* [Submitting your labeling job](#submitting-your-labeling-job)
+3. [(Optional) Creating a private annotation workforce](#3-optional-creating-a-private-annotation-workforce) (one time only)
+4. [Submitting your labeling job](#4-submitting-your-labeling-job)
     * [Uploading the annotation interface](#editing-the-annotation-interface)
     * [Setting job parameters and running](#setting-job-parameters-and-running)
     * [Downloading the completed annotations](#downloading-the-completed-annotations)
 
 
-## Importing the pre- and post-processing Lambda functions
+## 1. Importing the pre- and post-processing Lambda functions
 Lambda functions are Python scripts that are called when transferring data between Amazon services-- for example when sending your images off to be annotated, and when collecting the annotators' labels. Ground Truth labeling jobs use two Lambdas:
 
 * A pre-processing Lambda that helps to customize input to the annotation interface.
@@ -32,7 +32,7 @@ These Lambdas are already written, we just have to import them from Amazon's Ser
 
 Now you have custom Lambdas, to be used in running labeling jobs, imported successfully in your account.
 
-## Preparing your data for annotation
+## 2. Preparing your data for annotation
 To collect a new set of MARS training data, you must first extract frames from videos collected in your experimental setup. ([Click here to learn how to perform frame extraction using MARS](../readme.md#extract-video-frames-for-annotation).) Once extracted, you must upload those frames to AWS where they can be used in an annotation job. This includes the following steps:
 
 ### Uploading images to the cloud
@@ -56,12 +56,12 @@ We will now create a manifest for your data (if you don't have one), and while w
 6. Next, open the menu under "IAM Role" and select "Create a new role". In the window that pops up, you can set which buckets SageMaker has access to. Under "S3 buckets you specify", either select "Specific S3 buckets" and enter the name of your data bucket, or to make life easier select "Any S3 bucket" (this will let you re-use the same role for all of your labeling jobs.) Then click <kbd>Create</kbd>.
 7. That's it for now- you may exit out of this labeling job. In the next step, we'll be retrieving the IAM Role that you just created, and using it (and some other information) to submit your job programmatically.
 
-## (Optional) Creating a private annotation workforce
+## 3. (Optional) Creating a private annotation workforce
 Ground Truth sends your data to human annotators to label your animal's pose. By default, these annotators will be users of [Amazon Mechanical Turk](https://www.mturk.com/) (MTurk), a crowdsourcing marketplace that sends your task to a global workforce. MTurk annotations can be noisy- we compensate for this in the next step by having 5 workers label each image (a minimum of 3 workers/image is recommended.)
 
 If your data is sensitive or especially difficult to annotate, you may not want to rely on a public workforce. In this case, you can create your own **private annotation team**, allowing you and your colleagues to annotate data within the Ground Truth interface. If desired, follow [these instructions to create a private workforce](readme_privateWorkforce.md).
 
-## Submitting your labeling job
+## 4. Submitting your labeling job
 Finally, it's time to make a labeling job. This consists of uploading an annotation interface, and then setting some job parameters within a Jupyter notebook.
 
 ### Uploading the annotation interface
