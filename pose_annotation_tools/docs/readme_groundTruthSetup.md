@@ -72,18 +72,21 @@ We have provided [two example interfaces](../annotation_interface) (`.template` 
 After modifying the interface as you see fit, open [AWS](http://console.aws.amazon.com) and navigate to S3. Create a new S3 bucket, give it a name, and *uncheck* the "Block *all* public access" box so objects in the bucket can be accessed. Then scroll down and click <kbd>Create bucket</kbd>. Upload the interface `.template` along with any instructional images you want to include-- make sure to update your `.template` HTML to include the full URL of these images.
 
 ### Setting job parameters and running
-At last, it is labeling job time! We will run the job from [this Jupyter notebook](../MARS_annotation_tools_demo.ipynb), after connecting to AWS. You have two options here: running the notebook from within a SageMaker notebook instance, or running on your local machine after installing the AWS command-line interface (CLI).
+At last, it is labeling job time!
 
-#### Using a SageMaker notebook instance
-1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
+1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook</kbd>-><kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
 2. Give the notebook a name, and under "Permissions and Encryption" set the IAM role to `AmazonSageMaker-ExecutionRole-xxxxxxxxxxx`. Under "Git repositories", select `Clone a public Git repository to this notebook instance only`, and add the path to this repository (http://github.com/neuroethology/MARS_developer). Finally, scroll to the bottom and click <kbd>Create notebook instance</kbd>.
 3. Your new notebook should now appear in your list of notebook instances. Click <kbd>Start</kbd> under "Actions" for this notebook, and wait a few minutes for the notebook status to update from `Pending` to `InService`, then click <kbd>Open Jupyter</kbd>.
-4. Navigate to [../MARS_annotation_tools_demo.ipynb](../MARS_annotation_tools_demo.ipynb) and follow instructions from there!
+4. Navigate to [../MARS_annotation_tools_demo.ipynb](../MARS_annotation_tools_demo.ipynb) from within the notebook session, and follow all instructions.
+5. Once you have run all cells of the notebook, your job should be submitted. In the SageMaker console, click <kbd>Ground Truth</kbd>-></kbd>Labeling Jobs</kbd>, and you should see a job with name **[BUCKET NAME]-xxxxxxxxxx** in progress.
 
-> **Note:** Don't forget to stop the notebook instance (select the instance and click `Actions`>`Stop` in the Notebook instances menu) once the job has been submitted, so you are not billed for leaving it running!
-
-#### Using AWS CLI
-I still have to figure out how to do this!
+> **Note:** once the job is running, you should stop your Notebook instance (select the instance and click `Actions`>`Stop` in the Notebook instances menu), so you are not billed for leaving it running!
 
 ### Downloading the completed annotations
+When a job has finished running, its status in the Labeling Jobs menu will change to ✔️<span style="color:green">Complete</span>. Once this happens, download your completed annotations by following these steps:
 
+1. Navigate to the S3 console on [aws](http://console.aws.amazon.com). If your images to be annotated were stored in a bucket called "BUCKET_NAME", look for the bucket **[BUCKET NAME]-output** and open it.
+2. Inside **[BUCKET_NAME]-output**, open **[BUCKET_NAME]-xxxxxxxxxx** (the name of your most recent labeling job- if you have more than one, pick the one with the highest number), then open **manifests** followed by **output**. You should find a file called **output.manifest**, which contains the raw output of your labeling job.
+3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>.
+
+And you've made it! Take a deep breath, then return to the [MARS Pose Annotation Tools ReadMe](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#mars-pose-annotation-tools-a-module-for-crowdsourcing-pose-estimation) and refer to step 3 to visualize the annotations you just collected.
