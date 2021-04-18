@@ -51,15 +51,15 @@ For the data:
     > Note: by default, no one other than you will be able to access images in your bucket (aside from annotators who are served the images via SageMaker.)
 
 For the annotation interface:
-4.  Create a new S3 bucket for the annotation interface, give it a name, and *uncheck* the "Block *all* public access" box so objects in the bucket can be accessed. Then scroll down and click <kbd>Create bucket</kbd>. We'll be calling this `template_bucket`.
+1. Create a new S3 bucket for the annotation interface, give it a name, and *uncheck* the "Block *all* public access" box so objects in the bucket can be accessed. Then scroll down and click <kbd>Create bucket</kbd>. We'll be calling this `template_bucket`.
 
 ### Prepare your annotation interface
 Now we're going to create the **annotation interface**, a simple piece of HTML with instructions for annotators.
 
 We will create this programmatically from a configuration file called `annot_config.yml` that was created inside `project_name/annotation_data` when you [initialized your labeling project](../pose_annotation_tools#0-initialize-a-new-labeling-project).
 
-1. Open `annot_config.yml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" with `region` and `template_bucket` (not your data bucket).
-2. In a command terminal, call `python annotation_prep.py config`, where `config` is the full path to `annot_config.yml`,
+1. Open `annot_config.yml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" to include `region` and `template_bucket`.
+2. From the terminal, call `python generate_AWS_template.py config`, where `config` is the full path to `annot_config.yml`.
 
 This will create a file `project_name/annotation_data/annotation_interface.template` file containing your annotation template.
 
