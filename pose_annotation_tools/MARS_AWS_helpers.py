@@ -3,13 +3,24 @@ import boto3
 import sagemaker
 
 
-def create_manifest(bucket):
-    # this should be easy enough, right??
-    s3 = boto3.resource('s3')
-    my_bucket = s3.Bucket(bucket)
+def create_manifest(bucket,manifest_name='file_list.manifest'):
+    s3 = boto3.client('s3')
+    filelist = []
+    for i,key in enumerate(s3.list_objects(Bucket=bucket)['Contents']):
+        if key['Key'].endswith('jpg'):
+            filelist.append('{"source-ref":"s3://' + bucket + '/' + key['Key'] + '"}')
 
-    for my_bucket_object in my_bucket.objects.all():
-        print(my_bucket_object)
+    # next step, convert filelist to binary data and call put_object
+    if not manifest_name.endswith('.manifest'):
+        manifest_name = manifest_name + '.manifest'
+
+    with open('tmp_'+manifest_name,'w') as f:
+        for item in filelist:
+            f.write("%s\n" % item)
+
+    s3.put_object(Body=open('tmp_'+manifest_name, 'rb'), Bucket=bucket, Key=manifest_name)
+    print('created a manifest called "' + manifest_name + '" in ' + bucket)
+    return manifest_name.replace('.manifest','')
 
 
 def check_bucket_region(role, task):
