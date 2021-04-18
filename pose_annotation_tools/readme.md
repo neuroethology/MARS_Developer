@@ -25,13 +25,13 @@ It creates a folder at `/path/to/savedir/my_project`, with a subdirectory called
 Next, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
 
 * `input_dir`: directory path to look for video files.
-* `project_path`: the path to the labeling project you just created, ie `/path/to/savedir/my_project`.
+* `project`: the path to the labeling project you just created, ie `/path/to/savedir/my_project`.
 * `n_frames`: total number of frames to extract across all the videos.
 * `to_skip`: (optional) number of frames to skip at the beginning of each video.
 
 Call it from terminal with:
 ```
-python extract_raw_frames.py input_dir /path/to/videodir project_path /path/to/savedir/my_project n_frames 500 to_skip 100
+python extract_raw_frames.py input_dir /path/to/videodir project /path/to/savedir/my_project n_frames 500 to_skip 100
 ```
 You should now have a folder `my_project/annotation_data` containing a directory `raw_images` of video frames.
 
@@ -45,7 +45,7 @@ At the end of step 3, you downloaded a file `output.manifest` of annotation data
 
 Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the following arguments:
 
-* `my_project`: full path to the project directory.
+* `project`: full path to the project directory.
 
 It also takes the optional arguments:
 * `nWorkers`: (default `5`) the number of workers you had annotate each frame.
