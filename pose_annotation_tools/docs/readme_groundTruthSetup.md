@@ -83,7 +83,7 @@ Ground Truth sends your data to human annotators to label your animal's pose. By
 If your data is sensitive or especially difficult to annotate, you may not want to rely on a public workforce. In this case, you can create your own **private annotation team**, allowing you and your colleagues to annotate data within the Ground Truth interface. If desired, follow [these instructions to create a private workforce](readme_privateWorkforce.md).
 
 ## 4. Submit your labeling job
-Finally, it's time to make a labeling job. This consists of uploading an annotation interface, and then setting some job parameters within a Jupyter notebook.
+Finally, it's time to make a labeling job- we'll do this from within a Jupyter notebook hosted on SageMaker.
 
 1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook</kbd>-><kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
 2. Give the notebook a name, and under "Permissions and Encryption" set the IAM role to `AmazonSageMaker-ExecutionRole-xxxxxxxxxxx`. Under "Git repositories", select `Clone a public Git repository to this notebook instance only`, and add the path to this repository (http://github.com/neuroethology/MARS_developer). Finally, scroll to the bottom and click <kbd>Create notebook instance</kbd>.
