@@ -3,6 +3,15 @@ import boto3
 import sagemaker
 
 
+def create_manifest(bucket):
+    # this should be easy enough, right??
+    s3 = boto3.resource('s3')
+    my_bucket = s3.Bucket(bucket)
+
+    for my_bucket_object in my_bucket.objects.all():
+        print(my_bucket_object)
+
+
 def check_bucket_region(role, task):
     region = boto3.session.Session().region_name
     s3 = boto3.client('s3')
@@ -24,7 +33,7 @@ def configure_workforce(task):
           "TaskTitle": task['info']['task_title'],
           "UiConfig": {"UiTemplateS3Uri": task['UITEMPLATE'], }
         }
-    
+
     # Specifies the workforce and compensation.
     human_task_config["PublicWorkforceTaskPrice"] = {
                 "AmountInUsd": {
@@ -32,9 +41,9 @@ def configure_workforce(task):
                    "Cents": task['price']['cents'],
                    "TenthFractionsOfACent": task['price']['tenthcent'],
                 }
-            } 
+            }
     human_task_config["WorkteamArn"] = task['arns']['workteam_arn']
-    
+
     return human_task_config
 
 
@@ -52,15 +61,15 @@ def configure_ground_truth(task, human_task_config, role):
                   "FreeOfPersonallyIdentifiableInformation",
                   "FreeOfAdultContent"
                 ]
-              },  
+              },
             },
             "OutputConfig" : {
               "S3OutputPath": 's3://{}-output/'.format(task['BUCKET']),
             },
             "HumanTaskConfig" : human_task_config,
             "LabelingJobName": task['info']['job_name'],
-            "RoleArn": role, 
+            "RoleArn": role,
             "LabelAttributeName": "annotatedResult",
         }
-    
+
     return ground_truth_request
