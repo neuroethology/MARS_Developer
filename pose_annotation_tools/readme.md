@@ -11,7 +11,7 @@ This involves the following steps:
 5. [Visualize some annotations](#5-visualize-some-annotations) and evaluate performance of your workforce.
 
 ### 1. Initialize a new labeling project
-First, we'll create a master directory for all files associated with this labeling job. The script `new_annotation_project.py` will get you started. It takes the arguments:
+First, we'll create a master directory for all files associated with this project. The script `new_annotation_project.py` will get you started. It takes the arguments:
 
 * `location`: where we're going to save all associated files for this project
 * `name`: a name for the project
