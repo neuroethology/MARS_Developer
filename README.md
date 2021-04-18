@@ -29,16 +29,26 @@ Each of these steps can be fine-tuned to your own data using the code in this re
 ## Master Tutorial
 If you would like to train MARS to run on your own experiments, you will need to carry out the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
-### 1) ✍️ Collect a set of manually annotated animal poses.
-We provide code for crowdsourcing of pose annotation to a public workforce via Amazon SageMaker. Running this code requires an AWS account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68c/image.
- - [The MARS Pose Annotation Tools module](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#mars-pose-annotation-tools-a-module-for-crowdsourcing-pose-estimation) covers the following steps:
-   -  1.1 [Extract video frames for annotation](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#1-extract-video-frames-for-annotation).
-   -  1.2 [Run an annotation job on AWS](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#2-run-an-annotation-job-on-aws).
-   -  1.3 [Visualize your manual pose annotations](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#3-visualize-manual-pose-annotations).
+### 1) 📁 Create a new MARS Training Project.
+First, we'll create a master directory for all files associated with your project. The script `new_annotation_project.py` will get you started. It takes the arguments:
 
-### 2) 📁 Create a new MARS Training Project.
-Now that you've collected some pose annotation data (either via AWS or from another pose annotation interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), we will set up a new Project folder containing all the files you'll need to train a new MARS detector or pose estimator.
- - Step-by-step: [something]()
+* `location`: where we're going to save all associated files for this project
+* `name`: a name for the project
+
+Call it from terminal with:
+``` python new_annotation_project.py location /path/to/savedir name my_project```
+
+It creates a folder at `/path/to/savedir/my_project` that has already been populated with a few files and subdirectories. We'll get to these shortly.
+
+### 2) ✍️ Collect a set of manually annotated animal poses.
+We provide code for crowdsourcing of pose annotation to a public workforce via Amazon SageMaker. Running this code requires an AWS account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68 cents/image.
+ - [The MARS Pose Annotation Tools module](pose_annotation_tools#mars-pose-annotation-tools-a-module-for-crowdsourcing-pose-estimation) covers the following steps:
+   - [Extracting video frames](pose_annotation_tools#1-extract-video-frames-for-annotation) that you would like to annotate.
+   - [Running an AWS labeling job](pose_annotation_tools#2-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
+   - [Post-processing the annotations](pose_annotation_tools#3-post-process-manual-pose-annotations) to correct for common annotation errors.
+   - [Visualizing some annotations](pose_annotation_tools#4-visualize-some-annotations) and evaluate performance of your workforce.
+
+If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), you
 
 ### 3) 🎯 Fine-tune the MARS mouse detector to your data.
 First, we need to teach MARS what your animals look like. In this step, we'll create a mouse detector for your videos, and check its performance.
