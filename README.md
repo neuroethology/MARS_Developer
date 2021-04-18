@@ -46,7 +46,7 @@ We provide code for crowdsourcing of pose annotation to a public workforce via A
    - [Extracting video frames](pose_annotation_tools#1-extract-video-frames-for-annotation) that you would like to annotate.
    - [Running an AWS labeling job](pose_annotation_tools#2-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
    - [Post-processing the annotations](pose_annotation_tools#3-post-process-manual-pose-annotations) to correct for common annotation errors.
-   - [Visualizing some annotations](pose_annotation_tools#4-visualize-some-annotations) and evaluate performance of your workforce.
+   - [Visualizing some annotations](pose_annotation_tools#4-visualize-some-annotations) to evaluate performance of your workforce.
 
 If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), you
 
