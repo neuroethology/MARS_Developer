@@ -4,24 +4,12 @@ This module will walk you through the process of collecting manual annotations o
 
 This involves the following steps:
 
-1. [Initialize a new labeling project](#1-initialize-a-new-labeling-project), creating a project directory that will organize all your files for an annotation job.
-2. [Extract video frames](#2-extract-video-frames-for-annotation) that you would like to annotate.
-3. [Run an AWS labeling job](#3-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
-4. [Post-process the annotations](#4-post-process-manual-pose-annotations) to correct for common annotation errors.
-5. [Visualize some annotations](#5-visualize-some-annotations) and evaluate performance of your workforce.
+1. [Extract video frames](#1-extract-video-frames-for-annotation) that you would like to annotate.
+2. [Run an AWS labeling job](#2-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
+3. [Post-process the annotations](#3-post-process-manual-pose-annotations) to correct for common annotation errors.
+4. [Visualize some annotations](#4-visualize-some-annotations) and evaluate performance of your workforce.
 
-### 1. Initialize a new labeling project
-First, we'll create a master directory for all files associated with this project. The script `new_annotation_project.py` will get you started. It takes the arguments:
-
-* `location`: where we're going to save all associated files for this project
-* `name`: a name for the project
-
-Call it from terminal with:
-``` python new_annotation_project.py location /path/to/savedir name my_project```
-
-It creates a folder at `/path/to/savedir/my_project` that has already been populated with a few files and subdirectories. We'll get to these shortly.
-
-### 2. Extract video frames for annotation
+### 1. Extract video frames for annotation
 Next, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
 
 * `input_dir`: directory path to look for video files.
@@ -35,13 +23,13 @@ python extract_raw_frames.py input_dir /path/to/videodir project /path/to/savedi
 ```
 You should now have a folder `my_project/annotation_data` containing a directory `raw_images` of video frames.
 
-### 3. Run an annotation job on AWS
+### 2. Run an annotation job on AWS
 We use Amazon SageMaker Ground Truth to collect manual annotations of animal pose from an annotator workforce. Your annotator workforce can consist of either private annotators (eg lab members), or you can submit jobs to a paid, public workforce.
 
 Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
-### 4. Post-process manual pose annotations
-At the end of step 3, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).)
+### 3. Post-process manual pose annotations
+At the end of step 2, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).)
 
 If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/annotation_data/annot_config.yml` and set `manifest_name` to be the name of the file containing your annotation data.
 
@@ -55,5 +43,5 @@ It also takes the optional argument:
 Call it from terminal with:
 ```python parse_manifest_file.py project /path/to/savedir/my_project nWorkers 5 manifest_name output.manifest```
 
-### 5. Visualize some annotations
+### 4. Visualize some annotations
 Now we're going to run a script that will a) show some example annotated images from your dataset, and b) save some summary statistics on annotator performance, so you can evaluate how well people labeled your data. Woohoo.
