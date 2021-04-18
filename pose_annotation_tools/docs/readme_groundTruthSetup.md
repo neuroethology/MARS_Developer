@@ -13,7 +13,7 @@ This tutorial will walk you through the following steps:
 4. [Submitting your labeling job](#4-submitting-your-labeling-job)
     * [Uploading the annotation interface](#editing-the-annotation-interface)
     * [Setting job parameters and running](#setting-job-parameters-and-running)
-    * [Downloading the completed annotations](#downloading-the-completed-annotations)
+5. [Downloading the completed annotations](#5-downloading-the-completed-annotations)
 
 
 ## 1. Importing the pre- and post-processing Lambda functions
@@ -82,7 +82,7 @@ At last, it is labeling job time!
 
 > **Note:** once the job is running, you should stop your Notebook instance (select the instance and click `Actions`>`Stop` in the Notebook instances menu), so you are not billed for leaving it running!
 
-### Downloading the completed annotations
+## 5. Downloading the completed annotations
 When a job has finished running, its status in the Labeling Jobs menu will change to ✔️<span style="color:green">Complete</span>. Once this happens, download your completed annotations by following these steps:
 
 1. Navigate to the S3 console on [aws](http://console.aws.amazon.com). If your images to be annotated were stored in a bucket called "BUCKET_NAME", look for the bucket **[BUCKET NAME]-output** and open it.
