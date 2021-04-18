@@ -59,7 +59,7 @@ Now we're going to create the **annotation interface**, a simple piece of HTML w
 We will create this programmatically from a configuration file called `annot_config.yml` that was created inside `project_name/annotation_data` when you [initialized your labeling project](../pose_annotation_tools#0-initialize-a-new-labeling-project).
 
 1. Open `annot_config.yml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" to include `region` and `template_bucket`.
-2. From the terminal, call `python generate_AWS_template.py /fullpath/to/project_name/annotation_data/annot_config.yml`
+2. From the terminal, call `python generate_AWS_template.py '/fullpath/to/project_name/annotation_data/annot_config.yml'`
 
 This will create a file `project_name/annotation_data/annotation_interface.template` file containing your annotation template.
 
