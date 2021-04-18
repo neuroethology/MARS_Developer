@@ -41,7 +41,7 @@ It also takes the optional argument:
 * `correct_flips`: (default `true`) set to false if you don't want MARS to try to correct for left/right errors made by workers.
 
 Call it from terminal with:
-```python parse_manifest_file.py project /path/to/savedir/my_project nWorkers 5 manifest_name output.manifest```
+```python parse_manifest_file.py project /path/to/savedir/my_project correct_flips true```
 
 ### 4. Visualize some annotations
 Now we're going to run a script that will a) show some example annotated images from your dataset, and b) save some summary statistics on annotator performance, so you can evaluate how well people labeled your data. Woohoo.
