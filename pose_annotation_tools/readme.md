@@ -10,7 +10,7 @@ This involves the following steps:
 4. [Visualize some annotations](#4-visualize-some-annotations) and evaluate performance of your workforce.
 
 ### 1. Extract video frames for annotation
-Next, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
+First, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
 
 * `input_dir`: directory path to look for video files.
 * `project`: the path to the labeling project you just created, ie `/path/to/savedir/my_project`.
@@ -31,7 +31,7 @@ Follow these [instructions to set up and run annotation jobs](docs/readme_ground
 ### 3. Post-process manual pose annotations
 At the end of step 2, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).)
 
-If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/annotation_data/annot_config.yml` and set `manifest_name` to be the name of the file containing your annotation data.
+If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/project_config.yml` and set `manifest_name` to the name of the file containing your annotation data.
 
 Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the argument:
 
