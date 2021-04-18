@@ -98,6 +98,6 @@ When a job has finished running, its status in the Labeling Jobs menu will chang
 
 1. Navigate to the S3 console on [aws](http://console.aws.amazon.com). If your images to be annotated were stored in a bucket called "BUCKET_NAME", look for the bucket **[BUCKET NAME]-output** and open it.
 2. Inside **[BUCKET_NAME]-output**, open **[BUCKET_NAME]-xxxxxxxxxx** (the name of your most recent labeling job- if you have more than one, pick the one with the highest number), then open **manifests** followed by **output**. You should find a file called **output.manifest**, which contains the raw output of your labeling job.
-3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>.
+3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>. Save the file to `project_name/annotation_data/output.manifest`.
 
 And you've made it! Take a deep breath, then return to the [MARS Pose Annotation Tools ReadMe](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#mars-pose-annotation-tools-a-module-for-crowdsourcing-pose-estimation) and refer to step 3 to visualize the annotations you just collected.
