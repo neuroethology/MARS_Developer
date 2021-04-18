@@ -5,14 +5,14 @@ We will be using SageMaker Ground Truth to send batches of images to a human wor
 These instructions require an AWS account (with a linked credit card if you are using a paid or public workforce). You can create an account by visiting [console.aws.amazon.com](http://console.aws.amazon.com).
 
 This tutorial will walk you through the following steps:
-1. [Importing data pre- and post-processing functions](#1-importing-the-pre--and-post-processing-lambda-functions) (one time only)
+1. [Importing data pre- and post-processing functions](#1-importing-the-pre--and-post-processing-lambda-functions) **(one time only)**
 2. [Preparing your data for annotation](#2-preparing-your-data-for-annotation)
     * [Uploading images to the cloud](#uploading-images-to-the-cloud)
-    * [Creating a data manifest and setting up bucket access](#creating-a-data-manifest-and-setting-up-bucket-access)
-3. [(Optional) Creating a private annotation workforce](#3-optional-creating-a-private-annotation-workforce) (one time only)
+    * [Setting up bucket access](#setting-up-bucket-access) **(one time only)**
+    * [Designing your annotation interface](#designing-your-annotation-interface)
+    * [Uploading the annotation interface](#uploading-the-annotation-interface)
+3. [(Optional) Creating a private annotation workforce](#3-optional-creating-a-private-annotation-workforce) **(one time only)**
 4. [Submitting your labeling job](#4-submitting-your-labeling-job)
-    * [Uploading the annotation interface](#editing-the-annotation-interface)
-    * [Setting job parameters and running](#setting-job-parameters-and-running)
 5. [Downloading the completed annotations](#5-downloading-the-completed-annotations)
 
 
@@ -43,18 +43,19 @@ To collect a new set of MARS training data, you must first extract frames from v
 
 4. Click the name of your new bucket, then select <kbd>Upload</kbd> in the next screen. In the Upload page, add files/folders, then scroll to the bottom and click <kbd>Upload</kbd>.
 
-### Creating a data manifest and setting up bucket access
-The data manifest is a .json file that tells Ground Truth which files from your S3 bucket should be annotated. If you have metadata that you would like to keep associated with your images, you can [generate this file yourself](readme_customManifests.md) and upload it to your S3 bucket. Otherwise, SageMaker can crawl an S3 bucket and generate a manifest automatically.
-
-We will now create a manifest for your data (if you don't have one), and while we're there create an element called an "IAM Role" that will allow SageMaker to access the contents of your bucket.
+### Setting up bucket access
+Next, we need to create an element called an "IAM Role" that will allow SageMaker to access the contents of your bucket.
 
 1. Navigate to the SageMaker console by logging into [AWS](http://console.aws.amazon.com) and searching "SageMaker" in the Find Services menu.
-2. Choose <kbd>Labeling jobs</kbd> in the left navigation pane, and then click the <kbd>Create labeling job</kbd> button. We're not actually going to create a labeling job right now, but we will use the menu that pops up to generate the manifest and IAM Role.
-3. If you already have a manifest file, skip to step 6 of these instructions. Otherwise, scroll down to the "Data Setup" section.
-4. Under "S3 location for input datasets", click <kbd>Browse S3</kbd>, select your bucket, then scroll down and click <kbd>Choose</kbd>.
-5. Under "Data Type" select "Image". Skip over the IAM Role field (we'll do this next) and click <kbd>Complete data setup</kbd>. After a second of processing, you will find the full path to your new manifest file in the "S3 location for input datasets" field- keep this name for the next section.
-6. Next, open the menu under "IAM Role" and select "Create a new role". In the window that pops up, you can set which buckets SageMaker has access to. Under "S3 buckets you specify", either select "Specific S3 buckets" and enter the name of your data bucket, or to make life easier select "Any S3 bucket" (this will let you re-use the same role for all of your labeling jobs.) Then click <kbd>Create</kbd>.
-7. That's it for now- you may exit out of this labeling job. In the next step, we'll be retrieving the IAM Role that you just created, and using it (and some other information) to submit your job programmatically.
+2. Choose <kbd>Labeling jobs</kbd> in the left navigation pane, and then click the <kbd>Create labeling job</kbd> button. We're not actually going to create a labeling job right now, but we will use the menu that pops up to generate the IAM Role.
+3. Open the menu under "IAM Role" and select "Create a new role". In the window that pops up, you can set which buckets SageMaker has access to. Under "S3 buckets you specify", either select "Specific S3 buckets" and enter the name of your data bucket, or to make life easier select "Any S3 bucket" (this will let you re-use the same role for all of your labeling jobs.) Then click <kbd>Create</kbd>.
+4. That's it for now- you may exit out of this labeling job. In step 4 we'll be retrieving the IAM Role that you just created, and using it (and some other information) to submit your job programmatically.
+
+### Designing your annotation interface
+The annotation interface is a simple piece of HTML with instructions for annotators. We will create yours programmatically from a configuration file called `annot_config.yml` that was created inside `project_name/annotation_data` when you [initialized your labeling project](../pose_annotation_tools#0-initialize-a-new-labeling-project). Open `annot_config.yml` in your text editor and modify the fields appropriately.
+
+### Uploading the annotation interface
+Open [AWS](http://console.aws.amazon.com) and navigate to S3. Create a new S3 bucket, give it a name, and *uncheck* the "Block *all* public access" box so objects in the bucket can be accessed. Then scroll down and click <kbd>Create bucket</kbd>. Upload the interface `.template` along with any instructional images you want to include-- make sure to update your `.template` HTML to include the full URL of these images.
 
 ## 3. (Optional) Creating a private annotation workforce
 Ground Truth sends your data to human annotators to label your animal's pose. By default, these annotators will be users of [Amazon Mechanical Turk](https://www.mturk.com/) (MTurk), a crowdsourcing marketplace that sends your task to a global workforce. MTurk annotations can be noisy- we compensate for this in the next step by having 5 workers label each image (a minimum of 3 workers/image is recommended.)
@@ -63,16 +64,6 @@ If your data is sensitive or especially difficult to annotate, you may not want 
 
 ## 4. Submitting your labeling job
 Finally, it's time to make a labeling job. This consists of uploading an annotation interface, and then setting some job parameters within a Jupyter notebook.
-
-### Uploading the annotation interface
-The annotation interface is a simple piece of HTML with instructions for annotators. The MARS interfaces also include a script that makes sure each body part is clicked exactly once per image.
-
-We have provided [two example interfaces](../annotation_interface) (`.template` files) for annotating top- and front-view movie frames in a standard home cage. You can modify the `short-instructions` section, the `full-instructions` section, the display images, and the body part label names (line 9). Change the value of `num_object` (line 43) if you want workers to annotate multiple instances of a keypoint in each image. (Note that if your animals can be visually distinguished, it is best to create distinct keypoint names for each animal, eg for the white vs black mouse in MRAS.)
-
-After modifying the interface as you see fit, open [AWS](http://console.aws.amazon.com) and navigate to S3. Create a new S3 bucket, give it a name, and *uncheck* the "Block *all* public access" box so objects in the bucket can be accessed. Then scroll down and click <kbd>Create bucket</kbd>. Upload the interface `.template` along with any instructional images you want to include-- make sure to update your `.template` HTML to include the full URL of these images.
-
-### Setting job parameters and running
-At last, it is labeling job time!
 
 1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook</kbd>-><kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
 2. Give the notebook a name, and under "Permissions and Encryption" set the IAM role to `AmazonSageMaker-ExecutionRole-xxxxxxxxxxx`. Under "Git repositories", select `Clone a public Git repository to this notebook instance only`, and add the path to this repository (http://github.com/neuroethology/MARS_developer). Finally, scroll to the bottom and click <kbd>Create notebook instance</kbd>.
