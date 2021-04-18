@@ -19,7 +19,7 @@ First, we'll create a master directory for all files associated with this projec
 Call it from terminal with:
 ``` python new_annotation_project.py location /path/to/savedir name my_project```
 
-It creates a folder at `/path/to/savedir/my_project`, with a subdirectory called `annotation_data` that has already been populated with a few files. We'll get to those shortly.
+It creates a folder at `/path/to/savedir/my_project` that has already been populated with a few files and subdirectories. We'll get to these shortly.
 
 ### 2. Extract video frames for annotation
 Next, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
