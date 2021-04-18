@@ -30,13 +30,13 @@ Each of these steps can be fine-tuned to your own data using the code in this re
 If you would like to train MARS to run on your own experiments, you will need to carry out the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
 ### 1) 📁 Create a new MARS Training Project.
-First, we'll create a master directory for all files associated with your project. The script `new_annotation_project.py` will get you started. It takes the arguments:
+First, we'll create a master directory for all files associated with your project. The script `create_new_project.py` will get you started. It takes the arguments:
 
 * `location`: where we're going to save all associated files for this project
 * `name`: a name for the project
 
 Call it from terminal with:
-``` python new_annotation_project.py location /path/to/savedir name my_project```
+``` python create_new_project.py location /path/to/savedir name my_project```
 
 It creates a folder at `/path/to/savedir/my_project` that has already been populated with a few files and subdirectories. We'll get to these shortly.
 
