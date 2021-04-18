@@ -41,7 +41,7 @@ We use Amazon SageMaker Ground Truth to collect manual annotations of animal pos
 Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
 ### 4. Post-process manual pose annotations
-At the end of step 3, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-downloading-the-completed-annotations).) If you haven't already, copy this file to `my_project/annotation_data/output.manifest`.
+At the end of step 3, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).) If you haven't already, copy this file to `my_project/annotation_data/output.manifest`.
 
 Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the following arguments:
 
