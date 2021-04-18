@@ -59,14 +59,14 @@ Now we're going to create the **annotation interface**, a simple piece of HTML w
 We will create this programmatically from a configuration file called `annot_config.yml` that was created inside `project_name/annotation_data` when you [initialized your labeling project](../pose_annotation_tools#0-initialize-a-new-labeling-project).
 
 1. Open `annot_config.yml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" to include `region` and `template_bucket`.
-2. From the terminal, call `python generate_AWS_template.py config`, where `config` is the full path to `annot_config.yml`.
+2. From the terminal, call `python generate_AWS_template.py '/fullpath/to/project_name/annotation_data/annot_config.yml'`
 
 This will create a file `project_name/annotation_data/annotation_interface.template` file containing your annotation template.
 
 ### Upload files
 Now we're going to upload everything to your two S3 buckets.
 1. Open [AWS](http://console.aws.amazon.com) and navigate to S3. First, click on the name of your `data_bucket`, then select <kbd>Upload</kbd> in the next screen. 
-2. Upload the `.manifest` file you just created, and then upload all the images in `project_name/annotation_data/raw_images`.
+2. Upload the images in `project_name/annotation_data/raw_images` (the images you'd like annotated).
 3. Next, open your `template_bucket` and upload the interface `.template` along with any instructional images you want to include. If you are using the MARS keypoints, you can use [the instructional image provided in this repository](../annotation_interface/front_view_interface/instruction_image_bodyparts.png).
 
 ### Set up bucket access
@@ -83,7 +83,7 @@ Ground Truth sends your data to human annotators to label your animal's pose. By
 If your data is sensitive or especially difficult to annotate, you may not want to rely on a public workforce. In this case, you can create your own **private annotation team**, allowing you and your colleagues to annotate data within the Ground Truth interface. If desired, follow [these instructions to create a private workforce](readme_privateWorkforce.md).
 
 ## 4. Submit your labeling job
-Finally, it's time to make a labeling job. This consists of uploading an annotation interface, and then setting some job parameters within a Jupyter notebook.
+Finally, it's time to make a labeling job- we'll do this from within a Jupyter notebook hosted on SageMaker.
 
 1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook</kbd>-><kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
 2. Give the notebook a name, and under "Permissions and Encryption" set the IAM role to `AmazonSageMaker-ExecutionRole-xxxxxxxxxxx`. Under "Git repositories", select `Clone a public Git repository to this notebook instance only`, and add the path to this repository (http://github.com/neuroethology/MARS_developer). Finally, scroll to the bottom and click <kbd>Create notebook instance</kbd>.
@@ -98,6 +98,6 @@ When a job has finished running, its status in the Labeling Jobs menu will chang
 
 1. Navigate to the S3 console on [aws](http://console.aws.amazon.com). If your images to be annotated were stored in a bucket called "BUCKET_NAME", look for the bucket **[BUCKET NAME]-output** and open it.
 2. Inside **[BUCKET_NAME]-output**, open **[BUCKET_NAME]-xxxxxxxxxx** (the name of your most recent labeling job- if you have more than one, pick the one with the highest number), then open **manifests** followed by **output**. You should find a file called **output.manifest**, which contains the raw output of your labeling job.
-3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>.
+3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>. Save the file to `project_name/annotation_data/output.manifest`.
 
-And you've made it! Take a deep breath, then return to the [MARS Pose Annotation Tools ReadMe](https://github.com/neuroethology/MARS_Developer/tree/develop/pose_annotation_tools#mars-pose-annotation-tools-a-module-for-crowdsourcing-pose-estimation) and refer to step 3 to visualize the annotations you just collected.
+And you've made it! Take a deep breath, then return to Step 4 pf the [MARS Pose Annotation Tools ReadMe](../../pose_annotation_tools#4-post-process-manual-pose-annotations) to clean up these annotations and visualize some example images!
