@@ -41,15 +41,15 @@ We use Amazon SageMaker Ground Truth to collect manual annotations of animal pos
 Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
 ### 4. Post-process manual pose annotations
-At the end of step 3, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).) If you haven't already, copy this file to `my_project/annotation_data/output.manifest`.
+At the end of step 3, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).)
 
-Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the following arguments:
+If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/annotation_data/annot_config.yml` and set `manifest_name` to be the name of the file containing your annotation data.
+
+Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the argument:
 
 * `project`: full path to the project directory.
 
-It also takes the optional arguments:
-* `nWorkers`: (default `5`) the number of workers you had annotate each frame.
-* `manifest_name`: (default `output.manifest`) name of your manifest file (in case you changed it.)
+It also takes the optional argument:
 * `correct_flips`: (default `true`) set to false if you don't want MARS to try to correct for left/right errors made by workers.
 
 Call it from terminal with:
