@@ -77,7 +77,7 @@ At last, it is labeling job time!
 1. Navigate to the SageMaker console on [AWS](http://console.aws.amazon.com), and click <kbd>Notebook</kbd>-><kbd>Notebook instances</kbd> in the left-hand menu, then click the <kbd>Create notebook instance</kbd> button.
 2. Give the notebook a name, and under "Permissions and Encryption" set the IAM role to `AmazonSageMaker-ExecutionRole-xxxxxxxxxxx`. Under "Git repositories", select `Clone a public Git repository to this notebook instance only`, and add the path to this repository (http://github.com/neuroethology/MARS_developer). Finally, scroll to the bottom and click <kbd>Create notebook instance</kbd>.
 3. Your new notebook should now appear in your list of notebook instances. Click <kbd>Start</kbd> under "Actions" for this notebook, and wait a few minutes for the notebook status to update from `Pending` to `InService`, then click <kbd>Open Jupyter</kbd>.
-4. Navigate to [../MARS_Launch_Sagemaker_Job.ipynb](../MARS_Launch_Sagemaker_Job.ipynb) from within the notebook session, and follow all instructions.
+4. Navigate to [../Submit_Labeling_Job.ipynb](../Submit_Labeling_Job.ipynb) from within the notebook session, and follow all instructions.
 5. Once you have run all cells of the notebook, your job should be submitted. In the SageMaker console, click <kbd>Ground Truth</kbd>-></kbd>Labeling Jobs</kbd>, and you should see a job with name **[BUCKET NAME]-xxxxxxxxxx** in progress.
 
 > **Note:** once the job is running, you should stop your Notebook instance (select the instance and click `Actions`>`Stop` in the Notebook instances menu), so you are not billed for leaving it running!
