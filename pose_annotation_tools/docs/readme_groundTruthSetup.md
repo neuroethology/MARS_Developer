@@ -100,4 +100,4 @@ When a job has finished running, its status in the Labeling Jobs menu will chang
 2. Inside **[BUCKET_NAME]-output**, open **[BUCKET_NAME]-xxxxxxxxxx** (the name of your most recent labeling job- if you have more than one, pick the one with the highest number), then open **manifests** followed by **output**. You should find a file called **output.manifest**, which contains the raw output of your labeling job.
 3. Check the box next to **output.manifest**, and select <kbd>Actions</kbd>-><kbd>Download</kbd>. Save the file to `project_name/annotation_data/output.manifest`.
 
-And you've made it! Take a deep breath, then return to Step 4 pf the [MARS Pose Annotation Tools ReadMe](../../pose_annotation_tools#4-post-process-manual-pose-annotations) to clean up these annotations and visualize some example images!
+And you've made it! Take a deep breath, then return to Step 3 pf the [MARS Pose Annotation Tools ReadMe](../../pose_annotation_tools#3-post-process-manual-pose-annotations) to clean up these annotations and visualize some example images!
