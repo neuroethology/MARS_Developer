@@ -66,7 +66,7 @@ This will create a file `project_name/annotation_data/annotation_interface.templ
 ### Upload files
 Now we're going to upload everything to your two S3 buckets.
 1. Open [AWS](http://console.aws.amazon.com) and navigate to S3. First, click on the name of your `data_bucket`, then select <kbd>Upload</kbd> in the next screen. 
-2. Upload the `.manifest` file you just created, and then upload all the images in `project_name/annotation_data/raw_images`.
+2. Upload the images in `project_name/annotation_data/raw_images` (the images you'd like annotated).
 3. Next, open your `template_bucket` and upload the interface `.template` along with any instructional images you want to include. If you are using the MARS keypoints, you can use [the instructional image provided in this repository](../annotation_interface/front_view_interface/instruction_image_bodyparts.png).
 
 ### Set up bucket access
