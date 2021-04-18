@@ -1,6 +1,6 @@
 # MARS Pose Annotation Tools: a module for crowdsourcing manual pose annotation
 
-Before you can fine-tune MARS to your experiment, you need to generate some training data, in the form of manually annotations of animal poses. This directory contains all the tools needed to collect and process manual annotations from a public workforce on Amazon SageMaker Ground Truth.
+This module will walk you through the process of collecting manual annotations of animal poses, for use in training MARS. This directory contains all the tools needed to collect and process manual annotations from a public workforce on Amazon SageMaker Ground Truth.
 
 This involves the following steps:
 
@@ -8,8 +8,6 @@ This involves the following steps:
 2. [Run an AWS labeling job](#2-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
 3. [Post-process the annotations](#3-post-process-manual-pose-annotations) to correct for common annotation errors.
 4. [Visualize some annotations](#4-visualize-some-annotations) and evaluate performance of your workforce.
-
-> **Note**: If you have already collected annotation data from Ground Truth or with the DeepLabCut annotation interface, you can skip this section.
 
 ### 1. Extract video frames for annotation
 First, we need to collect a set of video frames to annotate. The script `extract_frames.py` will sample frames from all videos found in a directory, and save those frames as jpg files. This script takes the following arguments:
