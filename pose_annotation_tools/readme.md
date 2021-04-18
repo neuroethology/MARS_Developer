@@ -6,7 +6,8 @@ This involves the following steps:
 
 1. [Extract video frames](#1-extract-video-frames-for-annotation) that you would like to annotate.
 2. [Run an AWS labeling job](#2-run-an-annotation-job-on-aws) to collect body part annotations from a human workforce.
-3. [Visualize the annotations](#3-visualize-manual-pose-annotations) from a completed labeling job.
+3. [Post-process the annotations](#3-post-process-manual-pose-annotations) to correct for common annotation errors.
+4. [Visualize some annotations](#4-visualize-some-annotations) and evaluate performance of your workforce.
 
 > **Note**: If you have already collected annotation data from Ground Truth or with the DeepLabCut annotation interface, you can skip this section.
 
@@ -39,5 +40,20 @@ Follow these [instructions to set up and run annotation jobs](docs/readme_ground
 
 (picture of GT workflow goes here)
 
-### 3. Visualize manual pose annotations
-You should now have a folder `output_dir` full of video frames from step 1, and a file called `output.manifest` from your annotation job in step 2. Place a copy of `output.manifest` into `output_dir`, then
+### 3. Post-process manual pose annotations
+You should now have a folder `output_dir` full of video frames (step 1), and a file called `output.manifest` from your annotation job (step 2). Place a copy of `output.manifest` into `output_dir`. The script `parse_manifest_file.py` will clean up some common annotator errors and save the consolodated data into a pickle file that we'll reference when training the detection and pose models. This script takes the following arguments:
+
+* `data_dir`: directory containing video frames and `output.manifest` from your labeling job.
+* `keypoints`: a list of the keypoint names you had annotated; this was set in the `.template` file for your labeling job. If you collected keypoints from multiple mice, just list the body part names here; mouse identifiers are passed in `animal_names` (see below).
+
+It also takes the optional arguments:
+* `nWorkers`: (default `5`) the number of workers you had annotate each frame.
+* `animal_names`: (default `[]`) animal identifiers used in keypoint names, if keypoints from multiple animals were collected. Eg, ['black','white'] if you collected keypoints from one black mouse and one white mouse.
+* `manifest_name`: (default `output.manifest`) name of your manifest file.
+* `keyName`: (default `annotatedResult`) name of the manifest field containing annotation data; this was set in Submit_Labeling_Job.ipynb.
+
+Call it from terminal with:
+```python parse_manifest_file.py data_dir ... (need to move some of these arguments to a config file)```
+
+
+### 4. Visualize some annotations
