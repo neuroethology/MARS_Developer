@@ -50,8 +50,6 @@ We use Amazon SageMaker Ground Truth to collect manual annotations of animal pos
 
 Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
-(picture of GT workflow goes here)
-
 ### 4. Post-process manual pose annotations
 You should now have a folder `my_project/annotation_data` containing video frames (step 1), the `annot_config.yml` file that you edited while setting up your annotation job (step 2), and your annotation .template file (step 2).
 
