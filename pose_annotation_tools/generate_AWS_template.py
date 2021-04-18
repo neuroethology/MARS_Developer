@@ -1,6 +1,6 @@
 import argparse
 import yaml
-import os
+import os, sys
 
 # create template for an AWS labeling job
 def generate_AWS_template(config):
@@ -104,5 +104,6 @@ if __name__ ==  '__main__':
 
     parser = argparse.ArgumentParser(description='generate annotation interface html template from annot_config.yml', prog='generate_AWS_template')
     parser.add_argument('config', type=str, help="Path to annot_config.yml for your annotation project")
+	args = parser.parse_args(sys.argv[1:])
 
     generate_AWS_template(args.config)

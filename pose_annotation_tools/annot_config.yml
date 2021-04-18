@@ -3,19 +3,29 @@
 species : 'mouse'
 
 animal_names : ['black','white'] # if you have multiple animals but they can be distinguished from each other, give each one a name (eg ['black','white'])
-num_obj : 1 # the *minimum* number of identical instances of each animal in animal_names.
-# be careful to make sure you're setting num_obj correctly! If you have different numbers of animals, best to set num_obj to 1 and instead update animal_names.
-# for example, if you have 2 black mice and 1 white mouse, eg, set num_obj : 1 and animal_names : ['first black','second black','white']
+# if you're only tracking one animal, set animal_names : []
+
+num_obj : 1 # the *minimum* number of identical instances of each animal in a given frame.
+# be careful to make sure you're setting num_obj correctly! If you have different numbers of animals, it's best to set num_obj to 1 and instead set animal_names.
+# for example, if you have 2 black mice and 1 white mouse, set num_obj : 1 and animal_names : ['first black','second black','white']
 # if you have 2 black mice and 2 white mice, you can set num_obj : 2, animal_names : ['black','white']
 
 keypoints : ['nose','right ear','left ear','top of neck','right rear knee','left rear knee','base of tail']
-# the actual keypoint names will be generated from animal_names + species + keypoints. So given:
+# the actual keypoint names workers see will be generated from animal_names + species + keypoints. So given:
 #    animal_names = ['black','white']
 #    species='mouse'
 #    keypoints=['nose','tail']
 # your workforce will be asked to label "black mouse nose","black mouse tail","white mouse nose","white mouse tail"
 
-bucket : 'white-100' #the unique name of the s3 bucket containing the images to be annotated.
+check_pairs : [['right ear','left ear'],['right rear knee','left rear knee']]
+# list of all keypoints pairs that have right/left assignments, or otherwise could get flipped by workers. MARS will screen these during
+# post-processing and correct any flips that occurred. We assume people flip part identities less than half the time, so
+# MARS uses median annotator consensus to decide on the correct assignment. Note that this could still fail for small numbers
+# of workers/image- we recommend 5 workers/image.
+
+data_bucket : 'white-100' #the unique name of the s3 bucket that will host the images to be annotated.
+template_bucket : 'my-annotation-instructions' # the unique name of the s3 bucket that will host your annotation interface.
+region : 'us-east-2' # the region where you created your s3 buckets.
 
 header : Label body parts of the two mice. # a short summary of the task.
 
@@ -30,7 +40,8 @@ short_instructions : |
   <b>Legs:</b> "knee" at the <b>front curve</b> of each rear leg (see Full Instructions for examples.)<br>
   <b>Tail:</b> base of the tail, where it emerges from the mouse's body.
 
-# modify this with paths to images containing instructions/example images for your workforce.
+# replace REGION and TEMPLATE_BUCKET with the values you entered in these fields above!
+# change the filename if you're providing your own instructional image.
 full_instructions : |
   <p> Examples and detailed instructions for each body part:</p>
-  <img src="https://s3.us-east-2.amazonaws.com/REPLACE_WITH_YOUR_BUCKET_NAME/instruction_image_bodyparts.png" width="100%">
+  <img src="https://s3.REGION.amazonaws.com/TEMPLATE_BUCKET/instruction_image_bodyparts.png" width="100%">
