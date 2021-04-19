@@ -19,7 +19,7 @@ def count_workers(data):
 
 def apply_flip_correction(frame, meds, keypoints, pair):
     if not pair[0] in keypoints or not pair[1] in keypoints:
-        raise SystemExit('annot_config error: one or more entries of check_pairs is not a member of keypoints. Please check annot_config.yml')
+        raise SystemExit('annot_config error: one or more entries of check_pairs is not a member of keypoints. Please check project_config.yml')
 
     i1 = keypoints.index(pair[0])
     i2 = keypoints.index(pair[1])

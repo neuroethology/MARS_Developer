@@ -4,7 +4,7 @@ import argparse
 from shutil import copyfile
 
 
-def new_annotation_project(location,name):
+def create_new_project(location,name):
     name = name.lstrip("'").rstrip("'").lstrip('"').rstrip('"') # remove quotes
     if not os.path.isdir(location):
         location = location.lstrip("'").rstrip("'") # try removing quotes
@@ -23,14 +23,14 @@ def new_annotation_project(location,name):
     os.mkdir(os.path.join(project,'detection'))
     os.mkdir(os.path.join(project,'pose'))
     os.mkdir(os.path.join(project,'behavior'))
-    config = os.path.join(pathlib.Path(__file__).parent.absolute(),'annot_config.yml')
-    copyfile(config,os.path.join(project,'annotation_data','annot_config.yml'))
+    config = os.path.join(pathlib.Path(__file__).parent.absolute(),'project_config.yml')
+    copyfile(config,os.path.join(project,'project_config.yml'))
     print("Project " + name + " created successfully.")
 
 
 if __name__ ==  '__main__':
     """
-    new_annotation_project command line entry point
+    create_new_project command line entry point
     Arguments:
         location 		where you would like to create the project folder
         name           a name for this annotation project
@@ -41,4 +41,4 @@ if __name__ ==  '__main__':
     parser.add_argument('name', type=str, help="the name of this project")
     args = parser.parse_args(sys.argv[1:])
 
-    new_annotation_project(args.location, args.name)
+    create_new_project(args.location, args.name)
