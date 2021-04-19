@@ -1,7 +1,7 @@
 import os, sys
 import pathlib
 import argparse
-from shutil import copyfile
+from shutil import copyfile, copytree
 
 
 def create_new_project(location,name):
@@ -16,15 +16,15 @@ def create_new_project(location,name):
         print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
         return
     project = os.path.join(location,name)
-    os.mkdir(project)
-    os.mkdir(os.path.join(project,'annotation_data'))
-    os.mkdir(os.path.join(project,'annotation_data','raw_images'))
-    os.mkdir(os.path.join(project,'annotation_data','behavior_movies'))
-    os.mkdir(os.path.join(project,'detection'))
-    os.mkdir(os.path.join(project,'pose'))
-    os.mkdir(os.path.join(project,'behavior'))
-    config = os.path.join(pathlib.Path(__file__).parent.absolute(),'project_config.yml')
-    copyfile(config,os.path.join(project,'project_config.yml'))
+    copytree('_template',project)
+    # os.mkdir(os.path.join(project,'annotation_data'))
+    # os.mkdir(os.path.join(project,'annotation_data','raw_images'))
+    # os.mkdir(os.path.join(project,'annotation_data','behavior_movies'))
+    # os.mkdir(os.path.join(project,'detection'))
+    # os.mkdir(os.path.join(project,'pose'))
+    # os.mkdir(os.path.join(project,'behavior'))
+    # config = os.path.join('_templates','project_config.yaml')
+
     print("Project " + name + " created successfully.")
 
 

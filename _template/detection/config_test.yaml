@@ -1,0 +1,157 @@
+RANDOM_SEED : 1.0
+
+# Control how much GPU memory to utilize
+SESSION_CONFIG : {
+  PER_PROCESS_GPU_MEMORY_FRACTION : 0.50
+}
+
+# The number of bounding box priors in a grid cell. This applies to all
+# cells except the 1x1 cell, which has only a single prior. The total number of 
+# bounding box priors is `NUM_BBOXES_PER_CELL` * (8*8 + 6*6 + 4*4 + 3*3 + 2*2) + 1
+NUM_BBOXES_PER_CELL : 11
+
+# The maximum number of bounding boxes in a single image
+MAX_NUM_BBOXES : 1
+
+# A multiplicative weight applied to the location loss. 
+LOCATION_LOSS_ALPHA : 1000.0
+
+BATCH_SIZE : 4
+
+###################
+# Image Processing and Augmentation 
+
+# The image will be resized to [INPUT_SIZE, INPUT_SIZE, 3]
+INPUT_SIZE : 299
+WIDTH : 1024
+HEIGHT : 570
+
+# Randomly flip the image left right, 50% chance of flipping
+DO_RANDOM_FLIP_LEFT_RIGHT : true
+
+# Randomly perturb the coordinates of the bounding boxes
+# The fraction of time to do the shift, 0 is never, 1 is always
+DO_RANDOM_BBOX_SHIFT : 0.3
+# The maximum number of pixels to shift the coordinates
+RANDOM_BBOX_SHIFT_EXTENT : 10
+
+# Take a random crop from the image
+# The fraction of time to do the crop, 0 is never, 1 is always
+DO_RANDOM_CROP : 0
+# The cropped area of the image must contain at least this fraction of ANY bounding box supplied (note ANY != EACH)
+RANDOM_CROP_MIN_OBJECT_COVERED : 0.85
+# The cropped area of the image must have an aspect ratio = width / height within this range.
+RANDOM_CROP_ASPECT_RATIO_RANGE : [0.7, 1.8]
+# The cropped area of the image must contain a fraction of the supplied image within in this range.
+RANDOM_CROP_AREA_RANGE : [0.5, 1.0]
+# After max_attempts failures, return the entire image.
+RANDOM_CROP_MAX_ATTEMPTS : 100
+# If a bounding box goes below this amount of area, then we will ignore it
+RANDOM_CROP_MINIMUM_AREA : 50
+
+# Color distortion
+# The fraction of time to distort the color, 0 is never, 1 is always
+DO_COLOR_DISTORTION : 0.3
+# Avoids slower ops (random_hue and random_contrast)
+COLOR_DISTORT_FAST : True
+
+# END: Image Processing and Augmentation
+###################
+
+###################
+# Detection Configuration
+
+DETECTION : 
+  USE_ORIGINAL_IMAGE : true
+  ORIGINAL_IMAGE_MAX_TO_KEEP : 100
+  
+  USE_FLIPPED_ORIGINAL_IMAGE : false
+  FLIPPED_IMAGE_MAX_TO_KEEP : 50
+  
+ # CROPS : 
+ #   - HEIGHT : 299
+ #     WIDTH : 299
+ #     HEIGHT_STRIDE : 113
+ #     WIDTH_STRIDE : 113
+ #     FLIP : false
+ #     MAX_TO_KEEP : 50
+ #   
+ #   
+ #   - HEIGHT : 185
+ #     WIDTH : 185
+ #     HEIGHT_STRIDE : 69
+ #     WIDTH_STRIDE : 69
+ #     FLIP : false
+ #     MAX_TO_KEEP : 50
+    
+
+# END: Detection Configuration
+###################
+
+
+###################
+# Queueus, Threads and Train Data Size
+
+# Input queues to the model
+NUM_INPUT_THREADS : 1
+
+
+# Capacity of the queue producing batched examples
+QUEUE_CAPACITY : 2000
+# Minimum size of the queue to ensure good shuffling
+QUEUE_MIN :  500
+
+NUM_TRAIN_EXAMPLES : 1500
+# Ntrain/Nbatches*epochs(1)
+NUM_TRAIN_ITERATIONS : 250
+
+# END: Queueus, Threads and Train Data Size
+###################
+
+
+###################
+# Basic Model Hyperparameters
+
+# Learning Rate parameters
+INITIAL_LEARNING_RATE : 0.01
+NUM_EPOCHS_PER_DELAY : 4
+LEARNING_RATE_DECAY_FACTOR : 0.94
+LEARNING_RATE_STAIRCASE : true
+
+RMSPROP_DECAY : 0.9
+RMSPROP_MOMENTUM : 0
+RMSPROP_EPSILON : 1.0
+
+# Batch normalization. Constant governing the exponential moving average of
+# the 'global' mean and variance for all activations.
+BATCHNORM_MOVING_AVERAGE_DECAY : 0.9997
+
+# The decay to use for the moving average.
+MOVING_AVERAGE_DECAY : 0.9999
+
+# END: Basic Model Hyperparameters
+###################
+
+
+###################
+# Saving models and summaries
+
+# How often, in seconds, to save summaries.
+SAVE_SUMMARY_SECS : 30
+
+# How often, in seconds, to save the model
+SAVE_INTERVAL_SECS : 3600
+
+# The maximum number of recent checkpoint files to keep.
+MAX_TO_KEEP : 3
+
+# In addition to keeping the most recent `max_to_keep` checkpoint files, 
+# you might want to keep one checkpoint file for every N hours of training
+# The default value of 10,000 hours effectively disables the feature.
+KEEP_CHECKPOINT_EVERY_N_HOURS : 24
+
+# The frequency, in terms of global steps, that the loss and global step and logged.
+LOG_EVERY_N_STEPS : 10
+
+# END: Saving models and summaries
+###################

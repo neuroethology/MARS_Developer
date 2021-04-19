@@ -36,7 +36,7 @@ First, we'll create a master directory for all files associated with your projec
 * `name`: a name for the project
 
 Call it from terminal with:
-``` python create_new_project.py location /path/to/savedir name my_project```
+``` python create_new_project.py /path/to/savedir my_project```
 
 It creates a folder at `/path/to/savedir/my_project` that has already been populated with a few files and subdirectories. We'll get to these shortly.
 

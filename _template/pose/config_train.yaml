@@ -1,0 +1,241 @@
+# training specific onfiguration
+RANDOM_SEED : 1.0
+
+SESSION_CONFIG : {
+  PER_PROCESS_GPU_MEMORY_FRACTION : 0.85
+}
+NUM_STACKS: 8
+#################################################################3
+# parts config
+
+PARTS : {
+ NUM_PARTS : 7,
+ PART_LOSS_ALPHA : 100,
+ VIS_LOSS_ALPHA : 100,
+ LEFT_RIGHT_PAIRS : [
+  [2,1], # ears
+  [5,4], # side
+ ],
+ 
+ NAMES : [
+  'nose',
+  'right ear',
+  'left ear',
+  'top of neck',
+  'right rear knee',
+  'left rear knee',
+  'base of tail'
+  ],
+  
+ COLORS : [
+ "yellow",
+ "orange",
+ "red",
+ "snow",
+ "magenta",
+ "blueviolet",
+ "green",
+ ],
+ 
+ SYMBOLS : [
+  "o",
+  "o",
+  "o",
+  "o",
+  "o",
+  "o",
+  "o"
+ ],
+ 
+ SIGMAS : [
+   1.5,
+   2.0,
+   2.0,
+   3.0,
+   3.0,
+   3.0,
+   3.0
+ ],
+
+ SCALE_SIGMAS_BY_AREA : false
+}
+
+HEATMAP_SIZE : 64
+
+#####################################################################
+# Image Processing and Augmentation 
+
+# The image will be resized to [INPUT_SIZE, INPUT_SIZE, 3]
+INPUT_SIZE : 256
+
+# Tight bounding box crops, or loose? 
+LOOSE_BBOX_CROP : true
+LOOSE_BBOX_PAD_FACTOR : 0.65
+
+# Use a randomly-decided bounding box.
+DO_RANDOM_PADDING : true
+RANDOM_PADDING_FREQ : 1.0
+RANDOM_PADDING_MIN : 0.1
+RANDOM_PADDING_MAX : 0.65
+# 
+DO_RANDOM_BLURRING : true
+RANDOM_BLUR_FREQ : 0.15
+MAX_BLUR : 2
+
+DO_RANDOM_NOISE : true
+RANDOM_NOISE_FREQ : 0.15
+RANDOM_NOISE_SCALE : 0.0125
+
+DO_RANDOM_ROTATION : true
+RANDOM_ROTATION_FREQ : 1.0
+RANDOM_ROTATION_DELTA : 180.0
+
+DO_JPEG_ARTIFACTS : true
+RANDOM_JPEG_FREQ : 0.25
+RANDOM_JPEG_QUALITY_MIN : 25
+RANDOM_JPEG_QUALITY_MAX : 100
+
+
+# Randomly flip the image left right, 50% chance of flipping
+DO_RANDOM_FLIP_LEFT_RIGHT : true
+
+# Randomly perturb the coordinates of the bounding boxes
+# The fraction of time to do the shift, 0 is never, 1 is always
+DO_RANDOM_BBOX_SHIFT : 0.0
+# The maximum number of pixels to shift the coordinates
+RANDOM_BBOX_SHIFT_EXTENT : 4 
+
+# Color distortion
+# The fraction of time to distort the color, 0 is never, 1 is always
+DO_COLOR_DISTORTION : 0.5
+# Avoids slower ops (random_hue and random_contrast)
+COLOR_DISTORT_FAST : False
+
+# END: Image Processing and Augmentation
+###########################################################
+# Input queues to the model
+
+NUM_INPUT_THREADS : 4
+BATCH_SIZE : 8
+
+# 77544 39935
+NUM_TRAIN_EXAMPLES : 5577
+NUM_TRAIN_ITERATIONS : 700000
+
+# Capacity of the queue producing batched examples
+QUEUE_CAPACITY : 2000
+# Minimum size of the queue to ensure good shuffling
+QUEUE_MIN :  200
+
+###########################################################
+# Learning Rate parameters  0.0000001 0.00025
+LEARNING_RATE_DECAY_TYPE : 'fixed' # One of "fixed", "exponential", or "polynomial"
+INITIAL_LEARNING_RATE : 0.00025
+END_LEARNING_RATE : 0.0001 # The minimal end learning rate used by a polynomial decay learning rate.
+LABEL_SMOOTHING : 0.0 # The amount of label smoothing.
+NUM_EPOCHS_PER_DELAY : 33
+LEARNING_RATE_DECAY_FACTOR : 0.2
+LEARNING_RATE_STAIRCASE : true
+
+##############################################################
+#optimization
+# The name of the optimizer, one of "adadelta", "adagrad", "adam", "ftrl", "momentum", "sgd" or "rmsprop"
+OPTIMIZER : 'rmsprop'
+OPTIMIZER_EPSILON : 1.0
+
+# The decay rate for adadelta.
+ADADELTA_RHO: 0.95
+
+# Starting value for the AdaGrad accumulators.
+ADAGRAD_INITIAL_ACCUMULATOR_VALUE: 0.1
+
+# The exponential decay rate for the 1st moment estimates.
+ADAM_BETA1 : 0.9
+# The exponential decay rate for the 2nd moment estimates.
+ADAM_BETA2 : 0.99
+
+# The learning rate power.
+FTRL_LEARNING_RATE_POWER : -0.5
+# Starting value for the FTRL accumulators.
+FTRL_INITIAL_ACCUMULATOR_VALUE : 0.1
+# The FTRL l1 regularization strength.
+FTRL_L1 : 0.0
+# The FTRL l2 regularization strength.
+FTRL_L2 : 0.0
+
+# The momentum for the MomentumOptimizer and RMSPropOptimizer
+MOMENTUM : 0.0
+
+# Decay term for RMSProp.
+RMSPROP_DECAY : 0.9
+RMSPROP_MOMENTUM : 0
+RMSPROP_EPSILON : 1.0
+
+#####################################################################
+#regularization
+# Batch normalization. Constant governing the exponential moving average of
+# the 'global' mean and variance for all activations.
+BATCHNORM_MOVING_AVERAGE_DECAY : 0.9997
+BATCHNORM_EPSILON : 0.001
+
+DROPOUT_KEEP_PROB : 0.8
+
+# The decay to use for the moving average. If 0, then moving average is not computed
+MOVING_AVERAGE_DECAY : 0.9999
+
+# The weight decay on the model weights
+WEIGHT_DECAY : 0.00004
+
+###################################################
+# Background Heatmap Computation
+
+BACKGROUND_HEATMAPS:
+  # Add the right part to the background of the left part (and vice versa)
+  ADD_TARGET_LEFT_RIGHT_PAIRS : false
+  # Add the visible parts from background instances
+  ADD_NON_TARGET_PARTS : false
+  # For the background instances, should their occluded parts be added to the background heatmap? 
+  NON_TARGET_INCLUDE_OCCLUDED : false
+  # Add the right part to the background of the left part for the background instances (and vice versa)
+  ADD_NON_TARGET_LEFT_RIGHT_PAIRS : false
+
+# END Background heatmap computation
+#################################################
+
+##########################################################
+# Loss settings
+
+LOSS:
+  # Add the scaled background heatmap to the ground truth heatmap, then compute the loss
+  USE_SCALED_BACKGROUND : false
+  # The scaling to apply to each predicted heatmap. The number of scales must match the number of hourglass units
+  SCALE_FACTORS : [1., .5, .25, .125, .0625, .03125, .015625, 0]
+
+  # Use the background heatmap as a cost matrix
+  USE_BACKGROUND_AS_COST_MATRIX : false
+  COST_MATRIX_SCALE : 1.
+
+  # Don't take the background heatmaps into account
+  NO_BACKGROUND : true
+
+# END Loss setting
+###################
+
+# Saving models and summaries
+
+# How often, in seconds, to save summaries.
+SAVE_SUMMARY_SECS : 30
+
+# How often, in seconds, to save the model
+SAVE_INTERVAL_SECS : 3600
+
+# The maximum number of recent checkpoint files to keep.
+MAX_TO_KEEP : 4
+
+# In addition to keeping the most recent `max_to_keep` checkpoint files, 
+# you might want to keep one checkpoint file for every N hours of training
+# The default value of 10,000 hours effectively disables the feature.
+KEEP_CHECKPOINT_EVERY_N_HOURS : 3
+
+# The frequency, in terms of global steps, that the loss and global step and logged.
+LOG_EVERY_N_STEPS : 10
