@@ -29,7 +29,7 @@ We use Amazon SageMaker Ground Truth to collect manual annotations of animal pos
 Follow these [instructions to set up and run annotation jobs](docs/readme_groundTruthSetup.md).
 
 ### 3. Post-process manual pose annotations
-At the end of step 2, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#5-download-the-completed-annotations).)
+At the end of step 2, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#3-download-the-completed-annotations).)
 
 If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/project_config.yml` and set `manifest_name` to the name of the file containing your annotation data.
 
