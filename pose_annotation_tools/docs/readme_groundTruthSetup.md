@@ -32,14 +32,14 @@ For the data:
 2. Click the <kbd>+ Create bucket</kbd> button to make a new S3 bucket for your images. We'll be calling this `data-bucket`. ([screenshot](s3bucket.png))
 3. Set a name for your bucket, and set the region to be **the same region in which you imported your Lambda functions** when you [first set up your account](readme_initialGTSetup#1-import-the-pre--and-post-processing-lambda-functions). You may leave all other default settings as is, then scroll down to click <kbd>Create bucket</kbd>.
     > Note: by default, no one other than you will be able to access images in your bucket (aside from annotators who are served the images via SageMaker.)
-4. Update CORS to fix image orientation: Back in the S3 bucket list, select the S3 bucket you just created. Click <kbd>Permissions<kbd> and scroll down to the <kbd>Cross-origin resource sharing (CORS)<kbd> section. Click Edit and enter the following code in the gray box: 
+4. Update CORS to fix image orientation: Back in the S3 bucket list, select the S3 bucket you just created. Click <kbd>Permissions</kbd> and scroll down to the <kbd>Cross-origin resource sharing (CORS)</kbd> section. Click Edit and enter the following code in the gray box: 
 in JSON format:
-[{
+`[{
    "AllowedHeaders": [],
    "AllowedMethods": ["GET"],
    "AllowedOrigins": ["*"],
    "ExposeHeaders": []
-}]
+}]`
 
 For the data output:
 1. Create a new S3 bucket for the annotation interface and give it a name. We'll be calling this `data-bucket-output`. Scroll down and click <kbd>Create bucket</kbd>. Once the S3 bucket is created and you are back in the Amazon S3 Bucket list page, select your S3 Bucket and update the CORS settings.
