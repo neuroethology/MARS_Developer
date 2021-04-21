@@ -2,31 +2,38 @@ from tfrecord_util import *
 from json_util import *
 import yaml
 
+
 # detection and pose preparation functions -----------------------------------------------------------------------------
-def prepare_detector_training_data(project, correct_flips = True, split_train_val_test = False, overwrite_json = False, manifest_key='annotatedResult'):
+def prepare_detector_training_data(project, correct_flips=True, split_train_val_test=False, overwrite_json=False):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
-    files that are used to train MARS's detectors and pose estimators for black and white mice.
+    and prior files that are used to train MARS's detectors and pose estimators for black and white mice.
     """
-    im_path = os.path.join(project,'annotation_data','raw_images')
+    config_fid = os.path.join(project, 'project_config.yml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    detector_list = config['detection']  # the names of the detectors we'll be training, and which data goes into each!
+
+    im_path = os.path.join(project, 'annotation_data', 'raw_images')
 
     # extract info from annotations
-    dictionary_file_path = os.path.join(project,'annotation_data','processed_keypoints.json')  # Path to save the intermediate dictionary file.
+    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')  # Path to save the intermediate dictionary file.
     if overwrite_json or not os.path.exists(dictionary_file_path):
         make_annot_dict(project, correct_flips=correct_flips)
     with open(dictionary_file_path, 'r') as fp:
         D = json.load(fp)
 
     # TODO: don't hard-code black/white
-    detection_black_tfrecord_output_name = os.path.join(project,'detection','detection_black_tfrecords')
-    detection_white_tfrecord_output_name = os.path.join(project,'detection','detection_white_tfrecords')
+    detection_black_tfrecord_output_name = os.path.join(project, 'detection', 'detection_black_tfrecords')
+    detection_white_tfrecord_output_name = os.path.join(project, 'detection', 'detection_white_tfrecords')
     if not os.path.exists(detection_black_tfrecord_output_name):
         os.makedirs(detection_black_tfrecord_output_name)
     if not os.path.exists(detection_white_tfrecord_output_name):
         os.makedirs(detection_white_tfrecord_output_name)
 
-    v_infob = make_bbox_dict(D, im_path, 'black')
-    v_infow = make_bbox_dict(D, im_path, 'white')
+    v_infob = make_bbox_dict(D, 'black')
+    v_infow = make_bbox_dict(D, 'white')
     v_info = list(zip(v_infob, v_infow))
     random.shuffle(v_info)
     v_infob, v_infow = zip(*v_info)
@@ -35,22 +42,22 @@ def prepare_detector_training_data(project, correct_flips = True, split_train_va
     write_to_tfrecord(v_infow, detection_white_tfrecord_output_name, split_train_val_test=split_train_val_test)
 
 
-def prepare_pose_training_data(project, correct_flips = True, split_train_val_test = False, overwrite_json = False):
+def prepare_pose_training_data(project, correct_flips=True, split_train_val_test=False, overwrite_json=False):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
     files that are used to train MARS's pose estimator.
     """
 
-    im_path = os.path.join(project,'annotation_data','raw_images')
+    im_path = os.path.join(project, 'annotation_data', 'raw_images')
 
     # extract info from annotations
-    dictionary_file_path = os.path.join(project,'annotation_data','processed_keypoints.json')  # Path to save the intermediate dictionary file.
+    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')  # Path to save the intermediate dictionary file.
     if overwrite_json or not os.path.exists(dictionary_file_path):
         make_annot_dict(project, correct_flips=correct_flips)
     with open(dictionary_file_path, 'r') as fp:
         D = json.load(fp)
 
-    pose_estimation_tfrecord_output_name = os.path.join(project,'pose','pose_estimation_tfrecords')  # Path to save the pose estimation tfrecord.
+    pose_estimation_tfrecord_output_name = os.path.join(project, 'pose', 'pose_estimation_tfrecords')  # Path to save the pose estimation tfrecord.
     if not os.path.exists(pose_estimation_tfrecord_output_name):
         os.makedirs(pose_estimation_tfrecord_output_name)
     v_info = make_pose_dict(D, im_path)
@@ -100,10 +107,6 @@ def make_annot_dict(project, correct_flips=True):
     project : string
         The absolute path to your annotation project
 
-    manifest_name : string
-        Defaults to output.manifest
-        The name of the file containing raw annotations. Can be either a .manifest from Amazon or a .csv from DeepLabCut.
-
     correct_flips : bool
         Defaults to True
         Whether to attempt to correct left/right errors in raw annotations.
@@ -113,22 +116,17 @@ def make_annot_dict(project, correct_flips=True):
     make_annot_dict('/path/to/savedir/my_project')
     --------
     """
-
-    # read the annotation config file
+    # check that everything is where we want it to be
     config_fid = os.path.join(project,'project_config.yml')
     with open(config_fid) as f:
-        cfg = yaml.load(f)
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
-    im_path = os.path.join(project,'annotation_data','raw_images')
-    save_file = os.path.join(project,'annotation_data','processed_keypoints.json')
-    annotation_file = os.path.join(project,'annotation_data',cfg['manifest_name'])
-    keypoints    = cfg['keypoints']
-
-    if not os.path.exists(annotation_file): # annotations file isn't where we expected it to be.
+    annotation_file = os.path.join(project, 'annotation_data', config['manifest_name'])
+    if not os.path.exists(annotation_file):  # annotations file isn't where we expected it to be.
         raise SystemExit("I couldn't find an annotation file at " + annotation_file)
 
-    _,ext = os.path.splitext(annotation_file)
+    _, ext = os.path.splitext(annotation_file)
     if ext == '.csv':
-        csv_to_dict(annotation_file, im_path, save_file, cfg)
+        csv_to_dict(project, correct_flips=correct_flips)
     elif ext == '.manifest':
-        manifest_to_dict(annotation_file, im_path, save_file, cfg)
+        manifest_to_dict(project, correct_flips=correct_flips)

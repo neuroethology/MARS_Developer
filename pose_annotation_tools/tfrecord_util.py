@@ -10,6 +10,7 @@ import math
 import random
 from json_util import *
 
+
 def write_to_tfrecord(v_info, output_directory, split_train_val_test=False):
     n = len(v_info)
     n_shards = math.ceil(n / 1000)
@@ -388,21 +389,18 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
 
 # creating dict formats expected by the tfrecord files -----------------------------------------------------------------
 
-def make_bbox_dict(D, im_path, mouse):
+def make_bbox_dict(D, mouse_list):
     # prepare a dict with the info needed for the next step of preparing the tf records.
     v_info = []
     for i in range(len(D)):
-        # image name and id
-        # bbox/label allows to separate between black or white mouse
-        # from the annotation 0 is the black mouse, 1 is the white mouse
+        box = {n: [] for n in mouse_list}
+        area = {n: [] for n in mouse_list}
+        for mouse in mouse_list:
+            mouse = 'ann_' + mouse
+            box[mouse] = D[i][mouse]['bbox']
+            area[mouse] = D[i][mouse]['bbox']
 
-        if mouse=='black':
-            box = D[i]['ann_B']['bbox']
-            area = D[i]['ann_B']['bbox']
-        else:
-            box = D[i]['ann_W']['bbox']
-            area = D[i]['ann_W']['bbox']
-        i_frame = {'filename': im_path + D[i]['frame_name'],
+        i_frame = {'filename': D[i]['image'],
                    "class": {
                        "label": 0,
                        "text": '',
@@ -412,45 +410,47 @@ def make_bbox_dict(D, im_path, mouse):
                    'height': D[i]['height'],
                    'object': {'area': area,
                               'bbox': {
-                                  'xmin': [box[0]],
-                                  'xmax': [box[1]],
-                                  'ymin': [box[2]],
-                                  'ymax': [box[3]],
-                                  'label': [0],
-                                  'count': 1}}}
+                                  'xmin': [box[n][0] for n in mouse_list],
+                                  'xmax': [box[n][1] for n in mouse_list],
+                                  'ymin': [box[n][2] for n in mouse_list],
+                                  'ymax': [box[n][3] for n in mouse_list],
+                                  'label': [0]*len(mouse_list),
+                                  'count': len(mouse_list)}}}
         v_info.append(i_frame)
     return v_info
 
 
-def make_pose_dict(D, im_path):
+def make_pose_dict(D, mouse_list):
+    # prepare a dict with the info needed for the next step of preparing the tf records.
     v_info = []
     for i in range(len(D)):
-        B = D[i]['ann_B']['bbox']
-        W = D[i]['ann_W']['bbox']
-        Bp = D[i]['ann_B']['med']
-        Wp = D[i]['ann_W']['med']
+        bbox = {n: [] for n in mouse_list}
+        pts = {n: [] for n in mouse_list}
+        for mouse in mouse_list:
+            bbox[mouse] = D[i]['ann_' + mouse]['bbox']
+            pts[mouse] = D[i]['ann_' + mouse]['med']
 
-        i_frame = {'filename': im_path + D[i]['frame_name'],
+        i_frame = {'filename': D[i]['image'],
                    'id': format(i, '06d'),
-                   "class": {"label": 0, "text": '',},
+                   "class": {"label": 0, "text": '', },
                    'width': D[i]['width'],
                    'height': D[i]['height'],
                    'object': {
-                       'id':[0,1],
-                       'area':[ D[i]['ann_B']['area'], D[i]['ann_W']['area']],
+                       'id': [*range(len(mouse_list))],
+                       'area': [D[i][n]['area'] for n in mouse_list],
                        'bbox': {
-                           'xmin': [B[0],W[0]],
-                           'xmax': [B[1],W[1]],
-                           'ymin': [B[2],W[2]],
-                           'ymax': [B[3],W[3]],
-                           'label': [0,0],
-                           'count': 2,
-                           'score':[1,1]},
-                       'parts':{
-                            'x':Bp[1][:7] + Wp[1][:7],
-                            'y':Bp[0][:7] + Wp[0][:7],
-                            'v':[2]*(len(Bp[0][:7]) + len(Wp[0][:7])),
-                            'count': [len(Bp[0][:7]),len(Wp[0][:7])]
+                           'xmin': [bbox[n][0] for n in mouse_list],
+                           'xmax': [bbox[n][1] for n in mouse_list],
+                           'ymin': [bbox[n][2] for n in mouse_list],
+                           'ymax': [bbox[n][3] for n in mouse_list],
+                           'label': [0]*len(mouse_list),
+                           'count': len(mouse_list),
+                           'score': [1]*len(mouse_list)},
+                       'parts': {
+                            'x': [i for n in mouse_list for i in pts[n][1]],
+                            'y': [i for n in mouse_list for i in pts[n][0]],
+                            'v': [2]*sum([len(pts[n][0]) for n in mouse_list]),
+                            'count': [len(pts[n][0]) for n in mouse_list]
                         }}}
 
         v_info.append(i_frame)

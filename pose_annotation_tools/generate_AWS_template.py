@@ -6,7 +6,7 @@ import os, sys
 def generate_AWS_template(config):
 
 	with open(config) as f:
-		data = yaml.load(f)
+		data = yaml.load(f, Loader=yaml.FullLoader)
 	data['labels'] = [n + " " + data['species'] + " " + k for n in data['animal_names'] for k in data['keypoints']]
 
 	project_dir = os.path.basename(config)

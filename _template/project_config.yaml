@@ -27,6 +27,9 @@ detection:
 pose:
   top: ['black','white']
 
+# set to 0 to suppress some terminal output
+verbose: 1
+
 # keypoint definitions----------------------------------------------------------------------------------------
 
 # what are we tracking today?
