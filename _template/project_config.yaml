@@ -1,18 +1,24 @@
 # configuration file for a new MARS_Developer project
 
+# TODO: set this programmatically
+project_name: 'my_project'
+
 # modify this with the name of your raw annotation data. Can be a .manifest from
 # AWS (after you've run a labeling job) or a .csv from DeepLabCut.
 manifest_name : 'output.manifest'
 
 # name the detectors and pose estimators you will train, and specify which
 # animals in animal_names (see next section) will be used in training each one.
-# If you are leaving animal_names empty ([]) for this project, leave the
-# right hand side empty here as well. For example, if you are only interested in
-# a black mouse tracker, you might write:
+# If you are leaving animal_names empty ([]) for this project (eg if your
+# experiments have a single type of animal), leave the right hand side empty
+# here as well. For example, if you are tracking one or more indistinguishable
+# black mice, you might write:
 # detection:
 #   black_top: []
 # pose:
 #   top: []
+# and in the next section, you'd have
+# animal_names : []
 
 detection:
   black_top: ['black']
@@ -23,13 +29,17 @@ pose:
 
 # keypoint definitions----------------------------------------------------------------------------------------
 
+# what are we tracking today?
 species : 'mouse'
 
 # if you have multiple animals but they can be distinguished from each other,
 # give each one a name (eg ['black','white']). If you're only tracking one
-# animal (or multiple animals that can't be distinguished), you can leave
+# animal (or multiple animals that can't be distinguished), you can set
 # animal_names : [], or you may still want to indicate the color of your mouse
-# for future records.
+# for future records, eg by writing animal_names : ['black']
+#
+# These names will be visible to AMT workers, so use discriptors rather than
+# strain names.
 animal_names : ['black','white']
 
 # set the *minimum* number of identical instances of each animal in a given frame.

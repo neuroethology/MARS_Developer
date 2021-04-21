@@ -44,7 +44,7 @@ We will create this programmatically from a configuration file called `project_c
 1. Open `project_config.yml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" to include `region` and `template_bucket`.
 2. From the terminal, call `python generate_AWS_template.py '/fullpath/to/project_name/project_config.yml'`
 
-This will create a file `project_name/annotation_data/annotation_interface.template` file containing your annotation template.
+This will create a file `project_name/annotation_data/annotation_interface.template` containing your annotation template.
 
 ### Upload files
 Now we're going to upload everything to your two S3 buckets.
