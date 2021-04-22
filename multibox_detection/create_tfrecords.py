@@ -249,18 +249,18 @@ def _process_image_files_batch(coder, thread_index, ranges, name, output_directo
         error_counter += 1
         error_queue.put(image_example)
 
-      if not counter % 1000:
-        print('%s [thread %d]: Processed %d of %d images in thread batch, with %d errors.' %
-              (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
+      # if not counter % 1000:
+      #   print('%s [thread %d]: Processed %d of %d images in thread batch, with %d errors.' %
+      #         (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
         sys.stdout.flush()
 
-    print('%s [thread %d]: Wrote %d images to %s, with %d errors.' %
-          (datetime.now(), thread_index, shard_counter, output_file, error_counter))
+    # print('%s [thread %d]: Wrote %d images to %s, with %d errors.' %
+    #       (datetime.now(), thread_index, shard_counter, output_file, error_counter))
     sys.stdout.flush()
     shard_counter = 0
     
-  print('%s [thread %d]: Wrote %d images to %d shards, with %d errors.' %
-        (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
+  # print('%s [thread %d]: Wrote %d images to %d shards, with %d errors.' %
+  #       (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
   sys.stdout.flush()
   
 
@@ -312,7 +312,7 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
     ranges.append([spacing[i], spacing[i+1]])
 
   # Launch a thread for each batch.
-  print('Launching %d threads for spacings: %s' % (num_threads, ranges))
+  # print('Launching %d threads for spacings: %s' % (num_threads, ranges))
   sys.stdout.flush()
 
   # Create a mechanism for monitoring when all threads are finished.
@@ -333,8 +333,8 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
 
   # Wait for all the threads to terminate.
   coord.join(threads)
-  print('%s: Finished writing all %d images in data set.' %
-        (datetime.now(), len(dataset)))
+  # print('%s: Finished writing all %d images in data set.' %
+  #       (datetime.now(), len(dataset)))
   
   # Collect the errors
   errors = []

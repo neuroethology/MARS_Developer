@@ -17,9 +17,11 @@ def create_new_project(location,name):
         return
     project = os.path.join(location,name)
     copytree('_template',project)
-    # os.mkdir(os.path.join(project,'annotation_data'))
-    # os.mkdir(os.path.join(project,'annotation_data','raw_images'))
-    # os.mkdir(os.path.join(project,'annotation_data','behavior_movies'))
+    if not os.path.exists(os.path.join(project, 'annotation_data')):  # empty folders don't clone?
+        os.mkdir(os.path.join(project, 'annotation_data'))
+        os.mkdir(os.path.join(project, 'annotation_data','raw_images'))
+        os.mkdir(os.path.join(project, 'annotation_data','behavior_movies'))
+        os.mkdir(os.path.join(project,'behavior'))
     # os.mkdir(os.path.join(project,'detection'))
     # os.mkdir(os.path.join(project,'pose'))
     # os.mkdir(os.path.join(project,'behavior'))

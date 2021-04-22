@@ -31,7 +31,7 @@ Follow these [instructions to set up and run annotation jobs](docs/readme_ground
 ### 3. Post-process manual pose annotations
 At the end of step 2, you downloaded a file `output.manifest` of annotation data ([see here for download instructions](docs/readme_groundTruthSetup.md#3-download-the-completed-annotations).)
 
-If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/project_config.yml` and set `manifest_name` to the name of the file containing your annotation data.
+If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/project_config.yaml` and set `manifest_name` to the name of the file containing your annotation data.
 
 Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the argument:
 

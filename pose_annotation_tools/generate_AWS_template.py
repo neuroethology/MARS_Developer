@@ -96,14 +96,14 @@ def generate_AWS_template(config):
 
 
 if __name__ ==  '__main__':
-    """
-    generate_AWS_template command line entry point
-    Arguments:
-        config 		Path to project_config.yml for your MARS annotation project
-    """
+	"""
+	generate_AWS_template command line entry point
+	Arguments:
+		config 		Path to project_config.yaml for your MARS annotation project
+	"""
 
-    parser = argparse.ArgumentParser(description='generate annotation interface html template from project_config.yml', prog='generate_AWS_template')
-    parser.add_argument('config', type=str, help="Path to project_config.yml for your annotation project")
+	parser = argparse.ArgumentParser(description='generate annotation interface html template from project_config.yaml', prog='generate_AWS_template')
+	parser.add_argument('config', type=str, help="Path to project_config.yaml for your annotation project")
 	args = parser.parse_args(sys.argv[1:])
 
-    generate_AWS_template(args.config)
+	generate_AWS_template(args.config)

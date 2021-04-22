@@ -9,7 +9,7 @@ This Multibox detection system has been adopted from Grant Van Horn's [Multibox]
 ---
 Documentation reproduced from [source repo](https://github.com/gvanhorn38/multibox):
 
-The input functions to the model require a specific dataset format. You can create the dataset using the utility functions found [here](https://github.com/gvanhorn38/inception/tree/master/inputs). You'll also need to genertate the priors for the bounding boxes. In the [priors.py](priors.py) file you will find convenience functions for generating the priors. For example, assuming you are in a python terminal (in the project directory):
+The input functions to the model require a specific dataset format. You can create the dataset using the utility functions found [here](https://github.com/gvanhorn38/inception/tree/master/inputs). You'll also need to genertate the priors for the bounding boxes. In the [priors.py](../pose_annotation_tools/priors.py) file you will find convenience functions for generating the priors. For example, assuming you are in a python terminal (in the project directory):
 
 ```python
 import pickle
@@ -21,7 +21,7 @@ with open('priors.pkl', 'w') as f:
   pickle.dump(p, f)
 ``` 
 
-Instead of hand defining the aspect ratios, you can use your training dataset to cluster the aspect ratios of the bounding boxes. There is a utility function to do this in the [priors.py](priors.py) file. 
+Instead of hand defining the aspect ratios, you can use your training dataset to cluster the aspect ratios of the bounding boxes. There is a utility function to do this in the [priors.py](../pose_annotation_tools/priors.py) file. 
 
 Next, you'll need to create a configuration file. Checkout the [example](config.yaml.example) to see the different settings. Some especially important settings include:
 

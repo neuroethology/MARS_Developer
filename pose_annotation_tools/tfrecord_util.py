@@ -8,43 +8,55 @@ tf.disable_v2_behavior()
 import threading
 import math
 import random
-from json_util import *
+from pose_annotation_tools.json_util import *
+import multiprocessing
 
 
-def write_to_tfrecord(v_info, output_directory, split_train_val_test=False):
+def smallest_factor(n):
+    # if divisible by 2
+    if (n % 2 == 0):
+        return 2
+    i = 3
+    while i * i <= n:
+        if n % i == 0:
+            return i
+        i += 2
+    return n
+
+
+def write_to_tfrecord(v_info, output_directory):
     n = len(v_info)
-    n_shards = math.ceil(n / 1000)
+    ntrain = int(math.floor(n * .85))
+    nval = int(round(n * .05))
 
-    ntrain = int(math.floor(n * .85)) if split_train_val_test else n
     train = v_info[:ntrain]
+    val = v_info[ntrain:ntrain + nval]
+    test = v_info[ntrain + nval:]
 
-    # create training set
+    n_shards = math.ceil(ntrain / 1000)
+    # n_threads must be a factor of n_shards, which can get awkward if n_shards is prime.
+    n_threads = n_shards if n_shards <= multiprocessing.cpu_count() else (n_shards / smallest_factor(n_shards))
+
     create(
         dataset=train,
         dataset_name="train_dataset",
         output_directory=output_directory,
-        num_shards=n_shards, num_threads=min(n_shards, 5), shuffle=False
+        num_shards=n_shards, num_threads=n_threads, shuffle=False
     )
 
-    # create validation and test sets if requested.
-    if split_train_val_test:
-        nval = int(round(n * .05))
-        val = v_info[ntrain:ntrain + nval]
-        test = v_info[ntrain + nval:]
+    create(
+        dataset=val,
+        dataset_name="val_dataset",
+        output_directory=output_directory,
+        num_shards=1, num_threads=1, shuffle=False
+    )
 
-        create(
-            dataset=val,
-            dataset_name="val_dataset",
-            output_directory=output_directory,
-            num_shards=1, num_threads=1, shuffle=False
-        )
-
-        create(
-            dataset=test,
-            dataset_name="test_dataset",
-            output_directory=output_directory,
-            num_shards=1, num_threads=1, shuffle=False
-        )
+    create(
+        dataset=test,
+        dataset_name="test_dataset",
+        output_directory=output_directory,
+        num_shards=1, num_threads=1, shuffle=False
+    )
 
 
 # creating the tfrecord files ------------------------------------------------------------------------------------------
@@ -216,7 +228,7 @@ def _process_image(filename, coder):
       width: integer, image width in pixels.
     """
     # Read the image file.
-    image_data = tf.gfile.FastGFile(filename, 'rb').read()
+    image_data = tf.gfile.GFile(filename, 'rb').read()
 
     # Clean the dirty data.
     if _is_png(filename):
@@ -292,19 +304,19 @@ def _process_image_files_batch(coder, thread_index, ranges, name, output_directo
                 error_counter += 1
                 error_queue.put(image_example)
 
-            if not counter % 1000:
-                print('%s [thread %d]: Processed %d of %d images in thread batch, with %d errors.' %
-                      (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
-                sys.stdout.flush()
+            # if not counter % 1000:
+            #     print('%s [thread %d]: Processed %d of %d images in thread batch, with %d errors.' %
+            #           (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
+            #     sys.stdout.flush()
 
-        print('%s [thread %d]: Wrote %d images to %s, with %d errors.' %
-              (datetime.now(), thread_index, shard_counter, output_file, error_counter))
-        sys.stdout.flush()
+        # print('%s [thread %d]: Wrote %d images to %s, with %d errors.' %
+        #       (datetime.now(), thread_index, shard_counter, output_file, error_counter))
+        # sys.stdout.flush()
         shard_counter = 0
 
-    print('%s [thread %d]: Wrote %d images to %d shards, with %d errors.' %
-          (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
-    sys.stdout.flush()
+    # print('%s [thread %d]: Wrote %d images to %d shards, with %d errors.' %
+    #       (datetime.now(), thread_index, counter, num_files_in_thread, error_counter))
+    # sys.stdout.flush()
 
 
 def create(dataset, dataset_name, output_directory, num_shards, num_threads, shuffle=True):
@@ -354,8 +366,8 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
         ranges.append([spacing[i], spacing[i + 1]])
 
     # Launch a thread for each batch.
-    print('Launching %d threads for spacings: %s' % (num_threads, ranges))
-    sys.stdout.flush()
+    # print('Launching %d threads for spacings: %s' % (num_threads, ranges))
+    # sys.stdout.flush()
 
     # Create a mechanism for monitoring when all threads are finished.
     coord = tf.train.Coordinator()
@@ -375,30 +387,27 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
 
     # Wait for all the threads to terminate.
     coord.join(threads)
-    print('%s: Finished writing all %d images in data set.' %
-          (datetime.now(), len(dataset)))
+    # print('%s: Finished writing all %d images in data set.' %
+    #       (datetime.now(), len(dataset)))
 
     # Collect the errors
     errors = []
     while not error_queue.empty():
         errors.append(error_queue.get())
-    print('%d examples failed.' % (len(errors),))
+    # print('%d examples failed.' % (len(errors),))
 
     return errors
 
 
 # creating dict formats expected by the tfrecord files -----------------------------------------------------------------
 
-def make_bbox_dict(D, mouse_list):
+def prep_records_detection(D, mouse_list):
     # prepare a dict with the info needed for the next step of preparing the tf records.
     v_info = []
     for i in range(len(D)):
         box = {n: [] for n in mouse_list}
-        area = {n: [] for n in mouse_list}
         for mouse in mouse_list:
-            mouse = 'ann_' + mouse
-            box[mouse] = D[i][mouse]['bbox']
-            area[mouse] = D[i][mouse]['bbox']
+            box[mouse] = D[i]['ann_' + mouse]['bbox']
 
         i_frame = {'filename': D[i]['image'],
                    "class": {
@@ -408,7 +417,7 @@ def make_bbox_dict(D, mouse_list):
                    'id': format(i, '06d'),
                    'width': D[i]['width'],
                    'height': D[i]['height'],
-                   'object': {'area': area,
+                   'object': {'area': [D[i]['ann_' + n]['area'] for n in mouse_list],
                               'bbox': {
                                   'xmin': [box[n][0] for n in mouse_list],
                                   'xmax': [box[n][1] for n in mouse_list],
@@ -420,7 +429,7 @@ def make_bbox_dict(D, mouse_list):
     return v_info
 
 
-def make_pose_dict(D, mouse_list):
+def prep_records_pose(D, mouse_list):
     # prepare a dict with the info needed for the next step of preparing the tf records.
     v_info = []
     for i in range(len(D)):
@@ -437,7 +446,7 @@ def make_pose_dict(D, mouse_list):
                    'height': D[i]['height'],
                    'object': {
                        'id': [*range(len(mouse_list))],
-                       'area': [D[i][n]['area'] for n in mouse_list],
+                       'area': [D[i]['ann_' + n]['area'] for n in mouse_list],
                        'bbox': {
                            'xmin': [bbox[n][0] for n in mouse_list],
                            'xmax': [bbox[n][1] for n in mouse_list],
