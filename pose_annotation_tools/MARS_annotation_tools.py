@@ -1,10 +1,12 @@
 from pose_annotation_tools.tfrecord_util import *
 from pose_annotation_tools.json_util import *
-from pose_annotation_tools.priors_generator import *
+# from pose_annotation_tools.priors_generator import *
 import random
 import yaml
 import json
 import os
+import pickle
+import glob
 
 
 def make_annot_dict(project):
@@ -40,6 +42,22 @@ def make_annot_dict(project):
         manifest_to_dict(project)
 
 
+def make_clean_dir(output_dir):
+    if os.path.exists(output_dir):
+        # remove all old tfrecords and priors for safety
+        oldrecords = []
+        for filetype in ['tfrecord','prior']:
+            oldrecords.extend(glob.glob(os.path.join(output_dir, '*' + filetype + '*')))
+        for f in oldrecords:
+            try:
+                os.remove(f)
+            except OSError as e:
+                print('Error: %s : %s' % (f, e.strerror))
+
+    else:
+        os.makedirs(output_dir)
+
+
 def prepare_detector_training_data(project):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
@@ -65,15 +83,12 @@ def prepare_detector_training_data(project):
             print('Generating ' + detector + ' detection training files...')
 
         output_dir = os.path.join(project, 'detection', 'tfrecords_detection_' + detector)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        make_clean_dir(output_dir)
         v_info = prep_records_detection(D, detector_list[detector])
         write_to_tfrecord(v_info, output_dir)
-        # generate_priors_from_data(dataset=os.path.join(output_dir,'train_dataset') #TODO: fix this!-------------------------------------------------------------------
 
         if config['verbose']:
             print('done.')
-
 
 
 def prepare_pose_training_data(project):
@@ -103,8 +118,7 @@ def prepare_pose_training_data(project):
             print('Generating ' + pose + ' pose training files...')
 
         output_dir = os.path.join(project, 'pose', 'tfrecords_pose_' + pose)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        make_clean_dir(output_dir)
         v_info = prep_records_pose(D, pose_list[pose])
         write_to_tfrecord(v_info, output_dir)
 
@@ -116,11 +130,8 @@ def process_annotations(project):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
     files that are used to train MARS's detectors and pose estimators.
-
-
     project : string
         The absolute path to the project directory.
-
     Example
     --------
     process_annotations('D:\\my_project')
@@ -132,3 +143,6 @@ def process_annotations(project):
     # save tfrecords
     prepare_detector_training_data(project)
     prepare_pose_training_data(project)
+
+    # make priors
+    # make_project_priors(project)

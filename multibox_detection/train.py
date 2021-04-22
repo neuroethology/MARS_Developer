@@ -8,10 +8,10 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 
-import inputs
-import loss
-import model_detection as model
-from config import parse_config_file
+from multibox_detection import inputs
+from multibox_detection import loss
+from multibox_detection import model_detection as model
+from multibox_detection.config import parse_config_file
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
