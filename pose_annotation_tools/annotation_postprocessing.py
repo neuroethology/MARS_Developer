@@ -1,12 +1,12 @@
 from pose_annotation_tools.tfrecord_util import *
 from pose_annotation_tools.json_util import *
-# from pose_annotation_tools.priors_generator import *
+from pose_annotation_tools.priors_generator import *
 import random
 import yaml
 import json
 import os
-import pickle
 import glob
+import argparse
 
 
 def make_annot_dict(project):
@@ -126,7 +126,33 @@ def prepare_pose_training_data(project):
             print('done.')
 
 
-def process_annotations(project):
+
+def make_project_priors(project):
+
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # get the names of the detectors we'll be training, and which data goes into each.
+    detector_list = config['detection']
+    detector_names = detector_list.keys()
+
+    for detector in detector_names:
+        if config['verbose']:
+            print('Generating ' + detector + ' priors...')
+
+        output_dir = os.path.join(project, 'detection', 'tfrecords_detection_' + detector)
+        record_list = glob.glob(os.path.join(output_dir, 'train_dataset-*'))
+        priors = generate_priors_from_data(dataset=record_list)
+
+        with open(os.path.join(project, 'detection', 'priors_' + detector + '.pkl'), 'wb') as fp:
+            pickle.dump(priors, fp)
+
+        if config['verbose']:
+            print('done.')
+
+
+def annotation_postprocessing(project):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
     files that are used to train MARS's detectors and pose estimators.
@@ -145,4 +171,18 @@ def process_annotations(project):
     prepare_pose_training_data(project)
 
     # make priors
-    # make_project_priors(project)
+    make_project_priors(project)
+
+
+if __name__ ==  '__main__':
+    """
+    annotation_postprocessing command line entry point
+    Arguments:
+        project 	The absolute path to the project directory.
+    """
+
+    parser = argparse.ArgumentParser(description='postprocess and package manual pose annotations', prog='annotation_postprocessing')
+    parser.add_argument('project', type=str, help="absolute path to project folder.")
+    args = parser.parse_args(sys.argv[1:])
+
+    annotation_postprocessing(args.project)

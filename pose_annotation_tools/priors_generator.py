@@ -1,8 +1,9 @@
-import sys, os
-import yaml
-import pickle
-import glob
+import os
+import sys
+import argparse
+
 from pose_annotation_tools.priors import *
+import pickle
 
 
 def _parse_function(example_proto):
@@ -20,6 +21,16 @@ def _parse_function(example_proto):
     return tf.io.parse_single_example(example_proto, features)
 
 
+def len_util(tf_record_dataset):
+    """
+    Counts the number of entries in a TFRecordDataset
+    """
+    c = 0
+    for record in tf.python_io.tf_record_iterator(tf_record_dataset):
+        c += 1
+    return c
+
+
 def convert(tf_r):
     """
     INPUTS:
@@ -34,30 +45,41 @@ def convert(tf_r):
     # Loop through all the tfrecords provided
     for r in tf_r:
         # Make TFRecord Dataset object and add mapping 
-        raw_dataset = tf.data.TFRecordDataset(r)
+        raw_dataset = tf.compat.v1.data.TFRecordDataset(r)
         parsed_dataset = raw_dataset.map(_parse_function)
 
+        # Make an iterator for our dataset 
+        iterator = tf.compat.v1.data.make_one_shot_iterator(parsed_dataset)
+        next_element = iterator.get_next()
+
+        # Count the number of entries in our dataset
+        num_records = len_util(r)
+
         # Enumerate over our parsed dataset
-        for _, record in enumerate(parsed_dataset):
-            # Make new dict
-            image_data = {}
+        with tf.Session() as sess:
+            for i in range(num_records):
+                # Get the current record
+                record = sess.run(next_element)
 
-            # Extract and create the bbox dict
-            image_data['object'] = {
-                'bbox': {
-                    'xmax': record['image/object/bbox/xmax'],
-                    'xmin': record['image/object/bbox/xmin'],
-                    'ymax': record['image/object/bbox/ymax'],
-                    'ymin': record['image/object/bbox/ymin']}
-            }
+                # Make new dict
+                image_data = {}
 
-            # Retrieve the id, width, and height of the image
-            image_data['width'] = record['image/width']
-            image_data['height'] = record['image/height']
-            image_data['id'] = record['image/id']
+                # Extract and create the bbox dict
+                image_data['object'] = {
+                    'bbox': {
+                        'xmax': record['image/object/bbox/xmax'].values,
+                        'xmin': record['image/object/bbox/xmin'].values,
+                        'ymax': record['image/object/bbox/ymax'].values,
+                        'ymin': record['image/object/bbox/ymin'].values}
+                }
 
-            # Append to dataset list
-            dataset.append(image_data)
+                # Retrieve the id, width, and height of the image
+                image_data['width'] = record['image/width']
+                image_data['height'] = record['image/height']
+                image_data['id'] = record['image/id']
+
+                # Append to dataset list
+                dataset.append(image_data)
 
     return dataset
 
@@ -72,7 +94,7 @@ def generate_priors_from_data(dataset=None, aspect_ratios=None):
     """
     # Generate aspect ratios from the dataset
     if (aspect_ratios is None) and (dataset is not None):
-        # Convert dataset from tfrecords format to list of dicts
+        # Convert dataset from tfrecords format to list of dicts 
         dataset = convert(dataset)
 
         # Generate aspect ratios using list of dicts
@@ -85,33 +107,52 @@ def generate_priors_from_data(dataset=None, aspect_ratios=None):
     else:
         print("Only provide either the hand-defined aspect ratios or tfrecords file(s) to construct the priors from")
         sys.exit()
-
     # Generate the priors with either hand-defined priors or priors generated from data
     priors = generate_priors(aspect_ratios, min_scale=0.1, max_scale=0.95, restrict_to_image_bounds=True)
 
     return priors
 
 
-def make_project_priors(project):
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Generate aspect ratios and priors from training data or hand-defined aspect ratios.')
 
-    config_fid = os.path.join(project, 'project_config.yaml')
-    with open(config_fid) as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+    parser.add_argument('--dataset', dest='dataset',
+                        help='binary tfrecords file that contains the training data to generate priors',
+                        type=str,
+                        required=False,
+                        nargs='+')
 
-    # get the names of the detectors we'll be training, and which data goes into each.
-    detector_list = config['detection']
-    detector_names = detector_list.keys()
+    parser.add_argument('--aspect_ratios',
+                        dest='aspect_ratios',
+                        help='[list of aspect ratios used to hand generate the priors]',
+                        type=str,
+                        nargs='+',
+                        required=False)
 
-    for detector in detector_names:
-        if config['verbose']:
-            print('Generating ' + detector + ' priors...')
+    parser.add_argument('--save_path',
+                        dest='save_path',
+                        help='Path to save priors to',
+                        type=str,
+                        required=True)
 
-        output_dir = os.path.join(project, 'detection', 'tfrecords_detection_' + detector)
-        record_list = glob.glob(os.path.join(output_dir, 'train_dataset-*'))
-        priors = generate_priors_from_data(dataset=record_list)
+    args = parser.parse_args()
+    return args
 
-        with open(os.path.join(project, 'detection', 'priors_' + detector + '.pkl'), 'wb') as fp:
-            pickle.dump(priors, fp)
 
-        if config['verbose']:
-            print('done.')
+def main():
+    args = parse_args()
+
+    # Generate priors from either data or hand-defined set of aspect ratios
+    p = generate_priors_from_data(
+        dataset=args.dataset,
+        aspect_ratios=args.aspect_ratios
+    )
+
+    # Save priors
+    with open(args.save_path, 'wb') as f:
+        pickle.dump(p, f)
+
+
+if __name__ == "__main__":
+    main()
