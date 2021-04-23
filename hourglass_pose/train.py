@@ -7,10 +7,10 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 
-from config import parse_config_file
-import train_inputs
-import loss
-import model_pose as model
+from hourglass_pose.config import parse_config_file
+from hourglass_pose import train_inputs
+from hourglass_pose import loss
+from hourglass_pose import model_pose as model
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
