@@ -8,7 +8,7 @@ import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 
 from hourglass_pose.config import parse_config_file
-from hourglass_pose import train_inputs
+from hourglass_pose import training_input
 from hourglass_pose import loss
 from hourglass_pose import model_pose as model
 
@@ -50,7 +50,7 @@ def train(tfrecords, logdir, cfg):
         )
 
         # Get all the input nodes for this graph.
-        batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids, batched_background_heatmaps = train_inputs.input_nodes(
+        batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids, batched_background_heatmaps = training_input.input_nodes(
             tfrecords,
             num_epochs=None,
             shuffle_batch=True,
