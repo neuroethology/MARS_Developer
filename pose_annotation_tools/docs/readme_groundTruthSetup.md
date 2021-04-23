@@ -4,7 +4,7 @@ We will be using SageMaker Ground Truth to send batches of images to a human wor
 
 We've divided these instructions into two sets: the one-time-only steps you will need to follow to **set up your account**, and the steps you'll follow any time you **submit a new labeling job**. The initial setup process takes some time investment, but submitting new labeling jobs is straightforward.
 
-**To set up your AWS account for the first time, [follow these instructions]().**
+**To set up your AWS account for the first time, [follow these instructions](readme_initialGTSetup.md).**
 
 Once you've made it through those instructions, submitting a job with SageMaker is straightforward:
 
@@ -51,7 +51,7 @@ For the annotation interface:
 ### Prepare your annotation interface
 Now we're going to create the **annotation interface**, a simple piece of HTML with instructions for annotators.
 
-We will create this programmatically from a configuration file called `project_config.yaml` that was created inside the `project_name` directory when you [initialized your labeling project](../pose_annotation_tools#0-initialize-a-new-labeling-project).
+We will create this programmatically from a configuration file called `project_config.yaml` that was created inside the `project_name` directory when you initialized your labeling project.
 
 1. Open `project_config.yaml` in your text editor. If you are using the same setup as MARS, you can leave this as is, EXCEPT change the names of `data_bucket`, `template_bucket`, and `region` to reflect where you created your S3 buckets, and update the image path under "full_instructions" to include `region` and `template_bucket`.
 2. From the terminal, call `python generate_AWS_template.py '/fullpath/to/project_name/project_config.yaml'`
