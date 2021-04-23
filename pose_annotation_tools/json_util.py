@@ -23,10 +23,10 @@ def apply_flip_correction(frame, meds, keypoints, pair):
     i2 = keypoints.index(pair[1])
 
     for rep in range(3):  # repeat 3 times for stability
-        for w,worker in enumerate(frame.swapaxes(0,2).swapaxes(1, 2)):
+        for w, worker in enumerate(frame.swapaxes(0, 2).swapaxes(1, 2)):
             d1 = cdist(worker[[i1, i2], :], [meds[i1, :]])
             d2 = cdist(worker[[i1, i2], :], [meds[i2, :]])
-            if (d1[0] > d2[1]) and (d2[1] > d1[0]):
+            if (d1[0] > d1[1]) and (d2[1] > d2[0]):
                 frame[[i1, i2], :, w] = frame[[i2, i1], :, w]
 
         # re-compute the medians:
@@ -220,7 +220,6 @@ def make_animal_dict(pts, im_shape):
     X = pts[:, 0, :].T
     Y = pts[:, 1, :].T
 
-    # pdb.set_trace()
     mX = np.median(X, axis=0)
     mY = np.median(Y, axis=0)
 

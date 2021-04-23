@@ -1,12 +1,15 @@
-from pose_annotation_tools.tfrecord_util import *
+# from pose_annotation_tools.tfrecord_util import *
 from pose_annotation_tools.json_util import *
-from pose_annotation_tools.priors_generator import *
+# from pose_annotation_tools.priors_generator import *
 import random
 import yaml
 import json
 import os
 import glob
 import argparse
+import math
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 
 def make_annot_dict(project):
@@ -125,7 +128,6 @@ def prepare_pose_training_data(project):
             print('done.')
 
 
-
 def make_project_priors(project):
 
     config_fid = os.path.join(project, 'project_config.yaml')
@@ -151,6 +153,33 @@ def make_project_priors(project):
             print('done.')
 
 
+def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
+    plt.rcParams['figure.figsize'] = figsize
+
+    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
+    if not os.path.exists(dictionary_file_path):
+        make_annot_dict(project)
+    with open(dictionary_file_path, 'r') as fp:
+        D = json.load(fp)
+
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+    markers = 'vosd*p'
+
+    im = mpimg.imread(D[fr]['image'])
+    plt.imshow(im, cmap='gray')
+
+    # plot the labels from each individual worker:
+    for mouse, mouseColor in zip(['white', 'black'], ['w', 'k']):
+        for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
+            for i, [px, py] in enumerate(zip(x, y)):
+                plt.plot(px * D[fr]['width'], py * D[fr]['height'],
+                         colors[i % 9], marker=markers[w % 6], markersize=markersize)
+
+        for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
+            plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
+                     'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
+
+
 def annotation_postprocessing(project):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
@@ -165,12 +194,12 @@ def annotation_postprocessing(project):
     # extract info from annotations into an intermediate dictionary file
     make_annot_dict(project)
 
-    # save tfrecords
-    prepare_detector_training_data(project)
-    prepare_pose_training_data(project)
-
-    # make priors
-    make_project_priors(project)
+    # # save tfrecords
+    # prepare_detector_training_data(project)
+    # prepare_pose_training_data(project)
+    #
+    # # make priors
+    # make_project_priors(project)
 
 
 if __name__ ==  '__main__':
