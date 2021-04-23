@@ -154,12 +154,10 @@ def make_project_priors(project):
 
 def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
     # plots annotations from all workers plus the worker median for an example frame.
-    
+
     config_fid = os.path.join(project,'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-
-    plt.rcParams['figure.figsize'] = figsize
 
     dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
     if not os.path.exists(dictionary_file_path):
@@ -167,6 +165,7 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
     with open(dictionary_file_path, 'r') as fp:
         D = json.load(fp)
 
+    plt.rcParams['figure.figsize'] = figsize
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
     markers = 'vosd*p'
 
@@ -184,6 +183,86 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
             plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
                      'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
     plt.show()
+
+def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
+    # plots annotations from all workers plus the worker median for an example frame.
+
+    config_fid = os.path.join(project,'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
+    if not os.path.exists(dictionary_file_path):
+        make_annot_dict(project)
+    with open(dictionary_file_path, 'r') as fp:
+        D = json.load(fp)
+
+    plt.rcParams['figure.figsize'] = figsize
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+    markers = 'vosd*p'
+
+    im = mpimg.imread(D[fr]['image'])
+    plt.imshow(im, cmap='gray')
+
+    # plot the labels from each individual worker:
+    for mouse in config['animal_names']:
+        for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
+            for i, [px, py] in enumerate(zip(x, y)):
+                plt.plot(px * D[fr]['width'], py * D[fr]['height'],
+                         colors[i % 9], marker=markers[w % 6], markersize=markersize)
+
+        for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
+            plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
+                     'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
+    plt.show()
+
+
+def plot_summary(project, xlim=[0, 50], pixels_per_cm=None):
+    # pixels_per_cm = 37.795
+    # project = '/media/storage/CRIM13_sample_project'
+    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
+    if not os.path.exists(dictionary_file_path):
+        make_annot_dict(project)
+    with open(dictionary_file_path, 'r') as fp:
+        D = json.load(fp)
+
+    nSamp = len(D)
+    nKpts = len(D[0]['ann_label'])
+
+    fig, ax = plt.subplots(2, 4, figsize=(16, 8))
+    dashes = {'white': 'dotted', 'black': 'dashed', 'both': 'solid'}
+    # colors = 'rbg'
+    for mouse in ['white', 'black']:
+        dMean   = np.zeros((nKpts, nSamp))  # average worker-gt distance
+        dMedian = np.zeros((nKpts, nSamp))  # median worker-gt distance
+        dMin    = np.zeros((nKpts, nSamp))  # performance of best worker on a given frame
+        dMax    = np.zeros((nKpts, nSamp))  # performance of worst worker on a given frame
+
+        for fr, frame in enumerate(D):
+            X = np.array(frame['ann_' + mouse]['X']) * D[0]['width']
+            Y = np.array(frame['ann_' + mouse]['Y']) * D[0]['height']
+            trial_dists = []
+            for i, [pX, pY] in enumerate(zip(X, Y)):
+                mX = np.median(np.delete(X, i, axis=0), axis=0)
+                mY = np.median(np.delete(Y, i, axis=0), axis=0)
+                trial_dists.append(np.sqrt(np.square(mX - pX) + np.square(mY - pY)))
+            trial_dists = np.array(trial_dists)
+
+            dMean[:, fr]   = np.mean(trial_dists, axis=0)
+            dMedian[:, fr] = np.median(trial_dists, axis=0)
+            dMin[:, fr]    = np.min(trial_dists, axis=0)
+            dMax[:, fr]    = np.max(trial_dists, axis=0)
+
+        bins = 10000
+        binrange = [-1 / bins, np.max(dMax) + 1 / bins]
+
+        for c, use in enumerate([dMin, dMean, dMedian, dMax]):
+            for p, pt in enumerate(use):
+                counts, usedbins = np.histogram(pt, bins, range=binrange, density=True)
+                ax[int(p / 4), p % 4].plot(usedbins[1:], counts.cumsum() / bins * binrange[1], ls=dashes[mouse])
+        for p,label in enumerate(D[0]['ann_label']):
+            ax[int(p / 4), p % 4].set_title(label)
+            ax[int(p / 4), p % 4].set_xlim(xlim)
 
 
 def annotation_postprocessing(project):
