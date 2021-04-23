@@ -56,7 +56,7 @@ def convert(tf_r):
         num_records = len_util(r)
 
         # Enumerate over our parsed dataset
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             for i in range(num_records):
                 # Get the current record
                 record = sess.run(next_element)

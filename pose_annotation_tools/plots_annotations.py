@@ -9,12 +9,10 @@
 import os
 import sys
 from matplotlib import pyplot as plt
-import Image
+from PIL import Image
 import pdb
 import sys
-import cPickle as pickle
-
-
+import pickle
 
 
 def plot_annotations(D,f, plt_keypoints=0, plt_med=0, plt_skel=0,plt_bbox=0,plt_ellipse0=0,plt_ellipse1=0,plt_ori1=0,plt_ori2=0, plt_tbox=0,plt_ntbox=0):
@@ -131,11 +129,11 @@ im_path = './'
 
 with open(filename, 'rb') as fp:
     D = pickle.load(fp)
-print 'load'
+print('load')
 plt.ion()
 
 for i in range(10):
-    print i
+    print(i)
     plot_annotations(D, i, 0,1,0,1)
 
 

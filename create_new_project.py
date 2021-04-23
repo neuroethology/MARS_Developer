@@ -4,7 +4,7 @@ import argparse
 from shutil import copyfile, copytree
 
 
-def create_new_project(location,name):
+def create_new_project(location, name, download_MARS_checkpoints=True):
     name = name.lstrip("'").rstrip("'").lstrip('"').rstrip('"') # remove quotes
     if not os.path.isdir(location):
         location = location.lstrip("'").rstrip("'") # try removing quotes
@@ -15,13 +15,20 @@ def create_new_project(location,name):
     if os.path.isdir(os.path.join(location,name)):
         print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
         return
+
+    # copy the config files
     project = os.path.join(location,name)
-    copytree('_template',project)
+    copytree('_template', project)
     if not os.path.exists(os.path.join(project, 'annotation_data')):  # empty folders don't clone?
         os.mkdir(os.path.join(project, 'annotation_data'))
-        os.mkdir(os.path.join(project, 'annotation_data','raw_images'))
-        os.mkdir(os.path.join(project, 'annotation_data','behavior_movies'))
+        os.mkdir(os.path.join(project, 'annotation_data', 'raw_images'))
+        os.mkdir(os.path.join(project, 'annotation_data', 'behavior_movies'))
         os.mkdir(os.path.join(project,'behavior'))
+
+    # download the model checkpoints
+    if download_MARS_checkpoints:
+        print("download_MARS_checkpoints hasn't been implemented yet :(")
+
     # os.mkdir(os.path.join(project,'detection'))
     # os.mkdir(os.path.join(project,'pose'))
     # os.mkdir(os.path.join(project,'behavior'))

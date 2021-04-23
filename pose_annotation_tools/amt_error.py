@@ -2,7 +2,7 @@ from __future__ import division
 import os,sys
 import json
 import dill
-import cPickle as pkl
+import pickle as pkl
 import random
 import numpy as np
 from PIL import Image

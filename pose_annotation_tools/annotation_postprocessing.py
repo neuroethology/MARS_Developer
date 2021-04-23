@@ -104,7 +104,6 @@ def prepare_pose_training_data(project):
     pose_list = config['pose']
     pose_names = pose_list.keys()
 
-
     # extract info from annotations
     dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
     if not os.path.exists(dictionary_file_path):
