@@ -359,32 +359,29 @@ def run_training(project, detector_names=[], max_training_steps=None, batch_size
 
 if __name__ ==  '__main__':
     """
-    annotation_postprocessing command line entry point
+    multibox_detection training command line entry point
     Arguments:
         project 	        The absolute path to the project directory.
-        detectors 	        Subset of detectors to train (optional, defaults to all.)
+        models 	            Subset of detectors to train (optional, defaults to all.)
         max_training_steps  Max number of training epochs, for troubleshooting (optional.)
         batch_size          Training batch size, for troubleshooting (optional.)
     """
 
-    parser = argparse.ArgumentParser(description='postprocess and package manual pose annotations',
-                                     prog='annotation_postprocessing')
+    parser = argparse.ArgumentParser(description='multibox_detection training command line entry point',
+                                     prog='run_training')
     parser.add_argument('project', type=str, help="absolute path to project folder.")
-    parser.add_argument('detector', type=list, required=False, default=[],
+    parser.add_argument('models', type=list, required=False, default=[],
                         help="(optional) list subset of detectors to train.")
     parser.add_argument('max_training_steps', type=int, required=False, default=None,
                         help="(optional) set a max number of training epochs (for troubleshooting.)")
-    parser.add_argument('batch_size', type=int, required=False, default=None,
-                        help="(optional) set an epoch batch size (for troubleshooting.)")
     args = parser.parse_args(sys.argv[1:])
 
     if not os.path.isdir(args.project):
         print('Project directory not found: ' + args.project)
-    if isinstance(args.detectors,str):
-        args.detectors = [args.detectors]
-
+    if isinstance(args.models, str):
+        args.models = [args.models]
 
     run_training(args.project,
-                 detector_names=args.detectors,
+                 detector_names=args.models,
                  max_training_steps=args.max_training_steps,
                  batch_size=args.batch_size)
