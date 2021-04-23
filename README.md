@@ -48,7 +48,7 @@ We provide code for crowdsourcing of pose annotation to a public workforce via A
    - [Post-processing the annotations](pose_annotation_tools#3-post-process-manual-pose-annotations) to correct for common annotation errors.
    - [Visualizing some annotations](pose_annotation_tools#4-visualize-some-annotations) to evaluate performance of your workforce.
 
-If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames)), you
+If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames), you can skip to the post-processing step to format your data for training.
 
 ### 3) 🎯 Fine-tune the MARS mouse detector to your data.
 First, we need to teach MARS what your animals look like. In this step, we'll create a mouse detector for your videos, and check its performance.
