@@ -29,7 +29,6 @@ def make_annot_dict(project):
     make_annot_dict('/path/to/savedir/my_project')
     --------
     """
-    # check that everything is where we want it to be
     config_fid = os.path.join(project,'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -154,6 +153,12 @@ def make_project_priors(project):
 
 
 def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
+    # plots annotations from all workers plus the worker median for an example frame.
+    
+    config_fid = os.path.join(project,'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
     plt.rcParams['figure.figsize'] = figsize
 
     dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
@@ -169,7 +174,7 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
     plt.imshow(im, cmap='gray')
 
     # plot the labels from each individual worker:
-    for mouse, mouseColor in zip(['white', 'black'], ['w', 'k']):
+    for mouse in config['animal_names']:
         for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
             for i, [px, py] in enumerate(zip(x, y)):
                 plt.plot(px * D[fr]['width'], py * D[fr]['height'],
@@ -178,6 +183,7 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
         for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
             plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
                      'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
+    plt.show()
 
 
 def annotation_postprocessing(project):
