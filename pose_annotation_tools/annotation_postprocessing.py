@@ -213,7 +213,7 @@ def plot_summary(project, animal_names=None, xlim=None, pixel_units=False, combi
     nSamp = len(D)
     nKpts = len(D[0]['ann_label'])
 
-    fig, ax = plt.subplots(2, 4, figsize=(15, 8))
+    fig, ax = plt.subplots(math.ceil((nKpts+1)/4), 4, figsize=(15, 4*math.ceil((nKpts+1)/4)))
     colors = ['tab:blue', 'tab:red', 'tab:green', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
     fields = ['min', 'max', 'mean', 'med']
     ptNames = D[0]['ann_label']
