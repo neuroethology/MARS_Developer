@@ -32,9 +32,6 @@ def save_response_content(response, destination):
                 f.write(chunk)
 
 
-
-
-
 def create_new_project(location, name, download_MARS_checkpoints=True, download_demo_data=False):
     name = name.lstrip("'").rstrip("'").lstrip('"').rstrip('"') # remove quotes
     if not os.path.isdir(location):
@@ -51,7 +48,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
     project = os.path.join(location,name)
     copytree('_template', project)
 
-    # download the model checkpoints
+    # download the model checkpoints and demo data
     if download_demo_data:
         dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
         dataset_id = '1J73k-RC1CyJQOjUdWr-75P3w_mfpRvXr'
@@ -62,6 +59,9 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         os.rename(os.path.join(project, dataset_name), os.path.join(project, 'annotation_data'))
         os.mkdir(os.path.join(project, 'behavior'))
         print('  done.')
+
+    if download_MARS_checkpoints:
+        print('  Checkpoints are not online yet, try again later')
 
     if not os.path.exists(os.path.join(project, 'annotation_data')):  # empty folders don't clone?
         os.mkdir(os.path.join(project, 'annotation_data'))

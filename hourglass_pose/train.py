@@ -50,7 +50,8 @@ def train(tfrecords, logdir, cfg):
         )
 
         # Get all the input nodes for this graph.
-        batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids, batched_background_heatmaps = training_input.input_nodes(
+        batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids,\
+        batched_background_heatmaps = training_input.input_nodes(
             tfrecords,
             num_epochs=None,
             shuffle_batch=True,
@@ -174,7 +175,7 @@ def run_training(project, pose_model_names=[], max_training_steps=None, batch_si
         if not os.path.isdir(logdir):
             os.mkdir(logdir)
 
-        tf_dir = os.path.join(project, 'pose', 'tfrecords_pose_' + model)
+        tf_dir = os.path.join(project, 'pose', model + '_tfrecords_pose')
         tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
 
         train(

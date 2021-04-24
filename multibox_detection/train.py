@@ -336,7 +336,7 @@ def run_training(project, detector_names=[], max_training_steps=None, batch_size
         if not os.path.isdir(logdir):
             os.mkdir(logdir)
 
-        tf_dir = os.path.join(project, 'detection', 'tfrecords_detection_' + detector)
+        tf_dir = os.path.join(project, 'detection', detector + '_tfrecords_detection')
         tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
 
         priors_fid = os.path.join(project, 'detection', 'priors_' + detector + '.pkl')

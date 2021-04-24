@@ -273,3 +273,35 @@ def correct_box(xmin, xmax, ymin, ymax, stretch_const=0.04, stretch_factor=0.30,
     ymin -= y_stretch
     ymax += y_stretch
     return xmin,xmax,ymin,ymax
+
+
+def make_annot_dict(project):
+    """"
+    Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), creates a
+    cleaned-up json intermediate file, for use in generating tfrecords and analyzing annotator performance.
+
+    project : string
+        The absolute path to your annotation project
+
+    correct_flips : bool
+        Defaults to True
+        Whether to attempt to correct left/right errors in raw annotations.
+
+    Example
+    --------
+    make_annot_dict('/path/to/savedir/my_project')
+    --------
+    """
+    config_fid = os.path.join(project,'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    annotation_file = os.path.join(project, 'annotation_data', config['manifest_name'])
+    if not os.path.exists(annotation_file):  # annotations file isn't where we expected it to be.
+        raise SystemExit("I couldn't find an annotation file at " + annotation_file)
+
+    _, ext = os.path.splitext(annotation_file)
+    if ext == '.csv':
+        csv_to_dict(project)
+    elif ext == '.manifest':
+        manifest_to_dict(project)
