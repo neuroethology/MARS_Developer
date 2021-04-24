@@ -184,42 +184,26 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
                      'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
     plt.show()
 
-def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
-    # plots annotations from all workers plus the worker median for an example frame.
 
+def plot_summary(project, animal_names=None, xlim=None, pixel_units=False, combine_animals=False):
+    # plot inter-worker variability
     config_fid = os.path.join(project,'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
-    if not os.path.exists(dictionary_file_path):
-        make_annot_dict(project)
-    with open(dictionary_file_path, 'r') as fp:
-        D = json.load(fp)
-
-    plt.rcParams['figure.figsize'] = figsize
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
-    markers = 'vosd*p'
-
-    im = mpimg.imread(D[fr]['image'])
-    plt.imshow(im, cmap='gray')
-
-    # plot the labels from each individual worker:
-    for mouse in config['animal_names']:
-        for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
-            for i, [px, py] in enumerate(zip(x, y)):
-                plt.plot(px * D[fr]['width'], py * D[fr]['height'],
-                         colors[i % 9], marker=markers[w % 6], markersize=markersize)
-
-        for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
-            plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
-                     'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
-    plt.show()
+    if config['pixels_per_cm'] and not config['pixels_per_cm'] == 'None':
+        if pixel_units:
+            pixels_per_cm = 1.0
+        else:
+            pixels_per_cm = config['pixels_per_cm']
+    else:  #no pixels/cm conversion, default to pixels.
+        pixels_per_cm = 1.0
+        pixel_units=True
 
 
-def plot_summary(project, xlim=[0, 50], pixels_per_cm=None):
-    # pixels_per_cm = 37.795
-    # project = '/media/storage/CRIM13_sample_project'
+    if animal_names is None:
+        animal_names = config['animal_names']
+
     dictionary_file_path = os.path.join(project, 'annotation_data', 'processed_keypoints.json')
     if not os.path.exists(dictionary_file_path):
         make_annot_dict(project)
@@ -229,18 +213,23 @@ def plot_summary(project, xlim=[0, 50], pixels_per_cm=None):
     nSamp = len(D)
     nKpts = len(D[0]['ann_label'])
 
-    fig, ax = plt.subplots(2, 4, figsize=(16, 8))
-    dashes = {'white': 'dotted', 'black': 'dashed', 'both': 'solid'}
-    # colors = 'rbg'
-    for mouse in ['white', 'black']:
+    fig, ax = plt.subplots(2, 4, figsize=(15, 8))
+    colors = ['tab:blue', 'tab:red', 'tab:green', 'tab:orange', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+    fields = ['min', 'max', 'mean', 'med']
+    ptNames = D[0]['ann_label']
+    ptNames.append('all')
+    bins = 10000
+    thr = 0.85
+    super_counts = {p: {n: np.zeros(bins) for n in fields} for p in ptNames}
+    for cnum, animal in enumerate(animal_names):
         dMean   = np.zeros((nKpts, nSamp))  # average worker-gt distance
         dMedian = np.zeros((nKpts, nSamp))  # median worker-gt distance
         dMin    = np.zeros((nKpts, nSamp))  # performance of best worker on a given frame
         dMax    = np.zeros((nKpts, nSamp))  # performance of worst worker on a given frame
 
         for fr, frame in enumerate(D):
-            X = np.array(frame['ann_' + mouse]['X']) * D[0]['width']
-            Y = np.array(frame['ann_' + mouse]['Y']) * D[0]['height']
+            X = np.array(frame['ann_' + animal]['X']) * D[0]['width']
+            Y = np.array(frame['ann_' + animal]['Y']) * D[0]['height']
             trial_dists = []
             for i, [pX, pY] in enumerate(zip(X, Y)):
                 mX = np.median(np.delete(X, i, axis=0), axis=0)
@@ -253,16 +242,67 @@ def plot_summary(project, xlim=[0, 50], pixels_per_cm=None):
             dMin[:, fr]    = np.min(trial_dists, axis=0)
             dMax[:, fr]    = np.max(trial_dists, axis=0)
 
-        bins = 10000
         binrange = [-1 / bins, np.max(dMax) + 1 / bins]
-
-        for c, use in enumerate([dMin, dMean, dMedian, dMax]):
+        counts = {p: {n: [] for n in fields} for p in ptNames}
+        for c, use in enumerate([dMin, dMax, dMean, dMedian]):
             for p, pt in enumerate(use):
-                counts, usedbins = np.histogram(pt, bins, range=binrange, density=True)
-                ax[int(p / 4), p % 4].plot(usedbins[1:], counts.cumsum() / bins * binrange[1], ls=dashes[mouse])
-        for p,label in enumerate(D[0]['ann_label']):
+                counts[ptNames[p]][fields[c]], usedbins = np.histogram(pt, bins, range=binrange, density=True)
+                super_counts[ptNames[p]][fields[c]] += counts[ptNames[p]][fields[c]]/len(animal_names)
+            counts['all'][fields[c]], _ = np.histogram(use, bins, range=binrange, density=True)
+            super_counts['all'][fields[c]] += counts['all'][fields[c]]/len(animal_names)
+
+        usedbins = usedbins/pixels_per_cm
+
+        if not combine_animals:
+            cutoff = 0
+            for p, pt in enumerate(ptNames):
+                objs = ax[int(p / 4), p % 4].stackplot(usedbins[1:],
+                                                counts[pt]['max'].cumsum()/bins * binrange[1],
+                                                (counts[pt]['min'].cumsum()-counts[pt]['max'].cumsum())/bins * binrange[1],
+                                                color=colors[cnum], alpha=0.25)
+                objs[0].set_alpha(0)
+                ax[int(p / 4), p % 4].plot(usedbins[1:],
+                                           counts[pt]['mean'].cumsum() / bins * binrange[1],
+                                           '--', color=colors[cnum], label=None)
+                ax[int(p / 4), p % 4].plot(usedbins[1:],
+                                           counts[pt]['med'].cumsum() / bins * binrange[1],
+                                           color=colors[cnum], label=animal+' '+config['species'])
+                cutoff = max(cutoff, sum((counts[pt]['med'].cumsum() / bins * binrange[1]) < thr))
+            for p, label in enumerate(ptNames):
+                ax[int(p / 4), p % 4].set_title(label)
+                if xlim is not None:
+                    ax[int(p / 4), p % 4].set_xlim(xlim)
+                else:
+                    ax[int(p / 4), p % 4].set_xlim([0, usedbins[cutoff]])
+            ax[int(p / 4), p % 4].legend()
+    if combine_animals:
+        cutoff = 0
+        for p, pt in enumerate(ptNames):
+            objs = ax[int(p / 4), p % 4].stackplot(usedbins[1:],
+                                                   super_counts[pt]['max'].cumsum() / bins * binrange[1],
+                                                   (super_counts[pt]['min'].cumsum() -
+                                                    super_counts[pt]['max'].cumsum()) / bins * binrange[1],
+                                                   color='k', alpha=0.25)
+            objs[0].set_alpha(0)
+            ax[int(p / 4), p % 4].plot(usedbins[1:],
+                                       super_counts[pt]['mean'].cumsum() / bins * binrange[1],
+                                       '--', color='k', label=None)
+            ax[int(p / 4), p % 4].plot(usedbins[1:],
+                                       super_counts[pt]['med'].cumsum() / bins * binrange[1],
+                                       color='k', label='all ' + config['species'])
+            cutoff = max(cutoff, sum((super_counts[pt]['med'].cumsum() / bins * binrange[1]) < thr))
+        for p, label in enumerate(ptNames):
             ax[int(p / 4), p % 4].set_title(label)
-            ax[int(p / 4), p % 4].set_xlim(xlim)
+            if xlim is not None:
+                ax[int(p / 4), p % 4].set_xlim(xlim)
+            else:
+                ax[int(p / 4), p % 4].set_xlim([0, usedbins[cutoff]])
+
+    if pixel_units:
+        ax[int(p / 4), 0].set_xlabel('Radius (pixels)')
+    else:
+        ax[int(p / 4), 0].set_xlabel('Radius (cm)')
+    ax[0, 0].set_ylabel('cdf')
 
 
 def annotation_postprocessing(project):
