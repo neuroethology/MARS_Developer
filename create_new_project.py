@@ -1,10 +1,41 @@
 import os, sys
-import pathlib
 import argparse
-from shutil import copyfile, copytree
+from shutil import copytree
+import requests
 
 
-def create_new_project(location, name, download_MARS_checkpoints=True):
+def download_CRIM13_demo_from_google_drive(id, destination):
+    URL = "https://drive.google.com/uc?export=download"
+
+    session = requests.Session()
+    response = session.get(URL, params={'id': id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+    save_response_content(response, destination)
+
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+
+
+
+
+
+def create_new_project(location, name, download_MARS_checkpoints=True, download_demo_data=False):
     name = name.lstrip("'").rstrip("'").lstrip('"').rstrip('"') # remove quotes
     if not os.path.isdir(location):
         location = location.lstrip("'").rstrip("'") # try removing quotes
@@ -19,15 +50,25 @@ def create_new_project(location, name, download_MARS_checkpoints=True):
     # copy the config files
     project = os.path.join(location,name)
     copytree('_template', project)
+
+    # download the model checkpoints
+    if download_demo_data:
+        dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
+        dataset_id = '1J73k-RC1CyJQOjUdWr-75P3w_mfpRvXr'
+
+        print('  Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 283Mb)...')
+        download_CRIM13_demo_from_google_drive(dataset_id, project)
+        print("  unpacking...")
+        os.rename(os.path.join(project, dataset_name), os.path.join(project, 'annotation_data'))
+        os.mkdir(os.path.join(project, 'behavior'))
+        print('  done.')
+
     if not os.path.exists(os.path.join(project, 'annotation_data')):  # empty folders don't clone?
         os.mkdir(os.path.join(project, 'annotation_data'))
         os.mkdir(os.path.join(project, 'annotation_data', 'raw_images'))
         os.mkdir(os.path.join(project, 'annotation_data', 'behavior_movies'))
-        os.mkdir(os.path.join(project,'behavior'))
+        os.mkdir(os.path.join(project, 'behavior'))
 
-    # download the model checkpoints
-    if download_MARS_checkpoints:
-        print("download_MARS_checkpoints hasn't been implemented yet :(")
 
     # os.mkdir(os.path.join(project,'detection'))
     # os.mkdir(os.path.join(project,'pose'))
