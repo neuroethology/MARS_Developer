@@ -182,7 +182,7 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
 
 
 def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None,
-          use_moving_averages=False, restore_moving_averages=False):
+          use_moving_averages=False, restore_moving_averages=False, debug_output=False):
     """
     Args:
     tfrecords (list)
@@ -191,7 +191,8 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
     cfg (EasyDict)
     pretrained_model_path (str) : path to a pretrained Inception Network
     """
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+    if not debug_output:
+        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
     graph = tf.Graph()
 
@@ -312,7 +313,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
                             )
 
 
-def run_training(project, detector_names=[], max_training_steps=None, batch_size=None):
+def run_training(project, detector_names=[], max_training_steps=None, debug_output=False):
     # load project config
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -328,8 +329,6 @@ def run_training(project, detector_names=[], max_training_steps=None, batch_size
     # allow some command-line override of training epochs/batch size, for troubleshooting:
     if max_training_steps is not None:
         train_cfg.NUM_TRAIN_ITERATIONS = max_training_steps
-    if batch_size is not None:
-        train_cfg.BATCH_SIZE = batch_size
 
     for detector in detector_names:
         logdir = os.path.join(project, 'detection', detector + '_log')
@@ -353,7 +352,8 @@ def run_training(project, detector_names=[], max_training_steps=None, batch_size
             fine_tune=cfg['fine_tune'],
             trainable_scopes=None if cfg['trainable_scopes'] == 'None' else cfg['trainable_scopes'],
             use_moving_averages=cfg['use_moving_averages'],
-            restore_moving_averages=cfg['restore_moving_averages']
+            restore_moving_averages=cfg['restore_moving_averages'],
+            debug_output=debug_output
         )
 
 
@@ -374,6 +374,8 @@ if __name__ ==  '__main__':
                         help="(optional) list subset of detectors to train.")
     parser.add_argument('max_training_steps', type=int, required=False, default=None,
                         help="(optional) set a max number of training epochs (for troubleshooting.)")
+    parser.add_argument('debug_output', type=int, required=False, default=False,
+                        help="(optional) display debugger-level output during training.")
     args = parser.parse_args(sys.argv[1:])
 
     if not os.path.isdir(args.project):
@@ -384,4 +386,4 @@ if __name__ ==  '__main__':
     run_training(args.project,
                  detector_names=args.models,
                  max_training_steps=args.max_training_steps,
-                 batch_size=args.batch_size)
+                 debug_output=args.debug_output)
