@@ -54,7 +54,7 @@ We provide code for crowdsourcing of pose annotation to a public workforce via A
    - [Post-processing the annotations](pose_annotation_tools#3-post-process-manual-pose-annotations) to correct for common annotation errors.
    - [Visualizing some annotations](pose_annotation_tools#4-visualize-some-annotations) to evaluate performance of your workforce.
 
-> If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames), you can skip to the post-processing step to format your data for training.
+> If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames), you can skip directly to the post-processing step to format your data for training.
 
 After you've collected annotations, the script `pose_annotation_tools.annotation_postprocessing.py` will consolidate annotations across human workers, correct for left/right flips of body parts, and package your data for model training. Call it from the terminal as
 
