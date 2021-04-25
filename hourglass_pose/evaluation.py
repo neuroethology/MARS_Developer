@@ -1,7 +1,7 @@
 import argparse
 import yaml
 import numpy as np
-import sys, os
+import sys, os, inspect
 import json
 import math
 import tensorflow.compat.v1 as tf
@@ -13,16 +13,21 @@ import matplotlib.image as mpimg
 from scipy import interpolate
 from MARSeval.coco import COCO
 from MARSeval.cocoeval import COCOeval
-from pose_annotation_tools.evaluation import compute_human_PCK
-from hourglass_pose.config import parse_config_file
-from hourglass_pose import eval_inputs as inputs
-from hourglass_pose import model_pose
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 import glob
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
+
+from pose_annotation_tools.evaluation import compute_human_PCK
 from pose_annotation_tools import restore_images_from_tfrecord
-import pdb
+from hourglass_pose.config import parse_config_file
+from hourglass_pose import eval_inputs as inputs
+from hourglass_pose import model_pose
+
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
