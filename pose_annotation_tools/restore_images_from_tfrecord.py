@@ -3,7 +3,7 @@ import cv2
 import os
 
 
-def restore_images_from_tfrecord(tfrecords_filename, output_path):
+def restore(tfrecords_filename, output_path):
     # this is a script to extract images from tfrecord files, for sanity-checking.
     f = tfrecords_filename
     totalFiles = 0
@@ -44,20 +44,20 @@ def restore_images_from_tfrecord(tfrecords_filename, output_path):
 
         # set the number of images in your tfrecords file
         num_images = c
-        print("going to restore {} files from {}".format(num_images, f))
+        print("restoring {} files from {}".format(num_images, f))
         for i in range(num_images):
 
-            im_,lbl,fName = sess.run([image,label,fileName])
+            im_, lbl, fName = sess.run([image, label, fileName])
 
-            lbl_=lbl.decode("utf-8")
+            lbl_ = lbl.decode("utf-8")
 
-            savePath=os.path.join(output_path,lbl_)
+            savePath = os.path.join(output_path, lbl_)
             if not os.path.exists(savePath):
                 os.makedirs(savePath)
-            fName_=os.path.join(savePath, fName.decode("utf-8").split('_')[1])
+            fName_ = os.path.join(savePath, 'image' + f'{i:07d}' + '_' + fName.decode("utf-8"))
 
-            # chnage the image save path here
-            cv2.imwrite(fName , im_)
+            # change the image save path here
+            cv2.imwrite(fName_, im_)
 
         coord.request_stop()
         coord.join(threads)

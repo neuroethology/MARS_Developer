@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from inputs import reshape_bboxes, extract_resized_crop_bboxes
+from hourglass_pose.inputs import reshape_bboxes, extract_resized_crop_bboxes
 
 
 def input_nodes(

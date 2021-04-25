@@ -8,7 +8,7 @@ import matplotlib.image as mpimg
 from pose_annotation_tools.json_util import *
 
 
-def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
+def plot_frame(project, fr, markersize=8, figsize=[15, 10]):
     # plots annotations from all workers plus the worker median for an example frame.
 
     config_fid = os.path.join(project ,'project_config.yaml')
@@ -21,7 +21,7 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 20]):
     with open(dictionary_file_path, 'r') as fp:
         D = json.load(fp)
 
-    plt.rcParams['figure.figsize'] = figsize
+    plt.figure(figsize=figsize)
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
     markers = 'vosd*p'
 
@@ -74,7 +74,7 @@ def compute_human_PCK(project, animal_names=None, xlim=None, pixel_units=False):
 
     fields = ['min', 'max', 'mean', 'med']
     ptNames = D[0]['ann_label']
-    ptNames.append('all')
+    ptNames = ['all'] + ptNames
 
     counts = {a: {p: {n: [] for n in fields} for p in ptNames} for a in animal_names}
     super_counts = {p: {n: np.zeros(bins) for n in fields} for p in ptNames}
@@ -101,21 +101,23 @@ def compute_human_PCK(project, animal_names=None, xlim=None, pixel_units=False):
 
         for c, use in enumerate([dMin, dMax, dMean, dMedian]):
             for p, pt in enumerate(use):
-                counts[animal][ptNames[p]][fields[c]], usedbins = np.histogram(pt, bins, range=binrange, density=True)
-                counts[animal][ptNames[p]][fields[c]] = counts[animal][ptNames[p]][fields[c] ] /bins * binrange[1]
-                super_counts[ptNames[p]][fields[c]] += counts[animal][ptNames[p]][fields[c]] / len(animal_names)
+                counts[animal][ptNames[p+1]][fields[c]], usedbins = np.histogram(pt, bins, range=binrange)
+                counts[animal][ptNames[p+1]][fields[c]] = counts[animal][ptNames[p+1]][fields[c]]\
+                                                          / sum(counts[animal][ptNames[p+1]][fields[c]])
+                super_counts[ptNames[p+1]][fields[c]] += counts[animal][ptNames[p+1]][fields[c]] / len(animal_names)
 
-            counts[animal]['all'][fields[c]], _ = np.histogram(use, bins, range=binrange, density=True)
-            counts[animal]['all'][fields[c]] = counts[animal]['all'][fields[c]] / bins * binrange[1]
+            counts[animal]['all'][fields[c]], _ = np.histogram(np.mean(use,axis=0), bins, range=binrange)
+            counts[animal]['all'][fields[c]] = counts[animal]['all'][fields[c]] / sum(counts[animal]['all'][fields[c]])
             super_counts['all'][fields[c]] += counts[animal]['all'][fields[c]] / len(animal_names)
 
-        usedbins = usedbins / pixels_per_cm
+        if not pixel_units:
+            usedbins = usedbins / pixels_per_cm
         binctrs = usedbins[1:]  # (usedbins[1:] + usedbins[:-1]) / 2.0
 
     return counts, super_counts, binctrs
 
 
-def plot_PCK(project, animal_names=None, xlim=None, pixel_units=False, combine_animals=False):
+def plot_human_PCK(project, animal_names=None, xlim=None, pixel_units=False, combine_animals=False):
     # plot inter-worker variability
 
     counts, super_counts, binctrs = compute_human_PCK(project, xlim=xlim, pixel_units=pixel_units)
@@ -149,9 +151,9 @@ def plot_PCK(project, animal_names=None, xlim=None, pixel_units=False, combine_a
             objs = ax[int(p / 4), p % 4].stackplot(binctrs, super_counts[pt]['max'].cumsum(),
                                                    (super_counts[pt]['min'].cumsum() -
                                                     super_counts[pt]['max'].cumsum()),
-                                                   color='k', alpha=0.25)
+                                                   color=colors[0], alpha=0.25)
             objs[0].set_alpha(0)
-            ax[int(p / 4), p % 4].plot(binctrs, super_counts[pt]['med'].cumsum(), '--', color='k')
+            ax[int(p / 4), p % 4].plot(binctrs, super_counts[pt]['med'].cumsum(), '--', color=colors[0])
             cutoff = max(cutoff, sum((super_counts[pt]['med'].cumsum()) < thr))
         for p, label in enumerate(ptNames):
             ax[int(p / 4), p % 4].set_title(label)

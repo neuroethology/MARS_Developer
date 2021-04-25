@@ -8,6 +8,8 @@ SESSION_CONFIG : {
 #################################################################3
 # parts config
 
+NUM_STACKS: 8
+
 PARTS : {
  NUM_PARTS : 7,
  PART_LOSS_ALPHA : 100,

@@ -17,9 +17,9 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def train(tfrecords, logdir, cfg):
+def train(tfrecords, logdir, cfg, debug_output=False):
     """
-  Args:
+    Args:
     tfrecords (list of strings):
       Each string in the list contains the path to a tfrecord file --these are a wrapper for
       all the information about the keypoints we're training on.
@@ -27,9 +27,12 @@ def train(tfrecords, logdir, cfg):
       This string is the path to the place where we dump our training summaries (i.e. metrics).
     cfg (EasyDict)
       This is a cfg file that's already been parsed into EasyDict form from a yaml file.
-  """
+    debug_output (bool)
+      Turn on debug-level output during training.
+    """
 
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+    if debug_output:
+        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
     # Make a graph
     graph = tf.Graph()
@@ -151,7 +154,7 @@ def train(tfrecords, logdir, cfg):
                             )
 
 
-def run_training(project, pose_model_names=[], max_training_steps=None, batch_size=None):
+def run_training(project, pose_model_names=[], max_training_steps=None, debug_output=False):
     # load project config
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -181,7 +184,8 @@ def run_training(project, pose_model_names=[], max_training_steps=None, batch_si
         train(
             tfrecords=tfrecords,
             logdir=logdir,
-            cfg=train_cfg
+            cfg=train_cfg,
+            debug_output=debug_output
         )
 
 
@@ -202,6 +206,8 @@ if __name__ == '__main__':
                         help="(optional) list subset of pose models to train.")
     parser.add_argument('max_training_steps', type=int, required=False, default=None,
                         help="(optional) set a max number of training epochs (for troubleshooting.)")
+    parser.add_argument('debug_output', type=int, required=False, default=False,
+                        help="(optional) turns on 'debug' outputs (show loss and sec/step during training.)")
     args = parser.parse_args(sys.argv[1:])
 
     if not os.path.isdir(args.project):
@@ -212,4 +218,4 @@ if __name__ == '__main__':
     run_training(args.project,
                  pose_model_names=args.models,
                  max_training_steps=args.max_training_steps,
-                 batch_size=args.batch_size)
+                 debug_output=args.debug_output)

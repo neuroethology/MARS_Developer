@@ -4,9 +4,11 @@ RANDOM_SEED : 1.0
 SESSION_CONFIG : {
   PER_PROCESS_GPU_MEMORY_FRACTION : 0.85
 }
-NUM_STACKS: 8
+
 #################################################################3
 # parts config
+
+NUM_STACKS: 8
 
 PARTS : {
  NUM_PARTS : 7,
