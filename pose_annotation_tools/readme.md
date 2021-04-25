@@ -33,15 +33,18 @@ At the end of step 2, you downloaded a file `output.manifest` of annotation data
 
 If you haven't already, copy `output.manifest` to `my_project/annotation_data/output.manifest`. If you name your manifest file something else, or if you want to use annotations from DeepLabCut, edit `my_project/project_config.yaml` and set `manifest_name` to the name of the file containing your annotation data.
 
-Now, we'll use the script `parse_manifest_file.py` to consolidate the data and clean up some common annotator errors. This script takes the argument:
+Now, we'll use the script `annotation_postprocessing.py` to consolidate the data and clean up some common annotator errors. This script takes the argument:
 
 * `project`: full path to the project directory.
 
-It also takes the optional argument:
-* `correct_flips`: (default `true`) set to false if you don't want MARS to try to correct for left/right errors made by workers.
-
 Call it from terminal with:
-```python parse_manifest_file.py project /path/to/savedir/my_project correct_flips true```
+```python annotation_postprocessing.py project /path/to/savedir/my_project```
 
 ### 4. Visualize some annotations
-Now we're going to run a script that will a) show some example annotated images from your dataset, and b) save some summary statistics on annotator performance, so you can evaluate how well people labeled your data. Woohoo.
+Finally, this module includes some scripts to visualize some of your human pose annotations, inside `pose_annotation_tools/evaluation`. These include:
+* `plot_frame(project_path, frame_num)` displays raw worker annotations + the cross-worker median for individual frames
+* `plot_human_PCK(project_path)` displays the Percent Correct Keypoint (PCK) curves for individual workers.
+
+The PCK curves show a cdf of the distance from each worker's annotation to the median of the remaining workers, across frames. We plot cdfs of the median worker-to-median distance across frames, as well as a shaded area whose upper and lower bounds are the min and max worker-to-median distances, respectively.
+
+[Check out the Jupyter Notebook Tutorial to learn more about these functions!](../MARS_tutorial.ipynb)
