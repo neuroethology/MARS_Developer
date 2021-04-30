@@ -29,7 +29,7 @@ def pr_curve(cocoEval, save_name):
 	for i in range(len(iou_mat)):
 		if iou_mat[i] in show:
 			colorVal = scalarMap.to_rgba(i)
-	ax.plot(rs_mat,ps_mat[i,:,:,0,1],c=colorVal,ls='-',lw=2,label = 'IoU = %s' % np.round(iou_mat[i],2))
+        	ax.plot(rs_mat,ps_mat[i,:,:,0,1],c=colorVal,ls='-',lw=2,label = 'IoU = %s' % np.round(iou_mat[i],2))
 	plt.grid()
 	plt.xlabel('Recall', fontsize=12)
 	plt.ylabel('Precision', fontsize=12)
