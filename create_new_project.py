@@ -2,6 +2,7 @@ import os, sys
 import argparse
 from shutil import copytree
 import requests
+import zipfile
 
 
 def download_CRIM13_demo_from_google_drive(id, destination):
@@ -28,7 +29,7 @@ def save_response_content(response, destination):
     CHUNK_SIZE = 32768
     with open(destination, "wb") as f:
         for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk: # filter out keep-alive new chunks
+            if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
 
 
@@ -51,11 +52,13 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
     # download the model checkpoints and demo data
     if download_demo_data:
         dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
-        dataset_id = '1J73k-RC1CyJQOjUdWr-75P3w_mfpRvXr'
+        dataset_id = '1DGUmuWgiQXM7Kx6x-QHJQathVIjQOmMR'
 
         print('  Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 283Mb)...')
-        download_CRIM13_demo_from_google_drive(dataset_id, project)
-        print("  unpacking...")
+        download_CRIM13_demo_from_google_drive(dataset_id, os.path.join(project, dataset_name+'.zip'))
+        print("  unzipping...")
+        with zipfile.ZipFile(os.path.join(project, dataset_name+'.zip'), 'r') as zip_ref:
+            zip_ref.extractall(os.path.join(project))
         os.rename(os.path.join(project, dataset_name), os.path.join(project, 'annotation_data'))
         os.mkdir(os.path.join(project, 'behavior'))
         print('  done.')
