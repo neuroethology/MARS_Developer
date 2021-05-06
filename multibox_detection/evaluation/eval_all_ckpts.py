@@ -31,7 +31,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 def evaluation(tfrecords, bbox_priors, summary_dir, checkpoints, checkpoint_dir, cfg, num_images=0, save_performance=False):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    graph = tf.compat.v1Graph()
+    graph = tf.compat.v1.Graph()
 
     # Force all Variables to reside on the CPU.
     with graph.as_default():
@@ -52,7 +52,7 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoints, checkpoint_dir,
             'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
             # epsilon to prevent 0s in variance.
             'epsilon': 0.001,
-            'variables_collections': [tf.compat.v1GraphKeys.MOVING_AVERAGE_VARIABLES],
+            'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
             'is_training': False
         }
         with slim.arg_scope([slim.conv2d],
@@ -78,7 +78,7 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoints, checkpoint_dir,
         }
 
         # Restore the parameters
-        saver = tf.compat.v1train.Saver(shadow_vars, reshape=True)
+        saver = tf.compat.v1.train.Saver(shadow_vars, reshape=True)
 
         fetches = [locations, confidences, batched_bboxes, batched_num_bboxes, batched_areas, batched_image_ids]
 
@@ -86,20 +86,20 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoints, checkpoint_dir,
         for ckpt in checkpoints:
             coord = tf.train.Coordinator()
 
-            sess_config = tf.compat.v1ConfigProto(
+            sess_config = tf.compat.v1.ConfigProto(
                 log_device_placement=False,
                 # device_filters = device_filters,
                 allow_soft_placement=True,
-                gpu_options=tf.compat.v1GPUOptions(
+                gpu_options=tf.compat.v1.GPUOptions(
                     per_process_gpu_memory_fraction=cfg.SESSION_CONFIG.PER_PROCESS_GPU_MEMORY_FRACTION
                 )
             )
-            sess = tf.compat.v1Session(graph=graph, config=sess_config)
+            sess = tf.compat.v1.Session(graph=graph, config=sess_config)
 
             with sess.as_default():
 
-                tf.compat.v1global_variables_initializer().run()
-                tf.compat.v1local_variables_initializer().run()
+                tf.compat.v1.global_variables_initializer().run()
+                tf.compat.v1.local_variables_initializer().run()
                 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
                 try:
@@ -260,7 +260,7 @@ def parse_args():
     return args
 
 
-def select_checkpoint(project, detection_model_names=None):
+def select_checkpoint(project, detection_model_names=None, num_images=0):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -306,7 +306,7 @@ def select_checkpoint(project, detection_model_names=None):
             checkpoints=onlyckpts,
             checkpoint_dir=checkpoint_path,
             cfg=cfg,
-            num_images=5
+            num_images=num_images
         )
 
         # best_ckpt = min(losses, key=losses.get)
