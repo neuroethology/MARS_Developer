@@ -3,7 +3,7 @@ Input pipeline for training the detector.
 """
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 def input_nodes(
   
@@ -72,7 +72,7 @@ def input_nodes(
     num_bboxes = tf.cast(features['image/object/bbox/count'], tf.int32)
     no_bboxes = tf.equal(num_bboxes, 0)
 
-    image = tf.compat.v1.image.resize_bilinear(tf.expand_dims(image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE], align_corners=False)
+    image = tf.image.resize_bilinear(tf.expand_dims(image, 0), [cfg.INPUT_SIZE, cfg.INPUT_SIZE], align_corners=False)
     image = tf.squeeze(image)
 
     # combine the bounding boxes (the shape should be [bbox_coords, num_bboxes])
@@ -111,8 +111,5 @@ def input_nodes(
         capacity= capacity,
         enqueue_many=False
       )
-    
+
     return images, batched_bboxes, batched_num_bboxes, batched_areas, image_ids
-    
-    
-  
