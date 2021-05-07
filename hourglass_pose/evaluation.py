@@ -809,8 +809,16 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
     fix, ax = plt.subplots(1, len(pose_model_names), figsize=figsize, squeeze=False)
     for i, model in enumerate(pose_model_names):
         event_path = os.path.join(project, 'pose', model + '_log')
-        eventfiles = glob.glob(os.path.join(event_path,'events.out.tfevents.*'))
+        eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
         eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+        onlyfiles = [f for f in listdir(checkpoint_path) if isfile(join(checkpoint_path, f))]
+        onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'meta' in f]
+        onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+        ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.meta'))
+        ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
+        ckpt_keys = [int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))]
 
         sz = {event_accumulator.IMAGES: 0}
         ea = event_accumulator.EventAccumulator(eventfiles[-1], size_guidance=sz)
@@ -820,9 +828,14 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
         vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
         steps = np.delete(steps, range(5))
         vals = np.delete(vals, range(5))
+        sm_vals = smooth(vals, window_len=20)
+        minval = np.where(sm_vals == np.amin(sm_vals[ckpt_keys]))
 
         ax[0, i].plot(steps, vals, color='skyblue', label='raw')
-        ax[0, i].plot(steps, smooth(vals, window_len=20), color='darkblue', label='smoothed')
+        ax[0, i].plot(steps, sm_vals, color='darkblue', label='smoothed')
+        ax[0, i].plot(steps[ckpt_keys], sm_vals[ckpt_keys], '*', color='orange', label='saved checkpoints')
+        ax[0, i].plot(steps[minval], sm_vals[minval], 'ro', label='best model')
+
         ax[0, i].set_xlabel('Training step')
         ax[0, i].set_ylabel('Validation loss')
         ax[0, i].set_title('Training progress for pose model "' + model + '"')
