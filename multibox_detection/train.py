@@ -102,12 +102,12 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
         ignore_missing_vars=False)
 
 
-def build_fully_trainable_model(inputs, cfg):
+def build_fully_trainable_model(inputs, cfg, is_training=True):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
         'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-        'is_training': True
+        'is_training': is_training
     }
     # Set activation_fn and parameters for batch_norm.
     with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
@@ -125,7 +125,7 @@ def build_fully_trainable_model(inputs, cfg):
     return locs, confs, inception_vars
 
 
-def build_finetunable_model(inputs, cfg):
+def build_finetunable_model(inputs, cfg, is_training=False):
     with slim.arg_scope([slim.conv2d],
                         activation_fn=tf.nn.relu,
                         normalizer_fn=slim.batch_norm,
@@ -148,7 +148,7 @@ def build_finetunable_model(inputs, cfg):
             'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
             'epsilon': 0.001,
             'variables_collections': [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
-            'is_training': True
+            'is_training': is_training
         }
         with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
             # Add on the detection heads
@@ -254,10 +254,12 @@ def train(tfrecords_train, tfrecords_val, bbox_priors, logdir, cfg, pretrained_m
 
         if fine_tune:
             locs, confs, inception_vars, detection_vars = build_finetunable_model(batched_images, cfg)
+            locs_v, confs_v, inception_vars_v, detection_vars_v = build_finetunable_model(batched_images_val, cfg, is_training=False)
             all_trainable_var_names = [v.op.name for v in tf.trainable_variables()]
             trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
         else:
             locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
+            locs_v, confs_v, inception_vars_v = build_fully_trainable_model(batched_images_val, cfg, is_training=False)
             trainable_vars = tf.compat.v1.trainable_variables()
 
         location_loss, confidence_loss = loss.add_loss(
@@ -272,10 +274,10 @@ def train(tfrecords_train, tfrecords_val, bbox_priors, logdir, cfg, pretrained_m
         total_loss = tf.compat.v1.losses.get_total_loss()
 
         val_loss, confidence_loss_val = loss.compute_loss(
-            locations=locs,
-            confidences=confs,
-            batched_bboxes=batched_bboxes,
-            batched_num_bboxes=batched_num_bboxes,
+            locations=locs_v,
+            confidences=confs_v,
+            batched_bboxes=batched_bboxes_val,
+            batched_num_bboxes=batched_num_bboxes_val,
             bbox_priors=bbox_priors,
             location_loss_alpha=cfg.LOCATION_LOSS_ALPHA,
             batch_size=cfg.BATCH_SIZE
