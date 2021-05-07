@@ -191,8 +191,6 @@ def run_training(project, pose_model_names=[], max_training_steps=None, debug_ou
     # allow some command-line override of training epochs/batch size, for troubleshooting:
     if max_training_steps is not None:
         train_cfg.NUM_TRAIN_ITERATIONS = max_training_steps
-    if batch_size is not None:
-        train_cfg.BATCH_SIZE = batch_size
 
     for model in pose_model_names:
         logdir = os.path.join(project, 'pose', model + '_log')
