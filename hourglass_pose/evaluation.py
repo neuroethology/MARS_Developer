@@ -17,6 +17,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import copy
 import glob
+import re
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -27,6 +28,7 @@ from pose_annotation_tools import restore_images_from_tfrecord
 from hourglass_pose.config import parse_config_file
 from hourglass_pose import eval_inputs as inputs
 from hourglass_pose import model_pose
+from tensorboard.backend.event_processing import event_accumulator
 
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -774,6 +776,29 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                 os.remove(os.path.join(summary_dir, 'performance_pose.json'))
             with open(os.path.join(summary_dir, 'performance_pose.json'), 'w') as jsonfile:
                 json.dump(cocodata, jsonfile)
+
+
+def select_best_checkpoint(project, pose_model_names=None):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # get the names of the detectors we'll be training, and which data goes into each.
+    if not pose_model_names:
+        pose_model_list = config['pose']
+        pose_model_names = pose_model_list.keys()
+
+    performance = {n: None for n in pose_model_names}
+    for model in pose_model_names:
+        event_path = os.path.join(project, 'pose', model + '_log')
+        eventfiles = glob.glob(event_path,'events.out.tfevents.*')
+        eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+        sz = {event_accumulator.IMAGES: 0}
+        ea = event_accumulator.EventAccumulator(eventfiles[-1], size_guidance=sz)
+        ea.Reload()
+        
+        return ea
 
 
 def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, show_layer_heatmaps=False):
