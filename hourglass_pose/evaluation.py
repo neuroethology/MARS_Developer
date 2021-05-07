@@ -806,7 +806,7 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(4,10)):
         pose_model_list = config['pose']
         pose_model_names = pose_model_list.keys()
 
-    fix, ax = plt.subplots(1, len(pose_model_names), figsize=figsize)
+    fix, ax = plt.subplots(1, len(pose_model_names), figsize=figsize, squeeze=False)
     for i, model in enumerate(pose_model_names):
         event_path = os.path.join(project, 'pose', model + '_log')
         eventfiles = glob.glob(os.path.join(event_path,'events.out.tfevents.*'))
@@ -821,13 +821,13 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(4,10)):
         steps = np.delete(steps, range(5))
         vals = np.delete(vals, range(5))
 
-        ax[i].plot(steps, vals, color='skyblue', label='raw')
-        ax[i].plot(steps, smooth(vals, window_len=20), color='darkblue', label='smoothed')
-        ax[i].xlabel('Training step')
-        ax[i].ylabel('Validation loss')
-        ax[i].title('Training progress for model "' + model + '"')
+        ax[0, i].plot(steps, vals, color='skyblue', label='raw')
+        ax[0, i].plot(steps, smooth(vals, window_len=20), color='darkblue', label='smoothed')
+        ax[0, i].set_xlabel('Training step')
+        ax[0, i].set_ylabel('Validation loss')
+        ax[0, i].set_title('Training progress for pose model "' + model + '"')
 
-    ax[0].legend()
+    ax[0, 0].legend()
     plt.show()
 
 
