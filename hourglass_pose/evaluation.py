@@ -778,7 +778,25 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                 json.dump(cocodata, jsonfile)
 
 
-def select_best_checkpoint(project, pose_model_names=None):
+def smooth(x,window_len=11,window='hanning'):
+    if x.ndim != 1:
+            raise ValueError("smooth only accepts 1 dimension arrays.")
+    if x.size < window_len:
+            raise ValueError("Input vector needs to be bigger than window size.")
+    if window_len<3:
+            return x
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+            raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+    s=np.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
+    if window == 'flat': #moving average
+            w=np.ones(window_len,'d')
+    else:
+            w=eval('np.'+window+'(window_len)')
+    y=np.convolve(w/w.sum(),s,mode='same')
+    return y[window_len:-window_len+1]
+
+
+def select_best_checkpoint(project, pose_model_names=None, figsize=(4,10)):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -788,8 +806,8 @@ def select_best_checkpoint(project, pose_model_names=None):
         pose_model_list = config['pose']
         pose_model_names = pose_model_list.keys()
 
-    performance = {n: None for n in pose_model_names}
-    for model in pose_model_names:
+    fix, ax = plt.subplots(1, len(pose_model_names), figsize=figsize)
+    for i, model in enumerate(pose_model_names):
         event_path = os.path.join(project, 'pose', model + '_log')
         eventfiles = glob.glob(os.path.join(event_path,'events.out.tfevents.*'))
         eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
@@ -798,7 +816,19 @@ def select_best_checkpoint(project, pose_model_names=None):
         ea = event_accumulator.EventAccumulator(eventfiles[-1], size_guidance=sz)
         ea.Reload()
 
-        return ea
+        steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
+        vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
+        steps = np.delete(steps, range(5))
+        vals = np.delete(vals, range(5))
+
+        ax[i].plot(steps, vals, color='skyblue', label='raw')
+        ax[i].plot(steps, smooth(vals, window_len=20), color='darkblue', label='smoothed')
+        ax[i].xlabel('Training step')
+        ax[i].ylabel('Validation loss')
+        ax[i].title('Training progress for model "' + model + '"')
+
+    ax[0].legend()
+    plt.show()
 
 
 def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, show_layer_heatmaps=False):
