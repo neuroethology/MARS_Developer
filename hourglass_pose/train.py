@@ -110,7 +110,7 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
         # Pool all the losses we've added together into one readout.
         total_loss = tf.compat.v1.losses.get_total_loss()
 
-        val_loss = tf.compat.v1.losses.add_loss(heatmap_val_loss, loss_collection='validation')
+        tf.compat.v1.losses.add_loss(heatmap_val_loss, loss_collection='validation')
 
         # Track the moving averages of all trainable variables.
         #   At test time we'll restore all variables with the average value.
@@ -136,7 +136,7 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
         summary_op = tf.compat.v1.summary.merge([
                                                     tf.compat.v1.summary.scalar('total_loss', total_loss),
                                                     tf.compat.v1.summary.scalar('total_heatmap_loss', heatmap_loss),
-                                                    tf.compat.v1.summary.scalar('validation_loss', val_loss),
+                                                    tf.compat.v1.summary.scalar('validation_loss', heatmap_val_loss),
                                                     tf.compat.v1.summary.scalar('learning_rate', lr)
                                                 ] + input_summaries + hmloss_summaries)
 
