@@ -791,13 +791,13 @@ def select_best_checkpoint(project, pose_model_names=None):
     performance = {n: None for n in pose_model_names}
     for model in pose_model_names:
         event_path = os.path.join(project, 'pose', model + '_log')
-        eventfiles = glob.glob(event_path,'events.out.tfevents.*')
+        eventfiles = glob.glob(os.path.join(event_path,'events.out.tfevents.*'))
         eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
         sz = {event_accumulator.IMAGES: 0}
         ea = event_accumulator.EventAccumulator(eventfiles[-1], size_guidance=sz)
         ea.Reload()
-        
+
         return ea
 
 
