@@ -335,9 +335,8 @@ def train(tfrecords_train, tfrecords_val, bbox_priors, logdir, cfg, pretrained_m
             # validate on interval
             if train_step_fn.step % VALIDATION_INTERVAL == 0:
                 validate_loss = sess.run([val_loss])
-                print(">> global step {}:    train={}   validation={}  delta={}".format(train_step_fn.step,
-                                                                                        total_loss, validate_loss,
-                                                                                        validate_loss - total_loss))
+                print(">> global step {}:    train={}   validation={}".format(train_step_fn.step,
+                                                                              total_loss, validate_loss))
 
             return [total_loss, should_stop]
 
