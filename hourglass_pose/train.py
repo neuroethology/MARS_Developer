@@ -198,10 +198,12 @@ def run_training(project, pose_model_names=[], max_training_steps=None, debug_ou
             os.mkdir(logdir)
 
         tf_dir = os.path.join(project, 'pose', model + '_tfrecords_pose')
-        tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_train = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_val = glob.glob(os.path.join(tf_dir, 'val_dataset-*'))
 
         train(
-            tfrecords=tfrecords,
+            tfrecords_train=tfrecords_train,
+            tfrecords_val=tfrecords_val,
             logdir=logdir,
             cfg=train_cfg,
             debug_output=debug_output
