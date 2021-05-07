@@ -835,8 +835,9 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
 
         ax[0, i].plot(steps, vals, color='skyblue', label='raw')
         ax[0, i].plot(steps, sm_vals, color='darkblue', label='smoothed')
-        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 's', color='darkorange', label='saved checkpoints')
-        ax[0, i].plot(steps[minval], sm_vals[minval], 'r*', label='best model')
+        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 'ro', label='saved checkpoints')
+        ax[0, i].plot(steps[minval], sm_vals[minval], 'o', label='best model', markersize=14, markeredgewidth=2,
+                      markeredgecolor='g', markerfacecolor='None')dd
 
         ax[0, i].set_xlabel('Training step')
         ax[0, i].set_ylabel('Validation loss')
