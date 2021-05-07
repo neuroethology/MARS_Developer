@@ -778,7 +778,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                 json.dump(cocodata, jsonfile)
 
 
-def smooth(x,window_len=11,window='hanning'):
+def smooth(x, window_len=11, window='hanning'):
     if x.ndim != 1:
             raise ValueError("smooth only accepts 1 dimension arrays.")
     if x.size < window_len:
@@ -830,12 +830,13 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
         vals = np.delete(vals, range(5))
         sm_vals = smooth(vals, window_len=20)
         ckpt_steps = [np.where(steps == k) for k in ckpt_keys]
+        ckpt_steps = [x[0][0] for x in ckpt_steps if len(x[0])]
         minval = np.where(sm_vals == np.amin(sm_vals[ckpt_steps]))
 
         ax[0, i].plot(steps, vals, color='skyblue', label='raw')
         ax[0, i].plot(steps, sm_vals, color='darkblue', label='smoothed')
-        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], '*', color='orange', label='saved checkpoints')
-        ax[0, i].plot(steps[minval], sm_vals[minval], 'ro', label='best model')
+        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 's', color='darkorange', label='saved checkpoints')
+        ax[0, i].plot(steps[minval], sm_vals[minval], 'r*', label='best model')
 
         ax[0, i].set_xlabel('Training step')
         ax[0, i].set_ylabel('Validation loss')
