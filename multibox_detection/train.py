@@ -381,7 +381,8 @@ def run_training(project, detector_names=[], max_training_steps=None, debug_outp
             os.mkdir(logdir)
 
         tf_dir = os.path.join(project, 'detection', detector + '_tfrecords_detection')
-        tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_train = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_val = glob.glob(os.path.join(tf_dir, 'val_dataset-*'))
 
         priors_fid = os.path.join(project, 'detection', 'priors_' + detector + '.pkl')
         with open(priors_fid, 'rb') as f:
@@ -389,7 +390,8 @@ def run_training(project, detector_names=[], max_training_steps=None, debug_outp
         bbox_priors = np.array(bbox_priors).astype(np.float32)
 
         train(
-            tfrecords=tfrecords,
+            tfrecords_train=tfrecords_train,
+            tfrecords_val=tfrecords_val,
             bbox_priors=bbox_priors,
             logdir=logdir,
             cfg=train_cfg,
