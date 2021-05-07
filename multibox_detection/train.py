@@ -280,7 +280,7 @@ def train(tfrecords_train, tfrecords_val, bbox_priors, logdir, cfg, pretrained_m
             batched_num_bboxes=batched_num_bboxes_val,
             bbox_priors=bbox_priors,
             location_loss_alpha=cfg.LOCATION_LOSS_ALPHA,
-            batch_size=cfg.BATCH_SIZE
+            batch_size=tf.shape(locs_v)[0]
         )
         tf.compat.v1.losses.add_loss(val_loss, loss_collection='validation')
 
