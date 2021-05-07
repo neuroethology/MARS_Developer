@@ -829,11 +829,12 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
         steps = np.delete(steps, range(5))
         vals = np.delete(vals, range(5))
         sm_vals = smooth(vals, window_len=20)
-        minval = np.where(sm_vals == np.amin(sm_vals[ckpt_keys]))
+        ckpt_steps = [np.where(steps == k) for k in ckpt_keys]
+        minval = np.where(sm_vals == np.amin(sm_vals[ckpt_steps]))
 
         ax[0, i].plot(steps, vals, color='skyblue', label='raw')
         ax[0, i].plot(steps, sm_vals, color='darkblue', label='smoothed')
-        ax[0, i].plot(steps[ckpt_keys], sm_vals[ckpt_keys], '*', color='orange', label='saved checkpoints')
+        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], '*', color='orange', label='saved checkpoints')
         ax[0, i].plot(steps[minval], sm_vals[minval], 'ro', label='best model')
 
         ax[0, i].set_xlabel('Training step')
