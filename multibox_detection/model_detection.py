@@ -323,7 +323,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
     
   return locations, confidences, endpoints
 
-def build(inputs, num_bboxes_per_cell, reuse=False, scope=''):
+def build(inputs, num_bboxes_per_cell, reuse=tf.AUTO_REUSE, scope=''):
   
   # Build the Inception-v3 model
   features, _ = inception_resnet_v2(inputs, reuse=reuse, scope='InceptionResnetV2')

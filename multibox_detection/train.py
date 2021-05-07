@@ -118,7 +118,7 @@ def build_fully_trainable_model(inputs, cfg, is_training=True):
         locs, confs, inception_vars = model.build(
             inputs=inputs,
             num_bboxes_per_cell=cfg.NUM_BBOXES_PER_CELL,
-            reuse=tf.AUTO_REUSE,
+            reuse=tf.compat.v1.AUTO_REUSE,
             scope=''
         )
 
