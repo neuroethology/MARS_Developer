@@ -17,7 +17,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def train(tfrecords, logdir, cfg, debug_output=False):
+def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
     """
     Args:
     tfrecords (list of strings):
@@ -55,7 +55,16 @@ def train(tfrecords, logdir, cfg, debug_output=False):
         # Get all the input nodes for this graph.
         batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids,\
         batched_background_heatmaps = training_input.input_nodes(
-            tfrecords,
+            tfrecords_train,
+            num_epochs=None,
+            shuffle_batch=True,
+            add_summaries=True,
+            cfg=cfg
+        )
+
+        batched_images_v, batched_heatmaps_v, batched_parts_v, batched_part_visibilities_v, batched_image_ids_v,\
+        batched_background_heatmaps_v = training_input.input_nodes(
+            tfrecords_val,
             num_epochs=None,
             shuffle_batch=True,
             add_summaries=True,
@@ -83,14 +92,25 @@ def train(tfrecords, logdir, cfg, debug_output=False):
             predicted_heatmaps = model.build(
                 input=batched_images,
                 num_parts=cfg.PARTS.NUM_PARTS,
-                num_stacks=cfg.NUM_STACKS
+                num_stacks=cfg.NUM_STACKS,
+                reuse=tf.compat.v1.AUTO_REUSE
+            )
+            predicted_heatmaps_v = model.build(
+                input=batched_images_v,
+                num_parts=cfg.PARTS.NUM_PARTS,
+                num_stacks=cfg.NUM_STACKS,
+                reuse=tf.compat.v1.AUTO_REUSE
             )
             # Add the loss functions to the graph tab of losses.
             heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
                                                                     True, cfg)
+            heatmap_val_loss = loss.compute_heatmaps_loss(batched_heatmaps_v, predicted_heatmaps_v,
+                                                                           cfg)
 
         # Pool all the losses we've added together into one readout.
         total_loss = tf.compat.v1.losses.get_total_loss()
+
+        val_loss = tf.compat.v1.losses.add_loss(heatmap_val_loss, loss_collection='validation')
 
         # Track the moving averages of all trainable variables.
         #   At test time we'll restore all variables with the average value.
@@ -116,6 +136,7 @@ def train(tfrecords, logdir, cfg, debug_output=False):
         summary_op = tf.compat.v1.summary.merge([
                                                     tf.compat.v1.summary.scalar('total_loss', total_loss),
                                                     tf.compat.v1.summary.scalar('total_heatmap_loss', heatmap_loss),
+                                                    tf.compat.v1.summary.scalar('validation_loss', val_loss),
                                                     tf.compat.v1.summary.scalar('learning_rate', lr)
                                                 ] + input_summaries + hmloss_summaries)
 
