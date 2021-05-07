@@ -26,7 +26,7 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
         with tf.compat.v1.variable_scope("upper_branch"):
             up1 = input
             for i in range(num_res_modules):
-                up1 = residual(up1, input_channels, input_channels, reuse=reuse, scope=scope)
+                up1 = residual(up1, input_channels, input_channels)
 
         # Add the modules for the lower branch
         # 1. Pool -> Residuals -> Hourglass -> Residuals -> Upsample
@@ -34,7 +34,7 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
         with tf.compat.v1.variable_scope("lower_branch"):
             low1 = slim.max_pool2d(input, 2, stride=2, padding='VALID')
             for i in range(num_res_modules):
-                low1 = residual(low1, input_channels, input_channels, reuse=reuse, scope=scope)
+                low1 = residual(low1, input_channels, input_channels)
 
             # Are we recursing?
             if num_branches > 1:
@@ -42,11 +42,11 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
             else:
                 low2 = low1
                 for i in range(num_res_modules):
-                    low2 = residual(low2, input_channels, input_channels, reuse=reuse, scope=scope)
+                    low2 = residual(low2, input_channels, input_channels)
 
             low3 = low2
             for i in range(num_res_modules):
-                low3 = residual(low3, input_channels, input_channels, reuse=reuse, scope=scope)
+                low3 = residual(low3, input_channels, input_channels)
 
             low3_shape = low3.get_shape().as_list()
             low3_height = low3_shape[1]
@@ -62,10 +62,10 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
 
         # Initial processing of the image
         conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
-        r1 = residual(conv, 64, 128, reuse=reuse, scope="input_1")
+        r1 = residual(conv, 64, 128)
         pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
-        r2 = residual(pool, 128, 128, reuse=reuse, scope="input_2")
-        r3 = residual(r2, 128, num_features, reuse=reuse, scope="input_3")
+        r2 = residual(pool, 128, 128)
+        r3 = residual(r2, 128, num_features)
 
         intermediate_features = r3
 
@@ -79,7 +79,7 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
             # Residual layers at the output resolution.
             ll = hg
             for j in range(num_res_modules):
-                ll = residual(ll, num_features, num_features, reuse=reuse, scope=scope)
+                ll = residual(ll, num_features, num_features)
 
             with slim.arg_scope([slim.conv2d], kernel_size=[1, 1], stride=1, padding='VALID'):
 
