@@ -17,6 +17,31 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
+def build_model(input_imgs, cfg):
+    # Set up the batch normalization parameters.
+    batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training': True
+    }
+
+    # Define a model_scope --everything within this scope has these parameters associated with it.
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # Build the Stacked Hourglass model.
+        predicted_heatmaps = model.build(
+            input=input_imgs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            num_stacks=cfg.NUM_STACKS,
+            reuse=tf.compat.v1.AUTO_REUSE
+        )
+    return predicted_heatmaps
+
+
 def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
     """
     Args:
@@ -74,38 +99,13 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
         # Copy the input summaries here, so they don't get overwritten or anything.
         input_summaries = copy.copy(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
 
-        # Set up the batch normalization parameters.
-        batch_norm_params = {
-            'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-            'epsilon': 0.001,
-            'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-            'is_training': True
-        }
+        predicted_heatmaps = build_model(batched_images, cfg)
+        predicted_heatmaps_v = build_model(batched_images_v, cfg)
 
-        # Define a model_scope --everything within this scope has these parameters associated with it.
-        with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
-                            normalizer_fn=slim.batch_norm,
-                            normalizer_params=batch_norm_params,
-                            weights_regularizer=slim.l2_regularizer(0.00004),
-                            biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
-            # Build the Stacked Hourglass model.
-            predicted_heatmaps = model.build(
-                input=batched_images,
-                num_parts=cfg.PARTS.NUM_PARTS,
-                num_stacks=cfg.NUM_STACKS,
-                reuse=tf.compat.v1.AUTO_REUSE
-            )
-            predicted_heatmaps_v = model.build(
-                input=batched_images_v,
-                num_parts=cfg.PARTS.NUM_PARTS,
-                num_stacks=cfg.NUM_STACKS,
-                reuse=tf.compat.v1.AUTO_REUSE
-            )
-            # Add the loss functions to the graph tab of losses.
-            heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
-                                                                    True, cfg)
-            heatmap_val_loss = loss.compute_heatmaps_loss(batched_heatmaps_v, predicted_heatmaps_v,
-                                                                           cfg)
+        # Add the loss functions to the graph tab of losses.
+        heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
+                                                                True, cfg)
+        heatmap_val_loss = loss.compute_heatmaps_loss(batched_heatmaps_v, predicted_heatmaps_v, cfg)
 
         # Pool all the losses we've added together into one readout.
         total_loss = tf.compat.v1.losses.get_total_loss()
