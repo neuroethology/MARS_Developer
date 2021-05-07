@@ -119,7 +119,7 @@ def build_fully_trainable_model(inputs, cfg, is_training=True):
             inputs=inputs,
             num_bboxes_per_cell=cfg.NUM_BBOXES_PER_CELL,
             reuse=tf.compat.v1.AUTO_REUSE,
-            scope=''
+            scope='InceptionResnetV2'
         )
 
     return locs, confs, inception_vars
@@ -152,7 +152,7 @@ def build_finetunable_model(inputs, cfg, is_training=False):
         }
         with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
             # Add on the detection heads
-            locs, confs, _ = model.build_detection_heads(features, cfg.NUM_BBOXES_PER_CELL)
+            locs, confs, _ = model.build_detection_heads(features, cfg.NUM_BBOXES_PER_CELL, reuse=tf.AUTO_REUSE)
             model_variables = slim.get_model_variables()
             detection_vars = {var.op.name: var for var in model_variables if var.op.name not in inception_vars}
 
