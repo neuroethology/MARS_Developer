@@ -812,7 +812,7 @@ def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
         eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
         eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
-        onlyfiles = [f for f in os.listdir(checkpoint_path) if os.path.isfile(os.path.join(checkpoint_path, f))]
+        onlyfiles = [f for f in os.listdir(event_path) if os.path.isfile(os.path.join(event_path, f))]
         onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'meta' in f]
         onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
