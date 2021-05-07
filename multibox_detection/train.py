@@ -118,7 +118,7 @@ def build_fully_trainable_model(inputs, cfg, is_training=True):
         locs, confs, inception_vars = model.build(
             inputs=inputs,
             num_bboxes_per_cell=cfg.NUM_BBOXES_PER_CELL,
-            reuse=False,
+            reuse=tf.AUTO_REUSE,
             scope=''
         )
 
@@ -138,7 +138,7 @@ def build_finetunable_model(inputs, cfg, is_training=False):
             'is_training': False
         }
         with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
-            features, _ = model.inception_resnet_v2(inputs, reuse=False, scope='InceptionResnetV2')
+            features, _ = model.inception_resnet_v2(inputs, reuse=tf.AUTO_REUSE, scope='InceptionResnetV2')
 
         # Save off the original variables (for ease of restoring)
         model_variables = slim.get_model_variables()
