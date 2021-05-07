@@ -4,7 +4,7 @@ slim = tf.contrib.slim
 
 
 def residual(input, input_channels, output_channels, scope=None, reuse=None):
-    with tf.compat.v1.variable_scope(scope, "residual", [input], reuse=reuse, scope=scope):
+    with tf.compat.v1.variable_scope(scope, "residual", [input], reuse=reuse):
         with slim.arg_scope([slim.conv2d], stride=1):
             with tf.compat.v1.variable_scope("convolution_path"):
                 conv = slim.conv2d(input, output_channels / 2, [1, 1], padding='VALID')
