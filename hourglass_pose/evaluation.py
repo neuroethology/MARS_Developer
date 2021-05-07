@@ -796,7 +796,7 @@ def smooth(x,window_len=11,window='hanning'):
     return y[window_len:-window_len+1]
 
 
-def select_best_checkpoint(project, pose_model_names=None, figsize=(4,10)):
+def select_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
