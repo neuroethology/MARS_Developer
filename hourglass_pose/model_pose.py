@@ -62,10 +62,10 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
 
         # Initial processing of the image
         conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
-        r1 = residual(conv, 64, 128, reuse=reuse, scope=scope)
+        r1 = residual(conv, 64, 128, reuse=reuse, scope="input_1")
         pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
-        r2 = residual(pool, 128, 128, reuse=reuse, scope=scope)
-        r3 = residual(r2, 128, num_features, reuse=reuse, scope=scope)
+        r2 = residual(pool, 128, 128, reuse=reuse, scope="input_2")
+        r3 = residual(r2, 128, num_features, reuse=reuse, scope="input_3")
 
         intermediate_features = r3
 
