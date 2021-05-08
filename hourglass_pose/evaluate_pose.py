@@ -779,30 +779,30 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                 json.dump(cocodata, jsonfile)
 
 
-def smooth(x, window_len=11, window='hanning'):
-    if x.ndim != 1:
-        raise ValueError("smooth only accepts 1 dimension arrays.")
-    if x.size < window_len:
-        raise ValueError("Input vector needs to be bigger than window size.")
-    if window_len<3:
-        return x
-    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
-    s = np.r_[2*x[0]-x[window_len-1::-1], x, 2*x[-1]-x[-1:-window_len:-1]]
-    if window == 'flat': #moving average
-        w = np.ones(window_len,'d')
-    else:
-        w = eval('np.'+window+'(window_len)')
-    y = np.convolve(w/w.sum(), s, mode='same')
-    return y[window_len:-window_len+1]
+def smooth(xran, tran, decay=0.99, burnIn=0):
+    # burnIn lowers the smoothing time constant at the start of smoothing. Set to 0 to disable.
+
+    sm_x = np.zeros_like(xran)
+    sm_x[0] = xran[0]
+    for i, x in enumerate(xran[1:]):
+        if burnIn:
+            d = decay * (1 - 0.5 * math.exp(-tran[i] / burnIn))
+        else:
+            d = decay
+        delta = sm_x[i]
+        for step in range(int(tran[i + 1] - tran[i])):
+            delta = float(x) * (1 - d) + delta * d
+        sm_x[i + 1] = delta
+
+    return sm_x
 
 
-def find_best_checkpoint(project, model):
+def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
     event_path = os.path.join(project, 'pose', model + '_log')
 
     ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.meta'))
     ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
-    ckpt_keys = [int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))]
+    ckpt_steps = np.array([int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))])
 
     event_path = os.path.join(project, 'pose', model + '_log')
     eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
@@ -828,12 +828,13 @@ def find_best_checkpoint(project, model):
     steps = steps[inds]
     vals = vals[inds]
 
-    sm_vals = smooth(vals, window_len=20)
-    ckpt_steps = [np.where(steps == k) for k in ckpt_keys]
-    ckpt_steps = [x[0][0] for x in ckpt_steps if len(x[0])]
-    minval = np.where(sm_vals == np.amin(sm_vals[ckpt_steps]))[0][0]
+    sm_vals = smooth(vals, steps, decay, burnIn)
+    step_inds = [np.where(steps == k) for k in ckpt_steps]
+    step_inds = [x[0][0] for x in step_inds if len(x[0])]
+    min_step = steps[np.where(sm_vals == np.amin(sm_vals[step_inds]))[0][0]]
 
-    return steps, vals, ckpt_steps, minval
+    params = {'burnIn': burnIn, 'decay': decay}
+    return steps, vals, ckpt_steps, min_step, params
 
 
 def save_best_checkpoint(project, pose_model_names=None):
@@ -849,8 +850,8 @@ def save_best_checkpoint(project, pose_model_names=None):
     for model in pose_model_names:
         log_path = os.path.join(project, 'pose', model + '_log')
         model_path = os.path.join(project, 'pose', model + '_model')
-        steps, _, _, minval = find_best_checkpoint(project, model)
-        model_str = str(int(steps[minval]))
+        _, _, _, min_step, _ = find_best_checkpoint(project, model)
+        model_str = str(int(min_step))
 
         if os.path.isdir(model_path):
             shutil.rmtree(model_path)
@@ -878,22 +879,25 @@ def plot_training_progress(project, pose_model_names=None, figsize=(14, 6), logT
     fix, ax = plt.subplots(len(pose_model_names), 1, figsize=figsize, squeeze=False)
     for i, model in enumerate(pose_model_names):
 
-        steps, vals, ckpt_steps, minval = find_best_checkpoint(project, model)
-        drop = np.argwhere(vals > (np.median(vals) + 2 * np.std(vals)))
+        steps, vals, ckpt_steps, min_step, params = find_best_checkpoint(project, model)
+        sm_vals = smooth(vals, steps, params['decay'], params['burnIn'])
+
+        drop = np.argwhere(steps < omitFirst)
         steps = np.delete(steps, drop)
         vals = np.delete(vals, drop)
+        sm_vals = np.delete(sm_vals, drop)
 
-        drop = np.argwhere(steps<omitFirst)
-        steps = np.delete(steps, drop)
-        vals = np.delete(vals, drop)
-
-        sm_vals = smooth(vals, window_len=20)
+        dropckpt = np.argwhere(ckpt_steps < omitFirst)
+        ckpt_steps = np.delete(ckpt_steps, dropckpt)
+        step_inds = [np.where(steps >= k) for k in ckpt_steps]
+        step_inds = [x[0][0] for x in step_inds if len(x[0])]
+        ckpt_vals = [sm_vals[x] for x in step_inds]
 
         ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
         ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
-        ax[i, 0].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 'ro', label='saved checkpoints')
-        ax[i, 0].plot(steps[minval], sm_vals[minval], 'o', label='best model', markersize=14, markeredgewidth=2,
-                      markeredgecolor='g', markerfacecolor='None')
+        ax[i, 0].plot(ckpt_steps, ckpt_vals, 'ro', label='saved checkpoints')
+        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)], 'o', label='best model', markersize=16, markeredgewidth=4,
+                      markeredgecolor='orange', markerfacecolor='None')
 
         ax[i, 0].set_xlabel('Training step')
         ax[i, 0].set_ylabel('Validation loss')
