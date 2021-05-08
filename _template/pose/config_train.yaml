@@ -2,7 +2,7 @@
 RANDOM_SEED : 1.0
 
 SESSION_CONFIG : {
-  PER_PROCESS_GPU_MEMORY_FRACTION : 0.85
+  PER_PROCESS_GPU_MEMORY_FRACTION : 0.5
 }
 
 #################################################################3
@@ -229,10 +229,10 @@ LOSS:
 SAVE_SUMMARY_SECS : 30
 
 # How often, in seconds, to save the model
-SAVE_INTERVAL_SECS : 3600
+SAVE_INTERVAL_SECS : 3000
 
 # The maximum number of recent checkpoint files to keep.
-MAX_TO_KEEP : 4
+MAX_TO_KEEP : 6
 
 # In addition to keeping the most recent `max_to_keep` checkpoint files, 
 # you might want to keep one checkpoint file for every N hours of training
@@ -240,4 +240,4 @@ MAX_TO_KEEP : 4
 KEEP_CHECKPOINT_EVERY_N_HOURS : 3
 
 # The frequency, in terms of global steps, that the loss and global step and logged.
-LOG_EVERY_N_STEPS : 10
+LOG_EVERY_N_STEPS : 100
