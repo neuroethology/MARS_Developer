@@ -18,6 +18,7 @@ import scipy.ndimage.filters as filters
 import copy
 import glob
 import re
+import shutil
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -780,23 +781,62 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
 
 def smooth(x, window_len=11, window='hanning'):
     if x.ndim != 1:
-            raise ValueError("smooth only accepts 1 dimension arrays.")
+        raise ValueError("smooth only accepts 1 dimension arrays.")
     if x.size < window_len:
-            raise ValueError("Input vector needs to be bigger than window size.")
+        raise ValueError("Input vector needs to be bigger than window size.")
     if window_len<3:
-            return x
+        return x
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-            raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
-    s=np.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+    s = np.r_[2*x[0]-x[window_len-1::-1], x, 2*x[-1]-x[-1:-window_len:-1]]
     if window == 'flat': #moving average
-            w=np.ones(window_len,'d')
+        w = np.ones(window_len,'d')
     else:
-            w=eval('np.'+window+'(window_len)')
-    y=np.convolve(w/w.sum(),s,mode='same')
+        w = eval('np.'+window+'(window_len)')
+    y = np.convolve(w/w.sum(), s, mode='same')
     return y[window_len:-window_len+1]
 
 
-def save_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
+def find_best_checkpoint(project, model):
+    event_path = os.path.join(project, 'pose', model + '_log')
+
+    ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.meta'))
+    ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
+    ckpt_keys = [int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))]
+
+    event_path = os.path.join(project, 'pose', model + '_log')
+    eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
+    eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+    onlyfiles = [f for f in os.listdir(event_path) if os.path.isfile(os.path.join(event_path, f))]
+    onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'meta' in f]
+    onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+    sz = {event_accumulator.IMAGES: 0}
+    steps = np.empty(shape=(0))
+    vals = np.empty(shape=(0))
+    for f in eventfiles:
+        ea = event_accumulator.EventAccumulator(f, size_guidance=sz)
+        ea.Reload()
+
+        tr_steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
+        tr_vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
+
+        steps = np.concatenate((steps, tr_steps))
+        vals = np.concatenate((vals, tr_vals))
+    inds = np.argsort(steps)
+    steps = steps[inds]
+    vals = vals[inds]
+
+    sm_vals = smooth(vals, window_len=20)
+    ckpt_steps = [np.where(steps == k) for k in ckpt_keys]
+    ckpt_steps = [x[0][0] for x in ckpt_steps if len(x[0])]
+    minval = np.where(sm_vals == np.amin(sm_vals[ckpt_steps]))[0][0]
+
+    return steps, vals, ckpt_steps, minval
+
+
+def save_best_checkpoint(project, pose_model_names=None):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -806,42 +846,61 @@ def save_best_checkpoint(project, pose_model_names=None, figsize=(10, 4)):
         pose_model_list = config['pose']
         pose_model_names = pose_model_list.keys()
 
-    fix, ax = plt.subplots(1, len(pose_model_names), figsize=figsize, squeeze=False)
+    for model in pose_model_names:
+        log_path = os.path.join(project, 'pose', model + '_log')
+        model_path = os.path.join(project, 'pose', model + '_model')
+        steps, _, _, minval = find_best_checkpoint(project, model)
+        model_str = str(int(steps[minval]))
+
+        if os.path.isdir(model_path):
+            shutil.rmtree(model_path)
+        os.makedirs(model_path)
+
+        ckpt_files = glob.glob(os.path.join(log_path, '*' + model_str + '*'))
+        for f in ckpt_files:
+            shutil.copyfile(f, f.replace('_log', '_model'))
+
+        with open(os.path.join(model_path,'checkpoint'), 'w') as f:
+            f.write('model_checkpoint_path: "' + os.path.join(model_path,'model.ckpt-' + model_str) + '"')
+        print('Saved best-performing checkpoint for model "' + model + '."')
+
+
+def plot_training_progress(project, pose_model_names=None, figsize=(14, 6), logTime=False, omitFirst=0):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # get the names of the detectors we'll be training, and which data goes into each.
+    if not pose_model_names:
+        pose_model_list = config['pose']
+        pose_model_names = pose_model_list.keys()
+
+    fix, ax = plt.subplots(len(pose_model_names), 1, figsize=figsize, squeeze=False)
     for i, model in enumerate(pose_model_names):
-        event_path = os.path.join(project, 'pose', model + '_log')
-        eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
-        eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
-        onlyfiles = [f for f in os.listdir(event_path) if os.path.isfile(os.path.join(event_path, f))]
-        onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'meta' in f]
-        onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+        steps, vals, ckpt_steps, minval = find_best_checkpoint(project, model)
+        drop = np.argwhere(vals > (np.median(vals) + 2 * np.std(vals)))
+        steps = np.delete(steps, drop)
+        vals = np.delete(vals, drop)
 
-        ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.meta'))
-        ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
-        ckpt_keys = [int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))]
+        drop = np.argwhere(steps<omitFirst)
+        steps = np.delete(steps, drop)
+        vals = np.delete(vals, drop)
 
-        sz = {event_accumulator.IMAGES: 0}
-        ea = event_accumulator.EventAccumulator(eventfiles[-1], size_guidance=sz)
-        ea.Reload()
-
-        steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
-        vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
-        steps = np.delete(steps, range(5))
-        vals = np.delete(vals, range(5))
         sm_vals = smooth(vals, window_len=20)
-        ckpt_steps = [np.where(steps == k) for k in ckpt_keys]
-        ckpt_steps = [x[0][0] for x in ckpt_steps if len(x[0])]
-        minval = np.where(sm_vals == np.amin(sm_vals[ckpt_steps]))
 
-        ax[0, i].plot(steps, vals, color='skyblue', label='raw')
-        ax[0, i].plot(steps, sm_vals, color='darkblue', label='smoothed')
-        ax[0, i].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 'ro', label='saved checkpoints')
-        ax[0, i].plot(steps[minval], sm_vals[minval], 'o', label='best model', markersize=14, markeredgewidth=2,
+        ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
+        ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
+        ax[i, 0].plot(steps[ckpt_steps], sm_vals[ckpt_steps], 'ro', label='saved checkpoints')
+        ax[i, 0].plot(steps[minval], sm_vals[minval], 'o', label='best model', markersize=14, markeredgewidth=2,
                       markeredgecolor='g', markerfacecolor='None')
 
-        ax[0, i].set_xlabel('Training step')
-        ax[0, i].set_ylabel('Validation loss')
-        ax[0, i].set_title('Training progress for pose model "' + model + '"')
+        ax[i, 0].set_xlabel('Training step')
+        ax[i, 0].set_ylabel('Validation loss')
+        if logTime:
+            ax[i, 0].set_xscale('log')
+        ax[i, 0].set_yscale('log')
+        ax[i, 0].set_title('Training progress for pose model "' + model + '"')
 
     ax[0, 0].legend()
     plt.show()
