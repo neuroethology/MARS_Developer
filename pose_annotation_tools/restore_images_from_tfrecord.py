@@ -8,6 +8,8 @@ def restore(tfrecords_filename, output_path):
     f = tfrecords_filename
     totalFiles = 0
 
+    tf.reset_default_graph()
+
     # get the number of records in the tfrecord file
     c = 0
     for record in tf.python_io.tf_record_iterator(tfrecords_filename):
