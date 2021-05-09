@@ -78,7 +78,7 @@ def generate_aspect_ratios(dataset, num_aspect_ratios=11, visualize=True, warp_b
         plt.show()
 
     # Do the clustering
-    cluster = KMeans(n_clusters=num_aspect_ratios, n_jobs=8)
+    cluster = KMeans(n_clusters=num_aspect_ratios)
     cluster.fit(X)
 
     labels = cluster.labels_
