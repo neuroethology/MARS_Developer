@@ -70,6 +70,7 @@ def manifest_to_dict(project):
     D = []
     if verbose:
         print('Processing manifest file...')
+    print(len(data))
     for f, sample in enumerate(data):
         if f and not f % 1000 and verbose:
             print('  frame '+str(f))

@@ -86,7 +86,7 @@ def prepare_pose_training_data(project):
 
         output_dir = os.path.join(project, 'pose', pose + '_tfrecords_pose')
         make_clean_dir(output_dir)
-        if os.exists(os.path.join(project, 'annotation_data', 'test_sets')):  # remove old test sets if we had them.
+        if os.path.exists(os.path.join(project, 'annotation_data', 'test_sets')):  # remove old test sets if we had them.
             shutil.rmtree(os.path.join(project, 'annotation_data', 'test_sets'))
         v_info = prep_records_pose(D, pose_list[pose])
         write_to_tfrecord(v_info, output_dir)

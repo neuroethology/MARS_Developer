@@ -746,7 +746,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                         gt_annotation_id += 1
                         gt_image_id += 1
 
-                    print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000))
+                    # print(print_str % (step, (dt / cfg.BATCH_SIZE) * 1000))
                     step += 1
 
                     if num_images > 0 and step == num_images:
