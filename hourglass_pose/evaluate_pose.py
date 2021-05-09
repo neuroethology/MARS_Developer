@@ -178,7 +178,7 @@ def compute_model_pck(cocoEval, lims=None, pixels_per_cm=None, pixel_units=False
 
 
 def plot_model_PCK(project, performance=None, pose_model_names=None, xlim=None, pixel_units=False,
-                   combine_animals=False):
+                   combine_animals=False, print_PCK_values=False, custom_PCK_values=None):
 
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -255,6 +255,23 @@ def plot_model_PCK(project, performance=None, pose_model_names=None, xlim=None, 
             ax[int(p / 4), p % 4].set_title(label)
             xlim = xlim if xlim is not None else [0, binctrs_hu[cutoff]]
             ax[int(p / 4), p % 4].set_xlim(xlim)
+
+            if print_PCK_values or custom_PCK_values is not None:
+                if custom_PCK_values is not None:
+                    if not isinstance(custom_PCK_values,list):
+                        custom_PCK_values  = [custom_PCK_values]
+                    for val in custom_PCK_values:
+                        if val > 1.0:
+                            print('Please pass custom PCK thresholds as values between 0 and 1.')
+                        med = binctrs_model[sum((counts_model[label].cumsum()) < val)]
+                        print(label + ' ' + str(val*100.) + '%: ' + "{:.3f}".format(med))
+                else:
+                    med = binctrs_model[sum((counts_model[label].cumsum()) < 0.5)]
+                    print(label + ' 50%: ' + "{:.3f}".format(med))
+                    med = binctrs_model[sum((counts_model[label].cumsum()) < 0.9)]
+                    print(label + ' 90%: ' + "{:.3f}".format(med))
+                print('')
+
         ax[int(p / 4), p % 4].legend()
 
     fig.add_subplot(111, frameon=False)
