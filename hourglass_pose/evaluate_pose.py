@@ -817,7 +817,7 @@ def smooth(xran, tran, decay=0.99, burnIn=0):
 def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
     event_path = os.path.join(project, 'pose', model + '_log')
 
-    ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.meta'))
+    ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.index'))
     ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
     ckpt_steps = np.array([int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))])
 
@@ -826,7 +826,7 @@ def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
     eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
     onlyfiles = [f for f in os.listdir(event_path) if os.path.isfile(os.path.join(event_path, f))]
-    onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'meta' in f]
+    onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'index' in f]
     onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
 
     sz = {event_accumulator.IMAGES: 0}
