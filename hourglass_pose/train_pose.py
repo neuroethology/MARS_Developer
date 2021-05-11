@@ -41,7 +41,7 @@ def build_model(input_imgs, cfg):
     return predicted_heatmaps
 
 
-def build_model_finetuning(input_imgs, cfg, n_train):
+def build_model_finetuning(input_imgs, cfg, n_train, reuse=None):
     # start with the fixed units:
     # Set up the batch normalization parameters.
     batch_norm_params = {
@@ -63,7 +63,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
             stack_range=range(cfg.NUM_STACKS - n_train),
             num_stacks=cfg.NUM_STACKS,
             build_head=True,
-            reuse=tf.compat.v1.AUTO_REUSE
+            reuse=reuse
         )
     # now add the trainable units:
     batch_norm_params = {
@@ -85,7 +85,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
             num_stacks=n_train,
             build_head=False,
             features=intermed,
-            reuse=tf.compat.v1.AUTO_REUSE
+            reuse=reuse
         )
     return predicted_heatmaps_2
 
@@ -149,7 +149,8 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False, fine_
 
         if fine_tune:
             predicted_heatmaps = build_model_finetuning(batched_images, cfg, fine_tune)
-            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune)
+            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune,
+                                                          reuse=tf.compat.v1.AUTO_REUSE)
         else:
             predicted_heatmaps = build_model(batched_images, cfg)
             predicted_heatmaps_v = build_model(batched_images_v, cfg)
