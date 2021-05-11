@@ -100,7 +100,7 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
 
 
 def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None,
-             build_head=True, resid=None, scope='HourGlass'):
+             build_head=True, features=None, scope='HourGlass'):
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
         if build_head:
@@ -112,7 +112,7 @@ def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_
 
             intermediate_features = r3
         else:
-            intermediate_features = resid
+            intermediate_features = features
 
         heatmaps = []
         for i in stack_range:
@@ -141,4 +141,4 @@ def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_
                     heatmap_ = slim.conv2d(heatmap, num_features, activation_fn=None, normalizer_fn=None)
                     intermediate_features = ll_ + heatmap_ + intermediate_features
 
-    return heatmaps
+    return heatmaps, intermediate_features
