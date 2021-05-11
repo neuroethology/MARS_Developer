@@ -62,7 +62,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
             input=input_imgs,
             reuse=tf.compat.v1.AUTO_REUSE
         )
-        predicted_heatmaps = model.build(
+        predicted_heatmaps = model.build_hg(
             input=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
             stack_range=range(cfg.NUM_STACKS - n_train),
@@ -82,7 +82,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
         # Build the Stacked Hourglass model.
-        predicted_heatmaps = model.build(
+        predicted_heatmaps = model.build_hg(
             input=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
             stack_range=range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
