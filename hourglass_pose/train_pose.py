@@ -65,7 +65,8 @@ def build_model_finetuning(input_imgs, cfg, n_train):
         predicted_heatmaps = model.build(
             input=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
-            num_stacks=cfg.NUM_STACKS - n_train,
+            stack_range=range(cfg.NUM_STACKS - n_train),
+            num_stacks=cfg.NUM_STACKS,
             reuse=tf.compat.v1.AUTO_REUSE
         )
     # now add the trainable units:
@@ -84,6 +85,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
         predicted_heatmaps = model.build(
             input=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
+            stack_range=range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
             num_stacks=n_train,
             reuse=tf.compat.v1.AUTO_REUSE
         )

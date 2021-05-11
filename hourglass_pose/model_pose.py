@@ -110,14 +110,14 @@ def build_hg_head(input, num_features=256, reuse=None, scope='HourGlass'):
   return r3
 
 
-def build_hg(resid, num_parts, num_features=256, num_stacks=8, num_res_modules=1, reuse=None, scope='HourGlass'):
+def build_hg(resid, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None, scope='HourGlass'):
 
   with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [resid], reuse=reuse):
 
     intermediate_features = resid
 
     heatmaps = []
-    for i in range(num_stacks):
+    for i in stack_range:
 
       # Build the hourglass
       hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features, output_channels=num_features)
