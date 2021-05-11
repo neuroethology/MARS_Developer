@@ -11,8 +11,7 @@ from hourglass_pose.config import parse_config_file
 from hourglass_pose import training_input
 from hourglass_pose import loss
 from hourglass_pose import model_pose as model
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
+import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -62,6 +61,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
             input=input_imgs,
             reuse=tf.compat.v1.AUTO_REUSE
         )
+        pdb.set_trace()
         predicted_heatmaps = model.build_hg(
             input=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
@@ -83,7 +83,7 @@ def build_model_finetuning(input_imgs, cfg, n_train):
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
         # Build the Stacked Hourglass model.
         predicted_heatmaps = model.build_hg(
-            input=hg_inputs,
+            input=predicted_heatmaps,
             num_parts=cfg.PARTS.NUM_PARTS,
             stack_range=range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
             num_stacks=n_train,
