@@ -94,3 +94,52 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
           intermediate_features = ll_ + heatmap_ + intermediate_features
 
   return heatmaps
+
+
+def build_hg_head(input, num_features=256, reuse=None, scope='HourGlass'):
+
+  with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
+
+    # Initial processing of the image
+    conv = slim.conv2d(input, 64, [7,7], stride=2, padding='SAME')
+    r1 = residual(conv, 64, 128)
+    pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
+    r2 = residual(pool, 128, 128)
+    r3 = residual(r2, 128, num_features)
+
+  return r3
+
+
+def build_hg(resid, num_parts, num_features=256, num_stacks=8, num_res_modules=1, reuse=None, scope='HourGlass'):
+
+  with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [resid], reuse=reuse):
+
+    intermediate_features = resid
+
+    heatmaps = []
+    for i in range(num_stacks):
+
+      # Build the hourglass
+      hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features, output_channels=num_features)
+
+      # Residual layers at the output resolution.
+      ll = hg
+      for j in range(num_res_modules):
+        ll = residual(ll, num_features, num_features)
+
+      with slim.arg_scope([slim.conv2d], kernel_size=[1, 1], stride=1, padding='VALID'):
+
+        # Linear layers to do simple projection.
+        ll = slim.conv2d(ll, num_features)
+
+        # Predicted heatmaps.
+        heatmap = slim.conv2d(ll, num_parts, activation_fn=None, normalizer_fn=None)
+        heatmaps.append(heatmap)
+
+        # Add the predictions and projections back.
+        if i < num_stacks - 1:
+          ll_ = slim.conv2d(ll, num_features, activation_fn=None, normalizer_fn=None)
+          heatmap_ = slim.conv2d(heatmap, num_features, activation_fn=None, normalizer_fn=None)
+          intermediate_features = ll_ + heatmap_ + intermediate_features
+
+  return heatmaps

@@ -42,7 +42,55 @@ def build_model(input_imgs, cfg):
     return predicted_heatmaps
 
 
-def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
+def build_model_finetuning(input_imgs, cfg, n_train):
+    # start with the fixed units:
+    # Set up the batch normalization parameters.
+    batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training': False
+    }
+    # Define a model_scope --everything within this scope has these parameters associated with it.
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # Build the Stacked Hourglass model.
+        hg_inputs = model.build_hg_head(
+            input=input_imgs,
+            reuse=tf.compat.v1.AUTO_REUSE
+        )
+        predicted_heatmaps = model.build(
+            input=hg_inputs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            num_stacks=cfg.NUM_STACKS - n_train,
+            reuse=tf.compat.v1.AUTO_REUSE
+        )
+    # now add the trainable units:
+    batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training': True
+    }
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # Build the Stacked Hourglass model.
+        predicted_heatmaps = model.build(
+            input=hg_inputs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            num_stacks=n_train,
+            reuse=tf.compat.v1.AUTO_REUSE
+        )
+    return predicted_heatmaps
+
+
+def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False, fine_tune=0):
     """
     Args:
     tfrecords (list of strings):
@@ -99,8 +147,12 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
         # Copy the input summaries here, so they don't get overwritten or anything.
         input_summaries = copy.copy(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
 
-        predicted_heatmaps = build_model(batched_images, cfg)
-        predicted_heatmaps_v = build_model(batched_images_v, cfg)
+        if fine_tune:
+            predicted_heatmaps = build_model_finetuning(batched_images, cfg, fine_tune)
+            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune)
+        else:
+            predicted_heatmaps = build_model(batched_images, cfg)
+            predicted_heatmaps_v = build_model(batched_images_v, cfg)
 
         # Add the loss functions to the graph tab of losses.
         heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
@@ -175,7 +227,7 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False):
                             )
 
 
-def run_training(project, pose_model_names=[], max_training_steps=None, debug_output=False):
+def run_training(project, pose_model_names=[], max_training_steps=None, debug_output=False, fine_tune=0):
     # load project config
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -206,7 +258,8 @@ def run_training(project, pose_model_names=[], max_training_steps=None, debug_ou
             tfrecords_val=tfrecords_val,
             logdir=logdir,
             cfg=train_cfg,
-            debug_output=debug_output
+            debug_output=debug_output,
+            fine_tune=fine_tune
         )
 
 
