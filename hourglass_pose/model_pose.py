@@ -39,7 +39,7 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
 
             # Are we recursing?
             if num_branches > 1:
-                low2 = hourglass(low1, num_branches - 1, input_channels, input_channels, num_res_modules, scope, reuse)
+                low2 = hourglass(low1, num_branches - 1, input_channels, input_channels, num_res_modules, name, scope, reuse)
             else:
                 low2 = low1
                 for i in range(num_res_modules):
