@@ -56,18 +56,13 @@ def build_model_finetuning(input_imgs, cfg, n_train):
                         normalizer_params=batch_norm_params,
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
-        # Build the Stacked Hourglass model.
-        hg_inputs = model.build_hg_head(
-            input=input_imgs,
-            reuse=tf.compat.v1.AUTO_REUSE
-        )
-        pdb.set_trace()
+        # Build the fixed stacks
         predicted_heatmaps = model.build_hg(
             input=input_imgs,
-            resid=hg_inputs,
             num_parts=cfg.PARTS.NUM_PARTS,
             stack_range=range(cfg.NUM_STACKS - n_train),
             num_stacks=cfg.NUM_STACKS,
+            build_head=True,
             reuse=tf.compat.v1.AUTO_REUSE
         )
     # now add the trainable units:
@@ -82,13 +77,14 @@ def build_model_finetuning(input_imgs, cfg, n_train):
                         normalizer_params=batch_norm_params,
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
-        # Build the Stacked Hourglass model.
+        # build the trainable stacks
         predicted_heatmaps_2 = model.build_hg(
             input=input_imgs,
-            resid=predicted_heatmaps,
             num_parts=cfg.PARTS.NUM_PARTS,
             stack_range=range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
             num_stacks=n_train,
+            build_head=False,
+            resid=predicted_heatmaps,
             reuse=tf.compat.v1.AUTO_REUSE
         )
     return predicted_heatmaps_2
