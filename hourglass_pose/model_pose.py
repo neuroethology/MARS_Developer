@@ -19,8 +19,9 @@ def residual(input, input_channels, output_channels, scope=None, reuse=None):
         return res
 
 
-def hourglass(input, num_branches, input_channels, output_channels, num_res_modules=1, scope=None, reuse=None):
-    with tf.compat.v1.variable_scope(scope, "hourglass", [input], reuse=reuse):
+def hourglass(input, num_branches, input_channels, output_channels, num_res_modules=1, name="hourglass", scope=None,
+              reuse=None):
+    with tf.compat.v1.variable_scope(scope, name, [input], reuse=reuse):
 
         # Add the residual modules for the upper branch
         with tf.compat.v1.variable_scope("upper_branch"):
@@ -101,6 +102,7 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
 
 def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None,
              build_head=True, features=None, scope='HourGlass'):
+
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
         if build_head:
@@ -118,8 +120,12 @@ def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_
         for i in stack_range:
 
             # Build the hourglass
-            hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
-                           output_channels=num_features)
+            if build_head:
+                hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
+                               output_channels=num_features, name="hourglass")
+            else:
+                hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
+                               output_channels=num_features, name="trainable_hourglass")
 
             # Residual layers at the output resolution.
             ll = hg
