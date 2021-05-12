@@ -1,10 +1,13 @@
+import pdb
 import tensorflow as tf
+import re
 
 slim = tf.contrib.slim
 
 
-def residual(input, input_channels, output_channels, scope=None, reuse=None):
-    with tf.compat.v1.variable_scope(scope, "residual", [input], reuse=reuse):
+def residual(input, input_channels, output_channels, scope=None, reuse=None, counter=0):
+    name = ('residual_' + str(counter)) if counter else 'residual'
+    with tf.compat.v1.variable_scope(scope, name, [input], reuse=reuse):
         with slim.arg_scope([slim.conv2d], stride=1):
             with tf.compat.v1.variable_scope("convolution_path"):
                 conv = slim.conv2d(input, output_channels / 2, [1, 1], padding='VALID')
@@ -19,12 +22,15 @@ def residual(input, input_channels, output_channels, scope=None, reuse=None):
         return res
 
 
-def hourglass(input, num_branches, input_channels, output_channels, num_res_modules=1, name="hourglass", scope=None,
-              reuse=None):
+def hourglass(input, num_branches, input_channels, output_channels, num_res_modules=1, scope=None, reuse=None, id=0):
+    name = ('hourglass_' + str(id)) if id else 'hourglass'
     with tf.compat.v1.variable_scope(scope, name, [input], reuse=reuse):
 
         # Add the residual modules for the upper branch
         with tf.compat.v1.variable_scope("upper_branch"):
+            # print(tf.get_default_graph().get_name_scope())
+            # print('- ^name Vvars')
+            # print(tf.get_variable_scope().name)
             up1 = input
             for i in range(num_res_modules):
                 up1 = residual(up1, input_channels, input_channels)
@@ -39,7 +45,7 @@ def hourglass(input, num_branches, input_channels, output_channels, num_res_modu
 
             # Are we recursing?
             if num_branches > 1:
-                low2 = hourglass(low1, num_branches - 1, input_channels, input_channels, num_res_modules, name, scope, reuse)
+                low2 = hourglass(low1, num_branches - 1, input_channels, input_channels, num_res_modules, scope, reuse)
             else:
                 low2 = low1
                 for i in range(num_res_modules):
@@ -101,8 +107,7 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
 
 
 def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None,
-             build_head=True, features=None, scope='HourGlass'):
-
+             build_head=True, features=None, scope='HourGlass/'):
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
         if build_head:
@@ -118,33 +123,31 @@ def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_
 
         heatmaps = []
         for i in stack_range:
-
+            # print('--')
+            # print(tf.get_default_graph().get_name_scope())
+            # print(tf.get_variable_scope().name)
             # Build the hourglass
-            if build_head:
-                hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
-                               output_channels=num_features, name="hourglass")
-            else:
-                hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
-                               output_channels=num_features, name="trainable_hourglass")
+            hg = hourglass(intermediate_features, num_branches=4, input_channels=num_features,
+                           output_channels=num_features, id=i)
 
             # Residual layers at the output resolution.
             ll = hg
             for j in range(num_res_modules):
-                ll = residual(ll, num_features, num_features)
+                ll = residual(ll, num_features, num_features, counter=3 + i*num_res_modules + j)
 
             with slim.arg_scope([slim.conv2d], kernel_size=[1, 1], stride=1, padding='VALID'):
 
                 # Linear layers to do simple projection.
-                ll = slim.conv2d(ll, num_features)
+                ll = slim.conv2d(ll, num_features, scope='Conv_'+str(i*4+1))
 
                 # Predicted heatmaps.
-                heatmap = slim.conv2d(ll, num_parts, activation_fn=None, normalizer_fn=None)
+                heatmap = slim.conv2d(ll, num_parts, activation_fn=None, normalizer_fn=None, scope='Conv_'+str(i*4+2))
                 heatmaps.append(heatmap)
 
                 # Add the predictions and projections back.
                 if i < num_stacks - 1:
-                    ll_ = slim.conv2d(ll, num_features, activation_fn=None, normalizer_fn=None)
-                    heatmap_ = slim.conv2d(heatmap, num_features, activation_fn=None, normalizer_fn=None)
+                    ll_ = slim.conv2d(ll, num_features, activation_fn=None, normalizer_fn=None, scope='Conv_'+str(i*4+3))
+                    heatmap_ = slim.conv2d(heatmap, num_features, activation_fn=None, normalizer_fn=None, scope='Conv_'+str(i*4+4))
                     intermediate_features = ll_ + heatmap_ + intermediate_features
 
     return heatmaps, intermediate_features

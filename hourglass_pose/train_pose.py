@@ -11,7 +11,6 @@ from hourglass_pose.config import parse_config_file
 from hourglass_pose import training_input
 from hourglass_pose import loss
 from hourglass_pose import model_pose as model
-import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -149,15 +148,13 @@ def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False, fine_
 
         if fine_tune:
             predicted_heatmaps = build_model_finetuning(batched_images, cfg, fine_tune)
-            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune,
-                                                          reuse=tf.compat.v1.AUTO_REUSE)
+            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune, reuse=True)
         else:
             predicted_heatmaps = build_model(batched_images, cfg)
-            predicted_heatmaps_v = build_model(batched_images_v, cfg)
+            predicted_heatmaps_v = build_model(batched_images_v, cfg, reuse=True)
 
         # Add the loss functions to the graph tab of losses.
-        heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
-                                                                True, cfg)
+        heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps, True, cfg)
         heatmap_val_loss = loss.compute_heatmaps_loss(batched_heatmaps_v, predicted_heatmaps_v, cfg)
 
         # Pool all the losses we've added together into one readout.
