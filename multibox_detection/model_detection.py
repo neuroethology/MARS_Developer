@@ -326,7 +326,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
 def build(inputs, num_bboxes_per_cell, reuse=tf.AUTO_REUSE, scope='InceptionResnetV2'):
   
   # Build the Inception-v3 model
-  features, _ = inception_resnet_v2(inputs, reuse=reuse, scope=scope)
+  features, _ = inception_resnet_v2(inputs, reuse=reuse, scope='InceptionResnetV2')
   
   # Save off the original variables (for ease of restoring)
   model_variables = slim.get_model_variables()
