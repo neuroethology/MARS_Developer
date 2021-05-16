@@ -106,20 +106,32 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
     return heatmaps
 
 
-def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None,
-             build_head=True, features=None, scope='HourGlass/'):
+def build_head(input, num_features=256, reuse=None, scope='HourGlass'):
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
-        if build_head:
-            conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
-            r1 = residual(conv, 64, 128)
-            pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
-            r2 = residual(pool, 128, 128)
-            r3 = residual(r2, 128, num_features)
+        conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
+        r1 = residual(conv, 64, 128)
+        pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
+        r2 = residual(pool, 128, 128)
+        r3 = residual(r2, 128, num_features)
 
-            intermediate_features = r3
-        else:
-            intermediate_features = features
+    return r3
+
+
+def build_hg(input, num_parts, stack_range, num_features=256, num_stacks=8, num_res_modules=1, reuse=None,
+             build_head=True, features=None, scope='HourGlass'):
+    with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
+
+        # if build_head:
+        #     conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
+        #     r1 = residual(conv, 64, 128)
+        #     pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
+        #     r2 = residual(pool, 128, 128)
+        #     r3 = residual(r2, 128, num_features)
+        #
+        #     intermediate_features = r3
+        # else:
+        intermediate_features = features
 
         heatmaps = []
         for i in stack_range:

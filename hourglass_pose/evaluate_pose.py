@@ -274,15 +274,16 @@ def plot_model_PCK(project, performance=None, pose_model_names=None, xlim=None, 
 
         ax[int(p / 4), p % 4].legend()
 
-    fig.add_subplot(111, frameon=False)
-    plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
-    plt.grid(False)
-    plt.ylabel('percent correct keypoints')
-    if not pixel_units:
-        plt.xlabel('error radius (cm)')
-    else:
-        plt.xlabel('error radius (pixels)')
-    plt.show()
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.grid(False)
+        plt.ylabel('percent correct keypoints')
+        if not pixel_units:
+            plt.xlabel('error radius (cm)')
+        else:
+            plt.xlabel('error radius (pixels)')
+        plt.show()
+        fig.savefig(os.path.join(project, 'pose', model + '_evaluation', 'PCK_curves.pdf'), bbox_inches='tight')
 
 
 def get_local_maxima(data, x_offset, y_offset, input_width, input_height, image_width, image_height, threshold=0.000002,
@@ -906,8 +907,12 @@ def plot_training_progress(project, pose_model_names=None, figsize=(14, 6), logT
 
         dropckpt = np.argwhere(ckpt_steps < omitFirst)
         ckpt_steps = np.delete(ckpt_steps, dropckpt)
-        step_inds = [np.where(steps >= k) for k in ckpt_steps]
-        step_inds = [x[0][0] for x in step_inds if len(x[0])]
+        step_inds = []
+        for k in ckpt_steps:
+            if len(np.where(steps >= k)[0]):
+                step_inds.append(np.where(steps >=k)[0][0])
+            else:
+                step_inds.append(len(steps) - 1)
         ckpt_vals = [sm_vals[x] for x in step_inds]
 
         ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
@@ -944,7 +949,7 @@ def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, 
     for model in pose_model_names:
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
         if not os.path.isdir(checkpoint_path):
-            os.mkdir(project, 'pose', 'model' + '_model')
+            os.mkdir(os.path.join(project, 'pose', model + '_model'))
             checkpoint_path = os.path.join(project, 'pose', model + '_log')
             if not os.path.isdir(checkpoint_path):
                 sys.exit("Couldn't find any training output for " + model + ", you should run train first.")

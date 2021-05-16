@@ -15,7 +15,7 @@ from hourglass_pose import model_pose as model
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def build_model(input_imgs, cfg):
+def build_model(input_imgs, cfg, reuse=None):
     # Set up the batch normalization parameters.
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
@@ -35,7 +35,7 @@ def build_model(input_imgs, cfg):
             input=input_imgs,
             num_parts=cfg.PARTS.NUM_PARTS,
             num_stacks=cfg.NUM_STACKS,
-            reuse=tf.compat.v1.AUTO_REUSE
+            reuse=reuse
         )
     return predicted_heatmaps
 
@@ -43,44 +43,49 @@ def build_model(input_imgs, cfg):
 def build_model_finetuning(input_imgs, cfg, n_train, reuse=None):
     # start with the fixed units:
     # Set up the batch normalization parameters.
-    batch_norm_params = {
-        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-        'epsilon': 0.001,
-        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-        'is_training': False
-    }
+    batch_norm_params_trainOff = {'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY, 'epsilon': 0.001,
+                                  'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+                                  'is_training': False}
+    batch_norm_params_trainOn = {'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY, 'epsilon': 0.001,
+                                  'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+                                  'is_training': True}
     # Define a model_scope --everything within this scope has these parameters associated with it.
     with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
                         normalizer_fn=slim.batch_norm,
-                        normalizer_params=batch_norm_params,
+                        normalizer_params=batch_norm_params_trainOn,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # build the trainable head
+        feats = model.build_head(
+            input=input_imgs,
+            num_features=256,
+            reuse=reuse
+        )
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params_trainOn,
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
         # Build the fixed stacks
         predicted_heatmaps, intermed = model.build_hg(
             input=input_imgs,
             num_parts=cfg.PARTS.NUM_PARTS,
-            stack_range=range(cfg.NUM_STACKS - n_train),
+            stack_range=range(n_train),  # range(cfg.NUM_STACKS - n_train),
             num_stacks=cfg.NUM_STACKS,
-            build_head=True,
+            build_head=False,
+            features=feats,
             reuse=reuse
         )
-    # now add the trainable units:
-    batch_norm_params = {
-        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-        'epsilon': 0.001,
-        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-        'is_training': True
-    }
     with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
                         normalizer_fn=slim.batch_norm,
-                        normalizer_params=batch_norm_params,
+                        normalizer_params=batch_norm_params_trainOff,
                         weights_regularizer=slim.l2_regularizer(0.00004),
                         biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
         # build the trainable stacks
         predicted_heatmaps_2, intermed = model.build_hg(
             input=input_imgs,
             num_parts=cfg.PARTS.NUM_PARTS,
-            stack_range=range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
+            stack_range=range(n_train, cfg.NUM_STACKS),  # range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
             num_stacks=n_train,
             build_head=False,
             features=intermed,
