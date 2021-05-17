@@ -11,6 +11,9 @@ manifest_name : 'output.manifest'
 # behavior classifier performance might suffer.
 pixels_per_cm : None
 
+# provide movie framerate, for behavior classifiers.
+framerate : 30
+
 # name the detectors and pose estimators you will train, and specify which
 # animals in animal_names (see next section) will be used in training each one.
 # If you are leaving animal_names empty ([]) for this project (eg if your
@@ -77,10 +80,10 @@ keypoints : ['nose','right ear','left ear','top of neck','right rear knee','left
 # of workers/image- we recommend 5 workers/image.
 check_pairs : [['right ear','left ear'],['right rear knee','left rear knee']]
 
-# for AWS annotation instructions --------------------------------------------------------------------------------------
+# AWS annotation instructions ------------------------------------------------------------------------------------------
 
 # the unique name of the s3 bucket that will host the images to be annotated.
-data_bucket : 'white-100'
+data_bucket : 'my-aws-bucket'
 
 # the unique name of the s3 bucket that will host your annotation interface.
 # make sure you add this to the full_instructions field as well!
@@ -110,15 +113,3 @@ short_instructions : |
 full_instructions : |
   <p> Examples and detailed instructions for each body part:</p>
   <img src="https://s3.REGION.amazonaws.com/TEMPLATE_BUCKET/instruction_image_bodyparts.png" width="100%">
-
-# for training the multibox detector -----------------------------------------------------------------------------------
-
-pretrained_model_path : None
-
-fine_tune : False
-
-trainable_scopes : None
-
-use_moving_averages : False
-
-restore_moving_averages : False
