@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 import multibox_detection.model_detection as model
-import multibox_detection.evaluation.eval_inputs as inputs
+import multibox_detection.eval_inputs as inputs
 from multibox_detection.config import parse_config_file
 from MARSeval.coco import COCO
 from MARSeval.cocoeval import COCOeval
