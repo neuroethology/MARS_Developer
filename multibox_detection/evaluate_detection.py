@@ -322,6 +322,7 @@ def run_test(project, detector_names=None, num_images=0):
 
     performance = {n: None for n in detector_names}
     for detector in detector_names:
+        print('detecting using ' + detector)
         checkpoint_path = os.path.join(project, 'detection', detector + '_model')
         if not os.path.isdir(checkpoint_path):
             os.mkdir(os.path.join(project, 'detection', detector + '_model'))
@@ -354,7 +355,7 @@ def run_test(project, detector_names=None, num_images=0):
             cfg=cfg
         )
 
-        performance[detector] = coco_eval(project, detector_names=detector)
+        performance[detector] = coco_eval(project, detector_names=[detector])
 
     return performance
 
