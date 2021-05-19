@@ -291,8 +291,8 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
             coord.join(threads)
 
             gt_dataset = {
-                'annotations': np.array(gt_annotations),
-                'images': np.array([{'id': img_id} for img_id in dataset_image_ids]).flatten(),
+                'annotations': gt_annotations,
+                'images': [{'id': img_id} for img_id in dataset_image_ids],
                 'categories': [{'id': 1}]
             }
 
