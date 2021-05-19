@@ -314,6 +314,8 @@ def run_test(project, detector_names=None, num_images=0):
     if not detector_names:
         pose_model_list = config['detection']
         detector_names = pose_model_list.keys()
+    elif isinstance(detector_names,str):
+        detector_names = [detector_names]
 
     # Set the logging level.
     tf.logging.set_verbosity(tf.logging.DEBUG)
@@ -352,7 +354,7 @@ def run_test(project, detector_names=None, num_images=0):
             cfg=cfg
         )
 
-        performance[detector] = coco_eval(project, detector_names=detector_names)
+        performance[detector] = coco_eval(project, detector_names=detector)
 
     return performance
 
