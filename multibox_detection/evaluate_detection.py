@@ -290,8 +290,6 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
             # Wait for them to stop before preceding.
             coord.join(threads)
 
-            pred_annotations = np.array(pred_annotations)
-            
             gt_dataset = {
                 'annotations': np.array(gt_annotations),
                 'images': np.array([{'id': img_id} for img_id in dataset_image_ids]).flatten(),
