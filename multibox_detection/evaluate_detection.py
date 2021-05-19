@@ -31,97 +31,37 @@ from tensorboard.backend.event_processing import event_accumulator
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def coco_eval(project, detector_names=None, view=None, fixedSigma=None):
-    # # initialize COCO GT api
-    # gt_coco = COCO()
-    # gt_coco.dataset = gt_dataset
-    # gt_coco.createIndex()
-    # # initialize COCO detections api: output creating index and index created
-    # pred_coco = gt_coco.loadRes(pred_annotations)
-    # # running evaluation
-    # cocoEval = COCOeval(gt_coco, pred_coco, iouType='bbox')
-    # 
-    # cocoEval.params.useCats = 0
-    # cocoEval.evaluate()
-    # cocoEval.accumulate()
-    # 
-    # old_stdout = sys.stdout
-    # sys.stdout = captured_stdout = StringIO()
-    # cocoEval.summarize()  # print results
-    # sys.stdout = old_stdout
-    # 
-    # summary_op = tf.summary.merge_all()
-    # summary_writer = tf.summary.FileWriter(summary_dir)
-    # summary = tf.Summary()
-    # summary.ParseFromString(sess.run(summary_op))
-    # 
-    # with open(summary_dir + 'cocoEval.pkl', 'wb') as fp:
-    #     pickle.dump(cocoEval, fp)
-    # 
-    # for line in captured_stdout.getvalue().split('\n'):
-    #     if line != "":
-    #         description, score = line.rsplit("=", 1)
-    #         description = description.strip()
-    #         score = float(score)
-    # 
-    #         summary.value.add(tag=description, simple_value=score)
-    # 
-    #         print(f"{description:s}: {score:0.3f}")
-    # 
-    # summary_writer.add_summary(summary, global_step)
-    # summary_writer.flush()
-    # summary_writer.close()
-
+def coco_eval(project, detector_names=None):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
-    parts = cfg['keypoints']
 
     if not detector_names:
-        pose_model_list = cfg['pose']
+        pose_model_list = cfg['detection']
         detector_names = pose_model_list.keys()
 
     # Parse things for COCO evaluation.
     savedEvals = {n: {} for n in detector_names}
-
     for model in detector_names:
 
-        infile = os.path.join(project, 'pose', model + '_evaluation', 'performance_pose.json')
+        infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
         with open(infile) as jsonfile:
             cocodata = json.load(jsonfile)
-        gt_keypoints = cocodata['gt_keypoints']
-        pred_keypoints = cocodata['pred_keypoints']
+        gt_keypoints = cocodata['gt_bbox']
+        pred_keypoints = cocodata['pred_bbox']
 
-        for partNum in range(len(parts) + 1):
+        gt_coco = COCO()
+        gt_coco.dataset = gt_keypoints
+        gt_coco.createIndex()
+        pred_coco = gt_coco.loadRes(pred_keypoints)
 
-            MARS_gt = copy.deepcopy(gt_keypoints)
-            MARS_gt['annotations'] = [d for d in MARS_gt['annotations'] if d['category_id'] == (partNum + 1)]
-            MARS_pred = [d for d in pred_keypoints if d['category_id'] == (partNum + 1)]
+        # Actually perform the evaluation.
+        cocoEval = COCOeval(gt_coco, pred_coco, iouType='bbox')
 
-            gt_coco = COCO()
-            gt_coco.dataset = MARS_gt
-            gt_coco.createIndex()
-            pred_coco = gt_coco.loadRes(MARS_pred)
-
-            # Actually perform the evaluation.
-            part = [parts[partNum - 1]] if partNum else parts
-            if fixedSigma:
-                assert fixedSigma in ['narrow', 'moderate', 'wide', 'ultrawide']
-                cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=[fixedSigma])
-            elif not view:
-                # print('warning: camera view not specified, defaulting to evaluation using fixedSigma=narrow')
-                cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='fixed', useParts=['narrow'])
-            elif view.lower() == 'top':
-                cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_top', useParts=part)
-            elif view.lower() == 'front':
-                cocoEval = COCOeval(gt_coco, pred_coco, iouType='keypoints', sigmaType='MARS_front', useParts=part)
-            else:
-                raise ValueError('Something went wrong.')
-
-            cocoEval.evaluate()
-            cocoEval.accumulate()
-            partstr = part[0] if partNum else 'all'
-            savedEvals[model][partstr] = cocoEval
+        cocoEval.params.useCats = 0
+        cocoEval.evaluate()
+        cocoEval.accumulate()
+        savedEvals[model] = cocoEval
 
     return savedEvals
 
@@ -130,17 +70,16 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
-
     if not detector_names:
-        pose_model_list = cfg['pose']
+        pose_model_list = cfg['detection']
         detector_names = pose_model_list.keys()
 
     legend_flag = [False, False]
     for model in detector_names:
-        animals_per_image = len(cfg['pose'][model])
-        test_images = os.path.join(project, 'annotation_data', 'test_sets', model + '_pose')
+        animals_per_image = len(cfg['detection'][model])
+        test_images = os.path.join(project, 'annotation_data', 'test_sets', model + '_detection')
         if not os.path.exists(test_images):
-            tfrecords = glob.glob(os.path.join(project, 'pose', model + '_tfrecords_pose', 'test*'))
+            tfrecords = glob.glob(os.path.join(project, 'detection', model + '_tfrecords_detection', 'test*'))
             for record in tfrecords:
                 restore_images_from_tfrecord.restore(record, test_images)  # pull all the images so we can look at them
 
@@ -149,33 +88,30 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
             print("I couldn't fine image " + str(frame_num))
             return
 
-        infile = os.path.join(project, 'pose', model + '_evaluation', 'performance_pose.json')
+        infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
         with open(infile) as jsonfile:
             cocodata = json.load(jsonfile)
-        pred = [i for i in cocodata['pred_keypoints'] if i['category_id'] == 1 and
+        pred = [i for i in cocodata['pred_bbox'] if
                 any([i['image_id'] == frame_num * animals_per_image + 1 + a for a in range(animals_per_image)])]
-        gt = [i for i in cocodata['gt_keypoints']['annotations'] if i['category_id'] == 1 and
+        gt = [i for i in cocodata['gt_bbox']['annotations'] if
               any([i['image_id'] == frame_num * animals_per_image + 1 + a for a in range(animals_per_image)])]
 
         colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
-        markers = 'vosd*p'
 
         im = mpimg.imread(image[0])
         plt.figure(figsize=figsize)
         plt.imshow(im, cmap='gray')
 
         for pt in gt:
-            for i, [x, y] in enumerate(zip(pt['keypoints'][::3], pt['keypoints'][1::3])):
-                plt.plot(x, y, color=colors[i], marker='o', markeredgecolor='k',
-                         markeredgewidth=math.sqrt(markersize) / 4, markersize=markersize, linestyle='None',
-                         label='ground truth' if not legend_flag[0] else None)
-                legend_flag[0] = True
+            x = 0
+            y = 0
+            plt.plot(x, y, color=colors[0], label='ground truth' if not legend_flag[0] else None)
+            legend_flag[0] = True
         for pt in pred:
-            for i, [x, y] in enumerate(zip(pt['keypoints'][::3], pt['keypoints'][1::3])):
-                plt.plot(x, y, color=colors[i], marker='^', markeredgecolor='w',
-                         markeredgewidth=math.sqrt(markersize) / 2, markersize=markersize, linestyle='None',
-                         label='predicted' if not legend_flag[1] else None)
-                legend_flag[1] = True
+            x = 0
+            y = 0
+            plt.plot(x, y, color=colors[1], label='predicted' if not legend_flag[1] else None)
+            legend_flag[1] = True
 
         plt.legend(prop={'size': 14})
         plt.show()
@@ -361,6 +297,13 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                 'images': np.array([{'id': img_id} for img_id in dataset_image_ids]).flatten(),
                 'categories': [{'id': 1}]
             }
+
+            cocodata = {'gt_bbox': gt_dataset,
+                        'pred_bbox': pred_annotations}
+            if os.path.exists(os.path.join(summary_dir, 'performance_detection.json')):
+                os.remove(os.path.join(summary_dir, 'performance_detection.json'))
+            with open(os.path.join(summary_dir, 'performance_detection.json'), 'w') as jsonfile:
+                json.dump(cocodata, jsonfile)
 
 
 def run_test(project, detector_names=None, num_images=0):
