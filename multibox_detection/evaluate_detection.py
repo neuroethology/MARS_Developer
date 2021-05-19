@@ -269,7 +269,7 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                                 "id": gt_annotation_id,
                                 "image_id": img_id,
                                 "category_id": 1,
-                                "area": gt_areas[k],
+                                "area": gt_areas[k].tolist(),
                                 "bbox": [x1, y1, w, h],
                                 "iscrowd": 0,
                             })
