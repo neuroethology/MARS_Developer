@@ -251,8 +251,9 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
 
                         # Store the results
                         for k in range(100):
-                            x1, y1, x2, y2 = sorted_bboxes[k]
-                            score = sorted_confs[k]
+                            sorted_bboxes[k].tolist
+                            x1, y1, x2, y2 = sorted_bboxes[k].tolist()
+                            score = sorted_confs[k].tolist()
                             pred_annotations.append([
                                 img_id,
                                 x1, y1, x2 - x1, y2 - y1,
@@ -261,7 +262,7 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                             ])
 
                         for k in range(gt_num_bboxes):
-                            x1, y1, x2, y2 = gt_bboxes[k]
+                            x1, y1, x2, y2 = gt_bboxes[k].tolist()
                             w = x2 - x1
                             h = y2 - y1
                             gt_annotations.append({
