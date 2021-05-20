@@ -2,6 +2,8 @@ import tensorflow.compat.v1 as tf
 import cv2
 import os
 
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 
 def restore(tfrecords_filenames, output_path):
     # this is a script to extract images from tfrecord files, for sanity-checking.
