@@ -20,7 +20,7 @@ def restore(tfrecords_filenames, output_path):
     tf.reset_default_graph()
 
     # here a path to tfrecords file as list
-    fq = tf.train.string_input_producer([tfrecords_filenames], num_epochs=totalFiles)
+    fq = tf.train.string_input_producer(tfrecords_filenames, num_epochs=totalFiles)
     reader = tf.TFRecordReader()
     _, v = reader.read(fq)
     fk = {
