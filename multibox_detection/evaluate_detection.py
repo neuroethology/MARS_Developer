@@ -80,8 +80,7 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         test_images = os.path.join(project, 'annotation_data', 'test_sets', model + '_detection')
         if not os.path.exists(test_images):
             tfrecords = glob.glob(os.path.join(project, 'detection', model + '_tfrecords_detection', 'test*'))
-            for record in tfrecords:
-                restore_images_from_tfrecord.restore(record, test_images)  # pull all the images so we can look at them
+            restore_images_from_tfrecord.restore(tfrecords, test_images)  # pull all the images so we can look at them
 
         image = glob.glob(os.path.join(test_images, 'image' + f'{frame_num:07d}' + '*'))
         if not image:
