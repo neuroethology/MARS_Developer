@@ -3,23 +3,24 @@ import cv2
 import os
 
 
-def restore(tfrecords_filename, output_path):
+def restore(tfrecords_filenames, output_path):
     # this is a script to extract images from tfrecord files, for sanity-checking.
-    f = tfrecords_filename
+    f = tfrecords_filenames
     totalFiles = 0
 
     tf.reset_default_graph()
 
     # get the number of records in the tfrecord file
     c = 0
-    for record in tf.python_io.tf_record_iterator(tfrecords_filename):
-        c += 1
+    for file in tfrecords_filenames:
+        for record in tf.python_io.tf_record_iterator(file):
+            c += 1
     totalFiles += c
 
     tf.reset_default_graph()
 
     # here a path to tfrecords file as list
-    fq = tf.train.string_input_producer([tfrecords_filename], num_epochs=totalFiles)
+    fq = tf.train.string_input_producer([tfrecords_filenames], num_epochs=totalFiles)
     reader = tf.TFRecordReader()
     _, v = reader.read(fq)
     fk = {
