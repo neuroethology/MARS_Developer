@@ -1,6 +1,7 @@
 import tensorflow.compat.v1 as tf
 import cv2
 import os
+from tensorflow.python.util import deprecation
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
