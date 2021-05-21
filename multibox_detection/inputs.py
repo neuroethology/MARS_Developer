@@ -197,25 +197,17 @@ def distorted_shifted_bounding_box(xmin, ymin, xmax, ymax, num_bboxes, image_hei
 
   return tf.tuple([xmin, ymin, xmax, ymax])
 
-def input_nodes(
-
-  tfrecords,
-
-  max_num_bboxes,
-
+def input_nodes(tfrecords, max_num_bboxes,
   # number of times to read the tfrecords
   num_epochs=None,
-
   # Data queue feeding the model
   batch_size=32,
   num_threads=2,
   shuffle_batch = True,
   capacity = 1000,
   min_after_dequeue = 96,
-
   # And tensorboard summaries of the images
   add_summaries=True,
-
   # Global configuration
   cfg=None):
 
@@ -234,16 +226,16 @@ def input_nodes(
     # Parse an Example to access the Features
     features = tf.io.parse_single_example(
       serialized_example,
-      features = {
-        'image/id' : tf.io.FixedLenFeature([], tf.string),
-        'image/encoded'  : tf.io.FixedLenFeature([], tf.string),
-        'image/height' : tf.io.FixedLenFeature([], tf.int64),
-        'image/width' : tf.io.FixedLenFeature([], tf.int64),
-        'image/object/bbox/xmin' : tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin' : tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax' : tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax' : tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/count' : tf.io.FixedLenFeature([], tf.int64)
+      features={
+        'image/id': tf.io.FixedLenFeature([], tf.string),
+        'image/encoded': tf.io.FixedLenFeature([], tf.string),
+        'image/height': tf.io.FixedLenFeature([], tf.int64),
+        'image/width': tf.io.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin': tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymin': tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/xmax': tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/ymax': tf.io.VarLenFeature(dtype=tf.float32),
+        'image/object/bbox/count': tf.io.FixedLenFeature([], tf.int64)
       }
     )
 
@@ -357,8 +349,8 @@ def input_nodes(
         num_threads=num_threads,
         capacity= capacity, #batch_size * (num_threads + 2),
         # Ensures a minimum amount of shuffling of examples.
-        min_after_dequeue= min_after_dequeue, # 3 * batch_size,
-        seed = cfg.RANDOM_SEED,
+        min_after_dequeue=min_after_dequeue, # 3 * batch_size,
+        seed=cfg.RANDOM_SEED,
       )
 
     else:
