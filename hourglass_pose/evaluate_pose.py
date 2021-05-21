@@ -108,21 +108,19 @@ def plot_frame(project, frame_num, pose_model_names=None, markersize=8, figsize=
             for record in tfrecords:
                 restore_images_from_tfrecord.restore(record, test_images)  # pull all the images so we can look at them
 
-        image = glob.glob(os.path.join(test_images, 'image' + f'{frame_num:07d}' + '*'))
+        image = glob.glob(os.path.join(test_images, 'test' + f'{frame_num:07d}' + '*'))
         if not image:
             print("I couldn't fine image " + str(frame_num))
             return
+        matched_id = re.search('(?<=image)\d*',image[0])
 
         infile = os.path.join(project, 'pose', model + '_evaluation', 'performance_pose.json')
         with open(infile) as jsonfile:
             cocodata = json.load(jsonfile)
-        pred = [i for i in cocodata['pred_keypoints'] if i['category_id'] == 1 and
-                any([i['image_id'] == frame_num*animals_per_image + 1 + a for a in range(animals_per_image)])]
-        gt = [i for i in cocodata['gt_keypoints']['annotations'] if i['category_id'] == 1 and
-              any([i['image_id'] == frame_num*animals_per_image + 1 + a for a in range(animals_per_image)])]
+        pred = [i for i in cocodata['pred_keypoints'] if i['category_id'] == 1 and i['image_id'] == matched_id]
+        gt = [i for i in cocodata['gt_keypoints']['annotations'] if i['category_id'] == 1 and i['image_id'] == matched_id]
 
         colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
-        markers = 'vosd*p'
 
         im = mpimg.imread(image[0])
         plt.figure(figsize=figsize)
