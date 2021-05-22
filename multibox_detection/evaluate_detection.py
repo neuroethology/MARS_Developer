@@ -14,6 +14,8 @@ import tensorflow.contrib.slim as slim
 from tensorflow.python.util import deprecation
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import matplotlib.colors as colors
+import matplotlib.cm as cm
 from MARSeval.coco import COCO
 from MARSeval.cocoeval import COCOeval
 
@@ -118,6 +120,42 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
                 legend_flag[2] = True
 
         plt.legend(prop={'size': 14})
+        plt.show()
+
+
+def pr_curve(project, detector_names=None):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    if not detector_names:
+        pose_model_list = cfg['detection']
+        detector_names = pose_model_list.keys()
+
+    performance = coco_eval(project, detector_names=detector_names)
+    for model in detector_names:
+
+        rs_mat = performance[model].params.recThrs  # [0:.01:1] R=101 recall thresholds for evaluation
+        ps_mat = performance[model].eval['precision']
+        iou_mat = performance[model].params.iouThrs
+
+        jet = plt.get_cmap('jet')
+        cNorm = colors.Normalize(vmin=0, vmax=len(iou_mat))
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=jet)
+
+        show = [0.5, 0.75, 0.85, 0.9, 0.95]
+        fig, ax = plt.subplots(1, figsize=[8, 6])
+        for i in range(len(iou_mat)):
+            if round(iou_mat[i]*1000.)/1000. in show:
+                colorVal = scalarMap.to_rgba(i)
+                ax.plot(rs_mat, ps_mat[i, :, :, 0, 1], c=colorVal, ls='-', lw=2, label='IoU >= %s' % np.round(iou_mat[i], 2))
+        plt.grid()
+        plt.xlabel('Recall', fontsize=12)
+        plt.ylabel('Precision', fontsize=12)
+        plt.title('PR curves for ' + model + ' detector')
+        plt.legend(loc='best')
+        plt.xlim([-0.01, 1.01])
+        plt.ylim([-0.01, 1.01])
+        plt.savefig(os.path.join(project, 'detection', model + '_evaluation',  'PR_curves.pdf'))
         plt.show()
 
 
