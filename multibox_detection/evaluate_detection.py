@@ -65,7 +65,7 @@ def coco_eval(project, detector_names=None):
     return savedEvals
 
 
-def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[15, 10]):
+def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[15, 10], confidence_thr=0.75):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -73,9 +73,9 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         pose_model_list = cfg['detection']
         detector_names = pose_model_list.keys()
 
-    legend_flag = [False, False]
     for model in detector_names:
-        animals_per_image = len(cfg['detection'][model])
+        print('Sample frame for ' + model + ' detector:')
+        legend_flag = [False, False, False]
         test_images = os.path.join(project, 'annotation_data', 'test_sets', model + '_detection')
         if not os.path.exists(test_images):
             tfrecords = glob.glob(os.path.join(project, 'detection', model + '_tfrecords_detection', 'test*'))
@@ -85,7 +85,7 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         if not image:
             print("I couldn't fine image " + str(frame_num))
             return
-        matched_id = re.search('(?<=image)\d*', image[0])
+        matched_id = int(re.search('(?<=image)\d*', image[0]).group(0))
 
         infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
         with open(infile) as jsonfile:
@@ -93,22 +93,29 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         pred = [i for i in cocodata['pred_bbox'] if i['image_id'] == matched_id]
         gt = [i for i in cocodata['gt_bbox']['annotations'] if i['image_id'] == matched_id]
 
-        colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+        colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
 
         im = mpimg.imread(image[0])
+        dims = np.shape(im)
         plt.figure(figsize=figsize)
         plt.imshow(im, cmap='gray')
-
         for pt in gt:
-            x = 0
-            y = 0
-            plt.plot(x, y, color=colors[0], label='ground truth' if not legend_flag[0] else None)
+            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]])/299. * dims[1]
+            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]])/299. * dims[0]
+            plt.plot([x[0], x[1], x[1], x[0], x[0]], [y[0], y[0], y[1], y[1], y[0]], color=colors[0],
+                     label='ground truth' if not legend_flag[0] else None)
             legend_flag[0] = True
-        for pt in pred:
-            x = 0
-            y = 0
-            plt.plot(x, y, color=colors[1], label='predicted' if not legend_flag[1] else None)
-            legend_flag[1] = True
+        for rank, pt in enumerate(pred):
+            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]]) / 299. * dims[1]
+            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]]) / 299. * dims[0]
+            if rank == 0:
+                plt.plot([x[0], x[1], x[1], x[0], x[0]], [y[0], y[0], y[1], y[1], y[0]], color=colors[1],
+                         label='predicted' if not legend_flag[1] else None)
+                legend_flag[1] = True
+            elif pt['score'] >= confidence_thr:
+                plt.plot([x[0], x[1], x[1], x[0], x[0]], [y[0], y[0], y[1], y[1], y[0]], color=colors[2],
+                         label='high confidence' if not legend_flag[2] else None)
+                legend_flag[2] = True
 
         plt.legend(prop={'size': 14})
         plt.show()
@@ -238,9 +245,9 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
 
                         # Scale the predictions and ground truth boxes
                         # GVH: Should check to see if we are preserving aspect ratio or not...
-                        im_scale = np.array([cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE])
-                        predicted_bboxes = predicted_bboxes * im_scale
-                        gt_bboxes = gt_bboxes * im_scale
+                        # im_scale = np.array([cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE, cfg.INPUT_SIZE])
+                        # predicted_bboxes = predicted_bboxes * im_scale
+                        # gt_bboxes = gt_bboxes * im_scale
 
                         # Sort the predictions based on confidences
                         sorted_idxs = np.argsort(predicted_confs.ravel())[::-1]
