@@ -7,6 +7,7 @@ import glob
 import json
 import re
 import math
+import shutil
 from io import StringIO
 import numpy as np
 import tensorflow.compat.v1 as tf
@@ -205,6 +206,9 @@ def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
     for f in eventfiles:
         ea = event_accumulator.EventAccumulator(f, size_guidance=sz)
         ea.Reload()
+
+        if not ea.Tags()['scalars']: # skip empty event files
+            continue
 
         tr_steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
         tr_vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
