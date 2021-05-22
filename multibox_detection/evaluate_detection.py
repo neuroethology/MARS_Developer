@@ -33,7 +33,7 @@ from tensorboard.backend.event_processing import event_accumulator
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def coco_eval(project, detector_names=None):
+def coco_eval(project, detector_names=None, reselect_model=False, rerun_test=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -47,10 +47,10 @@ def coco_eval(project, detector_names=None):
     for model in detector_names:
 
         model_pth = os.path.join(project, 'detection', model + '_model')
-        if not os.path.exists(model_pth) or len(os.listdir(model_pth)) == 0:
+        if not os.path.exists(model_pth) or len(os.listdir(model_pth)) == 0 or reselect_model:
             save_best_checkpoint(project, detector_names=model)
         infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
-        if not os.path.exists(infile):
+        if not os.path.exists(infile) or rerun_test or reselect_model:
             run_test(project, detector_names=model)
 
         with open(infile) as jsonfile:
