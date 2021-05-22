@@ -46,6 +46,9 @@ def coco_eval(project, detector_names=None):
     for model in detector_names:
 
         infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
+        if not os.path.exists(infile):
+            run_test(project, detector_names=model)
+
         with open(infile) as jsonfile:
             cocodata = json.load(jsonfile)
         gt_keypoints = cocodata['gt_bbox']
