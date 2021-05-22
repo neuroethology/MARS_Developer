@@ -38,13 +38,16 @@ def coco_eval(project, detector_names=None):
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     if not detector_names:
-        pose_model_list = cfg['detection']
-        detector_names = pose_model_list.keys()
+        detector_list = cfg['detection']
+        detector_names = detector_list.keys()
 
     # Parse things for COCO evaluation.
     savedEvals = {n: {} for n in detector_names}
     for model in detector_names:
 
+        model_pth = os.path.join(project, 'detection', model + '_model')
+        if not os.path.exists(model_pth) or len(os.listdir(model_pth))==0:
+            find_best_checkpoint(project, model)
         infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
         if not os.path.exists(infile):
             run_test(project, detector_names=model)
@@ -75,8 +78,8 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     if not detector_names:
-        pose_model_list = cfg['detection']
-        detector_names = pose_model_list.keys()
+        detector_list = cfg['detection']
+        detector_names = detector_list.keys()
 
     for model in detector_names:
         print('Sample frame for ' + model + ' detector:')
@@ -131,8 +134,8 @@ def pr_curve(project, detector_names=None):
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     if not detector_names:
-        pose_model_list = cfg['detection']
-        detector_names = pose_model_list.keys()
+        detector_list = cfg['detection']
+        detector_names = detector_list.keys()
 
     performance = coco_eval(project, detector_names=detector_names)
     for model in detector_names:
@@ -160,6 +163,143 @@ def pr_curve(project, detector_names=None):
         plt.ylim([-0.01, 1.01])
         plt.savefig(os.path.join(project, 'detection', model + '_evaluation',  'PR_curves.pdf'))
         plt.show()
+
+
+# this section is the same as in evaluate_pose -------------------------------------------------------------------------
+def smooth(xran, tran, decay=0.99, burnIn=0):
+    # burnIn lowers the smoothing time constant at the start of smoothing. Set to 0 to disable.
+
+    sm_x = np.zeros_like(xran)
+    sm_x[0] = xran[0]
+    for i, x in enumerate(xran[1:]):
+        if burnIn:
+            d = decay * (1 - 0.5 * math.exp(-tran[i] / burnIn))
+        else:
+            d = decay
+        delta = sm_x[i]
+        for step in range(int(tran[i + 1] - tran[i])):
+            delta = float(x) * (1 - d) + delta * d
+        sm_x[i + 1] = delta
+
+    return sm_x
+
+
+def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
+    event_path = os.path.join(project, 'detection', model + '_log')
+
+    ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.index'))
+    ckptfiles = ['.'.join(f.split('.')[:-1]) for f in ckptfiles]
+    ckpt_steps = np.array([int(c) for text in ckptfiles for c in re.compile(r'\d+').findall(os.path.basename(text))])
+
+    event_path = os.path.join(project, 'detection', model + '_log')
+    eventfiles = glob.glob(os.path.join(event_path, 'events.out.tfevents.*'))
+    eventfiles.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+    onlyfiles = [f for f in os.listdir(event_path) if os.path.isfile(os.path.join(event_path, f))]
+    onlyckpts = ['.'.join(f.split('.')[:-1]) for f in onlyfiles if 'index' in f]
+    onlyckpts.sort(key=lambda text: [int(c) for c in re.compile(r'\d+').findall(text)])
+
+    sz = {event_accumulator.IMAGES: 0}
+    steps = np.empty(shape=(0))
+    vals = np.empty(shape=(0))
+    for f in eventfiles:
+        ea = event_accumulator.EventAccumulator(f, size_guidance=sz)
+        ea.Reload()
+
+        tr_steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
+        tr_vals = np.array([step.value for step in ea.Scalars('validation_loss')]).T
+
+        steps = np.concatenate((steps, tr_steps))
+        vals = np.concatenate((vals, tr_vals))
+    inds = np.argsort(steps)
+    steps = steps[inds]
+    vals = vals[inds]
+
+    sm_vals = smooth(vals, steps, decay, burnIn)
+    step_inds = [np.where(steps == k) for k in ckpt_steps]
+    step_inds = [x[0][0] for x in step_inds if len(x[0])]
+    min_step = steps[np.where(sm_vals == np.amin(sm_vals[step_inds]))[0][0]]
+
+    params = {'burnIn': burnIn, 'decay': decay}
+    return steps, vals, ckpt_steps, min_step, params
+
+
+def save_best_checkpoint(project, detector_names=None):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # get the names of the detectors we'll be training, and which data goes into each.
+    if not detector_names:
+        detector_list = config['detection']
+        detector_names = detector_list.keys()
+
+    for model in detector_names:
+        log_path = os.path.join(project, 'detection', model + '_log')
+        model_path = os.path.join(project, 'detection', model + '_model')
+        _, _, _, min_step, _ = find_best_checkpoint(project, model)
+        model_str = str(int(min_step))
+
+        if os.path.isdir(model_path):
+            shutil.rmtree(model_path)
+        os.makedirs(model_path)
+
+        ckpt_files = glob.glob(os.path.join(log_path, '*' + model_str + '*'))
+        for f in ckpt_files:
+            shutil.copyfile(f, f.replace('_log', '_model'))
+
+        with open(os.path.join(model_path,'checkpoint'), 'w') as f:
+            f.write('model_checkpoint_path: "' + os.path.join(model_path,'model.ckpt-' + model_str) + '"')
+        print('Saved best-performing checkpoint for model "' + model + '."')
+
+
+def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTime=False, omitFirst=0):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # get the names of the detectors we'll be training, and which data goes into each.
+    if not detector_names:
+        detector_names = config['detection']
+        detector_names = detector_names.keys()
+
+    fix, ax = plt.subplots(len(detector_names), 1, figsize=figsize, squeeze=False)
+    for i, model in enumerate(detector_names):
+
+        steps, vals, ckpt_steps, min_step, params = find_best_checkpoint(project, model)
+        sm_vals = smooth(vals, steps, params['decay'], params['burnIn'])
+
+        drop = np.argwhere(steps < omitFirst)
+        steps = np.delete(steps, drop)
+        vals = np.delete(vals, drop)
+        sm_vals = np.delete(sm_vals, drop)
+
+        dropckpt = np.argwhere(ckpt_steps < omitFirst)
+        ckpt_steps = np.delete(ckpt_steps, dropckpt)
+        step_inds = []
+        for k in ckpt_steps:
+            if len(np.where(steps >= k)[0]):
+                step_inds.append(np.where(steps >=k)[0][0])
+            else:
+                step_inds.append(len(steps) - 1)
+        ckpt_vals = [sm_vals[x] for x in step_inds]
+
+        ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
+        ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
+        ax[i, 0].plot(ckpt_steps, ckpt_vals, 'ro', label='saved checkpoints')
+        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)], 'o', label='best model', markersize=16,
+                      markeredgewidth=4, markeredgecolor='orange', markerfacecolor='None')
+
+        ax[i, 0].set_xlabel('Training step')
+        ax[i, 0].set_ylabel('Validation loss')
+        if logTime:
+            ax[i, 0].set_xscale('log')
+        ax[i, 0].set_yscale('log')
+        ax[i, 0].set_title('Training progress for detector "' + model + '"')
+
+    ax[0, 0].legend()
+    plt.show()
+# ----------------------------------------------------------------------------------------------------------------------
 
 
 def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images, cfg):
@@ -359,8 +499,8 @@ def run_test(project, detector_names=None, num_images=0):
 
     # get the names of the detectors we'll be training, and which data goes into each.
     if not detector_names:
-        pose_model_list = config['detection']
-        detector_names = pose_model_list.keys()
+        detector_list = config['detection']
+        detector_names = detector_list.keys()
     elif isinstance(detector_names,str):
         detector_names = [detector_names]
 
