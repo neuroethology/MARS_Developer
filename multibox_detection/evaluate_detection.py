@@ -46,8 +46,8 @@ def coco_eval(project, detector_names=None):
     for model in detector_names:
 
         model_pth = os.path.join(project, 'detection', model + '_model')
-        if not os.path.exists(model_pth) or len(os.listdir(model_pth))==0:
-            find_best_checkpoint(project, model)
+        if not os.path.exists(model_pth) or len(os.listdir(model_pth)) == 0:
+            save_best_checkpoint(project, detector_names=model)
         infile = os.path.join(project, 'detection', model + '_evaluation', 'performance_detection.json')
         if not os.path.exists(infile):
             run_test(project, detector_names=model)
@@ -233,6 +233,8 @@ def save_best_checkpoint(project, detector_names=None):
     if not detector_names:
         detector_list = config['detection']
         detector_names = detector_list.keys()
+    if not isinstance(detector_names, list):
+        detector_names = [detector_names]
 
     for model in detector_names:
         log_path = os.path.join(project, 'detection', model + '_log')
