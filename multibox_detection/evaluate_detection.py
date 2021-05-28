@@ -83,6 +83,9 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         detector_names = detector_list.keys()
 
     for model in detector_names:
+        if not os.path.exists(os.path.join(project,'detection',model + '_evaluation')):
+            print('Please first call evaluate_detection.run_test for model ' + model)
+            continue
         print('Sample frame for ' + model + ' detector:')
         legend_flag = [False, False, False]
         test_images = os.path.join(project, 'annotation_data', 'test_sets', model + '_detection')
@@ -207,7 +210,7 @@ def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
         ea = event_accumulator.EventAccumulator(f, size_guidance=sz)
         ea.Reload()
 
-        if not ea.Tags()['scalars']: # skip empty event files
+        if not ea.Tags()['scalars'] or not 'validation_loss' in ea.Tags()['scalars']: # skip empty event files
             continue
 
         tr_steps = np.array([step.step for step in ea.Scalars('validation_loss')]).T
@@ -237,7 +240,7 @@ def save_best_checkpoint(project, detector_names=None):
     if not detector_names:
         detector_list = config['detection']
         detector_names = detector_list.keys()
-    if not isinstance(detector_names, list):
+    if isinstance(detector_names, str):
         detector_names = [detector_names]
 
     for model in detector_names:
@@ -470,10 +473,10 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                         dataset_image_ids.add(img_id)
                         img_id += 1
 
-                    print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
+                    # print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
                     step += 1
 
-                    if num_images > 0 and step == num_images:
+                    if 0 < num_images == step:
                         break
 
             except tf.errors.OutOfRangeError as e:
