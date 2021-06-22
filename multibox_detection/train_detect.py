@@ -102,12 +102,12 @@ def get_init_function(logdir, pretrained_model_path, fine_tune, original_incepti
         ignore_missing_vars=False)
 
 
-def build_fully_trainable_model(inputs, cfg):
+def build_fully_trainable_model(inputs, cfg, is_training=True):
     batch_norm_params = {
         'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
         'epsilon': 0.001,
         'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-        'is_training': True
+        'is_training': is_training
     }
     # Set activation_fn and parameters for batch_norm.
     with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
@@ -118,14 +118,14 @@ def build_fully_trainable_model(inputs, cfg):
         locs, confs, inception_vars = model.build(
             inputs=inputs,
             num_bboxes_per_cell=cfg.NUM_BBOXES_PER_CELL,
-            reuse=False,
-            scope=''
+            reuse=tf.compat.v1.AUTO_REUSE,
+            scope='InceptionResnetV2'
         )
 
     return locs, confs, inception_vars
 
 
-def build_finetunable_model(inputs, cfg):
+def build_finetunable_model(inputs, cfg, is_training=False):
     with slim.arg_scope([slim.conv2d],
                         activation_fn=tf.nn.relu,
                         normalizer_fn=slim.batch_norm,
@@ -138,7 +138,7 @@ def build_finetunable_model(inputs, cfg):
             'is_training': False
         }
         with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
-            features, _ = model.inception_resnet_v2(inputs, reuse=False, scope='InceptionResnetV2')
+            features, _ = model.inception_resnet_v2(inputs, reuse=tf.AUTO_REUSE, scope='InceptionResnetV2')
 
         # Save off the original variables (for ease of restoring)
         model_variables = slim.get_model_variables()
@@ -148,11 +148,11 @@ def build_finetunable_model(inputs, cfg):
             'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
             'epsilon': 0.001,
             'variables_collections': [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
-            'is_training': True
+            'is_training': is_training
         }
         with slim.arg_scope([slim.conv2d], normalizer_params=batch_norm_params):
             # Add on the detection heads
-            locs, confs, _ = model.build_detection_heads(features, cfg.NUM_BBOXES_PER_CELL)
+            locs, confs, _ = model.build_detection_heads(features, cfg.NUM_BBOXES_PER_CELL, reuse=tf.AUTO_REUSE)
             model_variables = slim.get_model_variables()
             detection_vars = {var.op.name: var for var in model_variables if var.op.name not in inception_vars}
 
@@ -181,8 +181,8 @@ def filter_trainable_variables(trainable_vars, trainable_scopes):
     return variables_to_train
 
 
-def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False, trainable_scopes=None,
-          use_moving_averages=False, restore_moving_averages=False, debug_output=False):
+def train(tfrecords_train, tfrecords_val, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_tune=False,
+          trainable_scopes=None, use_moving_averages=False, restore_moving_averages=False, debug_output=False):
     """
     Args:
     tfrecords (list)
@@ -225,7 +225,20 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
         )
 
         batched_images, batched_bboxes, batched_num_bboxes, image_ids = inputs.input_nodes(
-            tfrecords=tfrecords,
+            tfrecords=tfrecords_train,
+            max_num_bboxes=cfg.MAX_NUM_BBOXES,
+            num_epochs=None,
+            batch_size=cfg.BATCH_SIZE,
+            num_threads=cfg.NUM_INPUT_THREADS,
+            capacity=cfg.QUEUE_CAPACITY,
+            min_after_dequeue=cfg.QUEUE_MIN,
+            add_summaries=True,
+            shuffle_batch=True,
+            cfg=cfg
+        )
+
+        batched_images_val, batched_bboxes_val, batched_num_bboxes_val, image_ids_val = inputs.input_nodes(
+            tfrecords=tfrecords_val,
             max_num_bboxes=cfg.MAX_NUM_BBOXES,
             num_epochs=None,
             batch_size=cfg.BATCH_SIZE,
@@ -241,10 +254,12 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
 
         if fine_tune:
             locs, confs, inception_vars, detection_vars = build_finetunable_model(batched_images, cfg)
+            locs_v, confs_v, inception_vars_v, detection_vars_v = build_finetunable_model(batched_images_val, cfg, is_training=False)
             all_trainable_var_names = [v.op.name for v in tf.trainable_variables()]
             trainable_vars = [v for v_name, v in detection_vars.items() if v_name in all_trainable_var_names]
         else:
             locs, confs, inception_vars = build_fully_trainable_model(batched_images, cfg)
+            locs_v, confs_v, inception_vars_v = build_fully_trainable_model(batched_images_val, cfg, is_training=False)
             trainable_vars = tf.compat.v1.trainable_variables()
 
         location_loss, confidence_loss = loss.add_loss(
@@ -257,6 +272,17 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
         )
 
         total_loss = tf.compat.v1.losses.get_total_loss()
+
+        val_loss, confidence_loss_val = loss.compute_loss(
+            locations=locs_v,
+            confidences=confs_v,
+            batched_bboxes=batched_bboxes_val,
+            batched_num_bboxes=batched_num_bboxes_val,
+            bbox_priors=bbox_priors,
+            location_loss_alpha=cfg.LOCATION_LOSS_ALPHA,
+            batch_size=tf.shape(locs_v)[0]
+        )
+        tf.compat.v1.losses.add_loss(val_loss, loss_collection='validation')
 
         # Track the moving averages of all trainable variables.
         # At test time we'll restore all variables with the average value
@@ -281,6 +307,7 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
                                                     tf.compat.v1.summary.scalar('total_loss', total_loss),
                                                     tf.compat.v1.summary.scalar('location_loss', location_loss),
                                                     tf.compat.v1.summary.scalar('confidence_loss', confidence_loss),
+                                                    tf.compat.v1.summary.scalar('validation_loss', val_loss),
                                                     tf.compat.v1.summary.scalar('learning_rate', lr)
                                                 ] + input_summaries)
 
@@ -299,10 +326,29 @@ def train(tfrecords, bbox_priors, logdir, cfg, pretrained_model_path=None, fine_
             keep_checkpoint_every_n_hours=cfg.KEEP_CHECKPOINT_EVERY_N_HOURS
         )
 
+        VALIDATION_INTERVAL = 1000  # validate every 1000 steps
+
+        def train_step_fn(sess, train_op, global_step, train_step_kwargs):
+            train_step_fn.step += 1  # or use global_step.eval(session=sess)
+
+            # calc training losses
+            total_loss, should_stop = slim.learning.train_step(sess, train_op, global_step, train_step_kwargs)
+
+            # validate on interval
+            if train_step_fn.step % VALIDATION_INTERVAL == 0:
+                validate_loss = sess.run([val_loss])
+                print(">> global step {}:    train={}   validation={}".format(train_step_fn.step,
+                                                                              total_loss, validate_loss))
+
+            return [total_loss, should_stop]
+
+        train_step_fn.step = 0
+
         # Run training.
         slim.learning.train(train_op, logdir,
                             init_fn=get_init_function(logdir, pretrained_model_path, fine_tune, inception_vars,
                                                       use_moving_averages, restore_moving_averages, ema),
+                            train_step_fn=train_step_fn,
                             number_of_steps=cfg.NUM_TRAIN_ITERATIONS,
                             save_summaries_secs=cfg.SAVE_SUMMARY_SECS,
                             save_interval_secs=cfg.SAVE_INTERVAL_SECS,
@@ -336,7 +382,8 @@ def run_training(project, detector_names=[], max_training_steps=None, debug_outp
             os.mkdir(logdir)
 
         tf_dir = os.path.join(project, 'detection', detector + '_tfrecords_detection')
-        tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_train = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_val = glob.glob(os.path.join(tf_dir, 'val_dataset-*'))
 
         priors_fid = os.path.join(project, 'detection', 'priors_' + detector + '.pkl')
         with open(priors_fid, 'rb') as f:
@@ -344,7 +391,8 @@ def run_training(project, detector_names=[], max_training_steps=None, debug_outp
         bbox_priors = np.array(bbox_priors).astype(np.float32)
 
         train(
-            tfrecords=tfrecords,
+            tfrecords_train=tfrecords_train,
+            tfrecords_val=tfrecords_val,
             bbox_priors=bbox_priors,
             logdir=logdir,
             cfg=train_cfg,
@@ -357,7 +405,7 @@ def run_training(project, detector_names=[], max_training_steps=None, debug_outp
         )
 
 
-if __name__ ==  '__main__':
+if __name__ == '__main__':
     """
     multibox_detection training command line entry point
     Arguments:

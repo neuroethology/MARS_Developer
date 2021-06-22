@@ -14,10 +14,87 @@ from hourglass_pose import model_pose as model
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
-deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+def build_model(input_imgs, cfg, reuse=None):
+    # Set up the batch normalization parameters.
+    batch_norm_params = {
+        'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
+        'epsilon': 0.001,
+        'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+        'is_training': True
+    }
+
+    # Define a model_scope --everything within this scope has these parameters associated with it.
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # Build the Stacked Hourglass model.
+        predicted_heatmaps = model.build(
+            input=input_imgs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            num_stacks=cfg.NUM_STACKS,
+            reuse=reuse
+        )
+    return predicted_heatmaps
 
 
-def train(tfrecords, logdir, cfg, debug_output=False):
+def build_model_finetuning(input_imgs, cfg, n_train, reuse=None):
+    # start with the fixed units:
+    # Set up the batch normalization parameters.
+    batch_norm_params_trainOff = {'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY, 'epsilon': 0.001,
+                                  'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+                                  'is_training': False}
+    batch_norm_params_trainOn = {'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY, 'epsilon': 0.001,
+                                  'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
+                                  'is_training': True}
+    # Define a model_scope --everything within this scope has these parameters associated with it.
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params_trainOn,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # build the trainable head
+        feats = model.build_head(
+            input=input_imgs,
+            num_features=256,
+            reuse=reuse
+        )
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params_trainOn,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # Build the fixed stacks
+        predicted_heatmaps, intermed = model.build_hg(
+            input=input_imgs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            stack_range=range(n_train),  # range(cfg.NUM_STACKS - n_train),
+            num_stacks=cfg.NUM_STACKS,
+            build_head=False,
+            features=feats,
+            reuse=reuse
+        )
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
+                        normalizer_fn=slim.batch_norm,
+                        normalizer_params=batch_norm_params_trainOff,
+                        weights_regularizer=slim.l2_regularizer(0.00004),
+                        biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
+        # build the trainable stacks
+        predicted_heatmaps_2, intermed = model.build_hg(
+            input=input_imgs,
+            num_parts=cfg.PARTS.NUM_PARTS,
+            stack_range=range(n_train, cfg.NUM_STACKS),  # range(cfg.NUM_STACKS-n_train, cfg.NUM_STACKS),
+            num_stacks=n_train,
+            build_head=False,
+            features=intermed,
+            reuse=reuse
+        )
+    return predicted_heatmaps_2
+
+
+def train(tfrecords_train, tfrecords_val, logdir, cfg, debug_output=False, fine_tune=0):
     """
     Args:
     tfrecords (list of strings):
@@ -55,7 +132,16 @@ def train(tfrecords, logdir, cfg, debug_output=False):
         # Get all the input nodes for this graph.
         batched_images, batched_heatmaps, batched_parts, batched_part_visibilities, batched_image_ids,\
         batched_background_heatmaps = training_input.input_nodes(
-            tfrecords,
+            tfrecords_train,
+            num_epochs=None,
+            shuffle_batch=True,
+            add_summaries=True,
+            cfg=cfg
+        )
+
+        batched_images_v, batched_heatmaps_v, batched_parts_v, batched_part_visibilities_v, batched_image_ids_v,\
+        batched_background_heatmaps_v = training_input.input_nodes(
+            tfrecords_val,
             num_epochs=None,
             shuffle_batch=True,
             add_summaries=True,
@@ -65,32 +151,21 @@ def train(tfrecords, logdir, cfg, debug_output=False):
         # Copy the input summaries here, so they don't get overwritten or anything.
         input_summaries = copy.copy(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
 
-        # Set up the batch normalization parameters.
-        batch_norm_params = {
-            'decay': cfg.BATCHNORM_MOVING_AVERAGE_DECAY,
-            'epsilon': 0.001,
-            'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
-            'is_training': True
-        }
+        if fine_tune:
+            predicted_heatmaps = build_model_finetuning(batched_images, cfg, fine_tune)
+            predicted_heatmaps_v = build_model_finetuning(batched_images_v, cfg, fine_tune, reuse=True)
+        else:
+            predicted_heatmaps = build_model(batched_images, cfg)
+            predicted_heatmaps_v = build_model(batched_images_v, cfg, reuse=True)
 
-        # Define a model_scope --everything within this scope has these parameters associated with it.
-        with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu,
-                            normalizer_fn=slim.batch_norm,
-                            normalizer_params=batch_norm_params,
-                            weights_regularizer=slim.l2_regularizer(0.00004),
-                            biases_regularizer=slim.l2_regularizer(0.00004)) as scope:
-            # Build the Stacked Hourglass model.
-            predicted_heatmaps = model.build(
-                input=batched_images,
-                num_parts=cfg.PARTS.NUM_PARTS,
-                num_stacks=cfg.NUM_STACKS
-            )
-            # Add the loss functions to the graph tab of losses.
-            heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps,
-                                                                    True, cfg)
+        # Add the loss functions to the graph tab of losses.
+        heatmap_loss, hmloss_summaries = loss.add_heatmaps_loss(batched_heatmaps, predicted_heatmaps, True, cfg)
+        heatmap_val_loss = loss.compute_heatmaps_loss(batched_heatmaps_v, predicted_heatmaps_v, cfg)
 
         # Pool all the losses we've added together into one readout.
         total_loss = tf.compat.v1.losses.get_total_loss()
+
+        tf.compat.v1.losses.add_loss(heatmap_val_loss, loss_collection='validation')
 
         # Track the moving averages of all trainable variables.
         #   At test time we'll restore all variables with the average value.
@@ -116,6 +191,7 @@ def train(tfrecords, logdir, cfg, debug_output=False):
         summary_op = tf.compat.v1.summary.merge([
                                                     tf.compat.v1.summary.scalar('total_loss', total_loss),
                                                     tf.compat.v1.summary.scalar('total_heatmap_loss', heatmap_loss),
+                                                    tf.compat.v1.summary.scalar('validation_loss', heatmap_val_loss),
                                                     tf.compat.v1.summary.scalar('learning_rate', lr)
                                                 ] + input_summaries + hmloss_summaries)
 
@@ -154,7 +230,7 @@ def train(tfrecords, logdir, cfg, debug_output=False):
                             )
 
 
-def run_training(project, pose_model_names=[], max_training_steps=None, debug_output=False):
+def run_training(project, pose_model_names=[], max_training_steps=None, debug_output=False, fine_tune=0):
     # load project config
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -170,8 +246,6 @@ def run_training(project, pose_model_names=[], max_training_steps=None, debug_ou
     # allow some command-line override of training epochs/batch size, for troubleshooting:
     if max_training_steps is not None:
         train_cfg.NUM_TRAIN_ITERATIONS = max_training_steps
-    if batch_size is not None:
-        train_cfg.BATCH_SIZE = batch_size
 
     for model in pose_model_names:
         logdir = os.path.join(project, 'pose', model + '_log')
@@ -179,13 +253,16 @@ def run_training(project, pose_model_names=[], max_training_steps=None, debug_ou
             os.mkdir(logdir)
 
         tf_dir = os.path.join(project, 'pose', model + '_tfrecords_pose')
-        tfrecords = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_train = glob.glob(os.path.join(tf_dir, 'train_dataset-*'))
+        tfrecords_val = glob.glob(os.path.join(tf_dir, 'val_dataset-*'))
 
         train(
-            tfrecords=tfrecords,
+            tfrecords_train=tfrecords_train,
+            tfrecords_val=tfrecords_val,
             logdir=logdir,
             cfg=train_cfg,
-            debug_output=debug_output
+            debug_output=debug_output,
+            fine_tune=fine_tune
         )
 
 

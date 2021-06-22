@@ -1,11 +1,12 @@
 import os, sys
+import pathlib
 import argparse
 from shutil import copytree
 import requests
 import zipfile
 
 
-def download_CRIM13_demo_from_google_drive(id, destination):
+def download_from_google_drive(id, destination):
     URL = "https://drive.google.com/uc?export=download"
 
     session = requests.Session()
@@ -54,34 +55,38 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
         dataset_id = '1DGUmuWgiQXM7Kx6x-QHJQathVIjQOmMR'
 
-        print('  Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 283Mb)...')
-        download_CRIM13_demo_from_google_drive(dataset_id, os.path.join(project, dataset_name+'.zip'))
-        print("  unzipping...")
+        print('  Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 275Mb)...')
+        download_from_google_drive(dataset_id, os.path.join(project, dataset_name+'.zip'))
+        print('  unzipping...')
         with zipfile.ZipFile(os.path.join(project, dataset_name+'.zip'), 'r') as zip_ref:
             zip_ref.extractall(os.path.join(project))
         os.rename(os.path.join(project, dataset_name), os.path.join(project, 'annotation_data'))
-        os.mkdir(os.path.join(project, 'behavior'))
-        print('  done.')
+        print('  sample dataset has been downloaded.')
 
     if download_MARS_checkpoints:
-        print('  Checkpoints are not online yet, try again later')
+        ckpts_name = 'MARS_v1_8_models'
+        ckpts_id = '1N72WWzKEX0mPHzxdFuN-SffPcIBU3G5K'
+        print('  Downloading the pre-trained MARS models (1.85Gb)...')
+        download_from_google_drive(ckpts_id, os.path.join(project, ckpts_name+'.zip'))
+        print('  unzipping...')
+        with zipfile.ZipFile(os.path.join(project, ckpts_name+'.zip'), 'r') as zip_ref:
+            zip_ref.extractall(os.path.join(project))
+        os.rename(os.path.join(project, ckpts_name), os.path.join(project, 'downloaded_models'))
+        print('  models have been downloaded.')
 
-    if not os.path.exists(os.path.join(project, 'annotation_data')):  # empty folders don't clone?
-        os.mkdir(os.path.join(project, 'annotation_data'))
-        os.mkdir(os.path.join(project, 'annotation_data', 'raw_images'))
-        os.mkdir(os.path.join(project, 'annotation_data', 'behavior_movies'))
-        os.mkdir(os.path.join(project, 'behavior'))
+        #TODO: put the downloaded checkpoints in the right place!
 
-
-    # os.mkdir(os.path.join(project,'detection'))
-    # os.mkdir(os.path.join(project,'pose'))
-    # os.mkdir(os.path.join(project,'behavior'))
-    # config = os.path.join('_templates','project_config.yaml')
+    subfolders = [os.path.join(project, 'annotation_data'), os.path.join(project, 'annotation_data', 'raw_images'),
+                  os.path.join(project, 'annotation_data', 'behavior_movies'), os.path.join(project, 'behavior'),
+                  os.path.join(project, 'detection'), os.path.join(project, 'pose')]
+    for f in subfolders:
+        if not os.path.exists(f):
+            os.makedir(f)
 
     print("Project " + name + " created successfully.")
 
 
-if __name__ ==  '__main__':
+if __name__ == '__main__':
     """
     create_new_project command line entry point
     Arguments:
