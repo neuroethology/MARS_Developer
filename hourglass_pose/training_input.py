@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import math
 import random
-from inputs import distorted_shifted_bounding_box, distort_color, apply_with_random_selector, flip_parts_left_right, build_heatmaps_etc
+from hourglass_pose.inputs import distorted_shifted_bounding_box, distort_color, apply_with_random_selector, flip_parts_left_right, build_heatmaps_etc
 
 def input_nodes(tfrecords, cfg, num_epochs=None, shuffle_batch = True, add_summaries = True, do_augmentations=True):
 

@@ -1,0 +1,115 @@
+# configuration file for a new MARS_Developer project
+
+# TODO: set this programmatically
+project_name: 'my_project'
+
+# modify this with the name of your raw annotation data. Can be a .manifest from
+# AWS (after you've run a labeling job) or a .csv from DeepLabCut.
+manifest_name : 'output.manifest'
+
+# provide approximate pixels per cm in your movies. If you leave this as "None",
+# behavior classifier performance might suffer.
+pixels_per_cm : None
+
+# provide movie framerate, for behavior classifiers.
+framerate : 30
+
+# name the detectors and pose estimators you will train, and specify which
+# animals in animal_names (see next section) will be used in training each one.
+# If you are leaving animal_names empty ([]) for this project (eg if your
+# experiments have a single type of animal), leave the right hand side empty
+# here as well. For example, if you are tracking one or more indistinguishable
+# black mice, you might write:
+# detection:
+#   black_top: []
+# pose:
+#   top: []
+# and in the next section, you'd have
+# animal_names : []
+
+detection:
+  black_top: ['black']
+  white_top: ['white']
+
+pose:
+  top: ['black','white']
+
+# set to 0 to suppress some terminal output
+verbose: 1
+
+# keypoint definitions -------------------------------------------------------------------------------------------------
+
+# what are we tracking today?
+species : 'mouse'
+
+# if you have multiple animals but they can be distinguished from each other,
+# give each one a name (eg ['black','white']). If you're only tracking one
+# animal (or multiple animals that can't be distinguished), you can set
+# animal_names : [], or you may still want to indicate the color of your mouse
+# for future records, eg by writing animal_names : ['black']
+#
+# These names will be visible to AMT workers, so use discriptors rather than
+# strain names.
+animal_names : ['black','white']
+
+# set the *minimum* number of identical instances of each animal in a given frame.
+# be careful to make sure you're setting this correctly! If you have different
+# numbers of animals, it's best to set num_obj to 1 and instead set animal_names-
+# for example, if you have 2 black mice and 1 white mouse, set:
+#   num_obj : 1
+#   animal_names : ['first black','second black','white']
+# if you have 2 black mice and 2 white mice, set:
+#   num_obj : 2
+#   animal_names : ['black','white']
+num_obj : 1
+
+# the actual keypoint names workers see will be generated from animal_names +
+# species + keypoints. So given:
+#    animal_names = ['black','white']
+#    species='mouse'
+#    keypoints=['nose','tail']
+# your workforce will be asked to label ["black mouse nose","black mouse tail",
+# "white mouse nose","white mouse tail"]
+keypoints : ['nose','right ear','left ear','top of neck','right rear knee','left rear knee','base of tail']
+
+# list of all keypoints pairs that have right/left assignments, or otherwise
+# could get flipped by workers. MARS will screen these during post-processing
+# and correct any flips that occurred. We assume people flip part identities
+# less than half the time, so MARS uses median annotator consensus to decide on
+# the correct assignment. Note that this could still fail for small numbers
+# of workers/image- we recommend 5 workers/image.
+check_pairs : [['right ear','left ear'],['right rear knee','left rear knee']]
+
+# AWS annotation instructions ------------------------------------------------------------------------------------------
+
+# the unique name of the s3 bucket that will host the images to be annotated.
+data_bucket : 'my-aws-bucket'
+
+# the unique name of the s3 bucket that will host your annotation interface.
+# make sure you add this to the full_instructions field as well!
+template_bucket : 'my-annotation-instructions'
+
+# the region where you created your s3 buckets.
+# make sure you add this to the full_instructions field as well!
+region : 'us-east-2'
+
+# a short summary of the task.
+header : Label body parts of the two mice.
+
+# edit this HTML code to change the instructions displayed to annotators.
+short_instructions : |
+  Label each body part of interest on the two mice.
+  <br><br>
+  <b>Please view Full Instructions for examples.</b>
+  <br><br>
+  <b>Nose:</b> upper tip of the nose.<br>
+  <b>Ears:</b> middle front edge of each ear.<br>
+  <b>Neck:</b> top of the neck, at the base of the skull.<br>
+  <b>Legs:</b> "knee" at the <b>front curve</b> of each rear leg (see Full Instructions for examples.)<br>
+  <b>Tail:</b> base of the tail, where it emerges from the mouse's body.
+
+# replace REGION and TEMPLATE_BUCKET with the values you entered in those fields above!
+# change the filename if you're providing your own instructional image.
+full_instructions : |
+  <p> Examples and detailed instructions for each body part:</p>
+  <img src="https://s3.REGION.amazonaws.com/TEMPLATE_BUCKET/instruction_image_bodyparts.png" width="100%">

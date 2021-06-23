@@ -3,6 +3,26 @@ import boto3
 import sagemaker
 
 
+def create_manifest(bucket,manifest_name='file_list.manifest'):
+    s3 = boto3.client('s3')
+    filelist = []
+    for i,key in enumerate(s3.list_objects(Bucket=bucket)['Contents']):
+        if key['Key'].endswith('jpg'):
+            filelist.append('{"source-ref":"s3://' + bucket + '/' + key['Key'] + '"}')
+
+    # next step, convert filelist to binary data and call put_object
+    if not manifest_name.endswith('.manifest'):
+        manifest_name = manifest_name + '.manifest'
+
+    with open('tmp_'+manifest_name,'w') as f:
+        for item in filelist:
+            f.write("%s\n" % item)
+
+    s3.put_object(Body=open('tmp_'+manifest_name, 'rb'), Bucket=bucket, Key=manifest_name)
+    print('created a manifest called "' + manifest_name + '" in ' + bucket)
+    return manifest_name.replace('.manifest','')
+
+
 def check_bucket_region(role, task):
     region = boto3.session.Session().region_name
     s3 = boto3.client('s3')
@@ -24,7 +44,7 @@ def configure_workforce(task):
           "TaskTitle": task['info']['task_title'],
           "UiConfig": {"UiTemplateS3Uri": task['UITEMPLATE'], }
         }
-    
+
     # Specifies the workforce and compensation.
     human_task_config["PublicWorkforceTaskPrice"] = {
                 "AmountInUsd": {
@@ -32,9 +52,9 @@ def configure_workforce(task):
                    "Cents": task['price']['cents'],
                    "TenthFractionsOfACent": task['price']['tenthcent'],
                 }
-            } 
+            }
     human_task_config["WorkteamArn"] = task['arns']['workteam_arn']
-    
+
     return human_task_config
 
 
@@ -52,15 +72,15 @@ def configure_ground_truth(task, human_task_config, role):
                   "FreeOfPersonallyIdentifiableInformation",
                   "FreeOfAdultContent"
                 ]
-              },  
+              },
             },
             "OutputConfig" : {
               "S3OutputPath": 's3://{}-output/'.format(task['BUCKET']),
             },
             "HumanTaskConfig" : human_task_config,
             "LabelingJobName": task['info']['job_name'],
-            "RoleArn": role, 
+            "RoleArn": role,
             "LabelAttributeName": "annotatedResult",
         }
-    
+
     return ground_truth_request

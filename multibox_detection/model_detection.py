@@ -1,18 +1,17 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow.keras.applications.inception_resnet_v2 as irn_v2
-
-slim = tf.contrib.slim
+import tensorflow.contrib.slim as slim
 
 
 def block35(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
   """Builds the 35x35 resnet block."""
-  with tf.compat.v1.variable_scope(scope, 'Block35', [net], reuse=reuse):
-    with tf.compat.v1.variable_scope('Branch_0'):
+  with tf.variable_scope(scope, 'Block35', [net], reuse=reuse):
+    with tf.variable_scope('Branch_0'):
       tower_conv = slim.conv2d(net, 32, 1, scope='Conv2d_1x1')
-    with tf.compat.v1.variable_scope('Branch_1'):
+    with tf.variable_scope('Branch_1'):
       tower_conv1_0 = slim.conv2d(net, 32, 1, scope='Conv2d_0a_1x1')
       tower_conv1_1 = slim.conv2d(tower_conv1_0, 32, 3, scope='Conv2d_0b_3x3')
-    with tf.compat.v1.variable_scope('Branch_2'):
+    with tf.variable_scope('Branch_2'):
       tower_conv2_0 = slim.conv2d(net, 32, 1, scope='Conv2d_0a_1x1')
       tower_conv2_1 = slim.conv2d(tower_conv2_0, 48, 3, scope='Conv2d_0b_3x3')
       tower_conv2_2 = slim.conv2d(tower_conv2_1, 64, 3, scope='Conv2d_0c_3x3')
@@ -27,10 +26,10 @@ def block35(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
 
 def block17(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
   """Builds the 17x17 resnet block."""
-  with tf.compat.v1.variable_scope(scope, 'Block17', [net], reuse=reuse):
-    with tf.compat.v1.variable_scope('Branch_0'):
+  with tf.variable_scope(scope, 'Block17', [net], reuse=reuse):
+    with tf.variable_scope('Branch_0'):
       tower_conv = slim.conv2d(net, 192, 1, scope='Conv2d_1x1')
-    with tf.compat.v1.variable_scope('Branch_1'):
+    with tf.variable_scope('Branch_1'):
       tower_conv1_0 = slim.conv2d(net, 128, 1, scope='Conv2d_0a_1x1')
       tower_conv1_1 = slim.conv2d(tower_conv1_0, 160, [1, 7],
                                   scope='Conv2d_0b_1x7')
@@ -47,10 +46,10 @@ def block17(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
 
 def block8(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
   """Builds the 8x8 resnet block."""
-  with tf.compat.v1.variable_scope(scope, 'Block8', [net], reuse=reuse):
-    with tf.compat.v1.variable_scope('Branch_0'):
+  with tf.variable_scope(scope, 'Block8', [net], reuse=reuse):
+    with tf.variable_scope('Branch_0'):
       tower_conv = slim.conv2d(net, 192, 1, scope='Conv2d_1x1')
-    with tf.compat.v1.variable_scope('Branch_1'):
+    with tf.variable_scope('Branch_1'):
       tower_conv1_0 = slim.conv2d(net, 192, 1, scope='Conv2d_0a_1x1')
       tower_conv1_1 = slim.conv2d(tower_conv1_0, 224, [1, 3],
                                   scope='Conv2d_0b_1x3')
@@ -85,7 +84,7 @@ def inception_resnet_v2(inputs,
   """
   end_points = {}
 
-  with tf.compat.v1.variable_scope(scope, 'InceptionResnetV2', [inputs], reuse=reuse):
+  with tf.variable_scope(scope, 'InceptionResnetV2', [inputs], reuse=reuse):
     with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
                         stride=1, padding='SAME'):
 
@@ -118,20 +117,20 @@ def inception_resnet_v2(inputs,
       end_points['MaxPool_5a_3x3'] = net
 
       # 35 x 35 x 320
-      with tf.compat.v1.variable_scope('Mixed_5b'):
-        with tf.compat.v1.variable_scope('Branch_0'):
+      with tf.variable_scope('Mixed_5b'):
+        with tf.variable_scope('Branch_0'):
           tower_conv = slim.conv2d(net, 96, 1, scope='Conv2d_1x1')
-        with tf.compat.v1.variable_scope('Branch_1'):
+        with tf.variable_scope('Branch_1'):
           tower_conv1_0 = slim.conv2d(net, 48, 1, scope='Conv2d_0a_1x1')
           tower_conv1_1 = slim.conv2d(tower_conv1_0, 64, 5,
                                       scope='Conv2d_0b_5x5')
-        with tf.compat.v1.variable_scope('Branch_2'):
+        with tf.variable_scope('Branch_2'):
           tower_conv2_0 = slim.conv2d(net, 64, 1, scope='Conv2d_0a_1x1')
           tower_conv2_1 = slim.conv2d(tower_conv2_0, 96, 3,
                                       scope='Conv2d_0b_3x3')
           tower_conv2_2 = slim.conv2d(tower_conv2_1, 96, 3,
                                       scope='Conv2d_0c_3x3')
-        with tf.compat.v1.variable_scope('Branch_3'):
+        with tf.variable_scope('Branch_3'):
           tower_pool = slim.avg_pool2d(net, 3, stride=1, padding='SAME',
                                         scope='AvgPool_0a_3x3')
           tower_pool_1 = slim.conv2d(tower_pool, 64, 1,
@@ -143,18 +142,18 @@ def inception_resnet_v2(inputs,
       net = slim.repeat(net, 10, block35, scale=0.17)
 
       # 17 x 17 x 1024
-      with tf.compat.v1.variable_scope('Mixed_6a'):
-        with tf.compat.v1.variable_scope('Branch_0'):
+      with tf.variable_scope('Mixed_6a'):
+        with tf.variable_scope('Branch_0'):
           tower_conv = slim.conv2d(net, 384, 3, stride=2, padding='VALID',
                                     scope='Conv2d_1a_3x3')
-        with tf.compat.v1.variable_scope('Branch_1'):
+        with tf.variable_scope('Branch_1'):
           tower_conv1_0 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
           tower_conv1_1 = slim.conv2d(tower_conv1_0, 256, 3,
                                       scope='Conv2d_0b_3x3')
           tower_conv1_2 = slim.conv2d(tower_conv1_1, 384, 3,
                                       stride=2, padding='VALID',
                                       scope='Conv2d_1a_3x3')
-        with tf.compat.v1.variable_scope('Branch_2'):
+        with tf.variable_scope('Branch_2'):
           tower_pool = slim.max_pool2d(net, 3, stride=2, padding='VALID',
                                         scope='MaxPool_1a_3x3')
         net = tf.concat(axis=3, values=[tower_conv, tower_conv1_2, tower_pool])
@@ -162,22 +161,22 @@ def inception_resnet_v2(inputs,
       end_points['Mixed_6a'] = net
       net = slim.repeat(net, 20, block17, scale=0.10)
 
-      with tf.compat.v1.variable_scope('Mixed_7a'):
-        with tf.compat.v1.variable_scope('Branch_0'):
+      with tf.variable_scope('Mixed_7a'):
+        with tf.variable_scope('Branch_0'):
           tower_conv = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
           tower_conv_1 = slim.conv2d(tower_conv, 384, 3, stride=2,
                                       padding='VALID', scope='Conv2d_1a_3x3')
-        with tf.compat.v1.variable_scope('Branch_1'):
+        with tf.variable_scope('Branch_1'):
           tower_conv1 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
           tower_conv1_1 = slim.conv2d(tower_conv1, 288, 3, stride=2,
                                       padding='VALID', scope='Conv2d_1a_3x3')
-        with tf.compat.v1.variable_scope('Branch_2'):
+        with tf.variable_scope('Branch_2'):
           tower_conv2 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
           tower_conv2_1 = slim.conv2d(tower_conv2, 288, 3,
                                       scope='Conv2d_0b_3x3')
           tower_conv2_2 = slim.conv2d(tower_conv2_1, 320, 3, stride=2,
                                       padding='VALID', scope='Conv2d_1a_3x3')
-        with tf.compat.v1.variable_scope('Branch_3'):
+        with tf.variable_scope('Branch_3'):
           tower_pool = slim.max_pool2d(net, 3, stride=2, padding='VALID',
                                         scope='MaxPool_1a_3x3')
         net = tf.concat(axis=3, values=[tower_conv_1, tower_conv1_1,
@@ -200,12 +199,12 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
   
   endpoints = {}
   
-  with tf.compat.v1.variable_scope(scope, 'Multibox', [inputs], reuse=reuse):
+  with tf.variable_scope(scope, 'Multibox', [inputs], reuse=reuse):
 
     with slim.arg_scope([slim.conv2d, slim.avg_pool2d], stride=1, padding='SAME'):
 
       # 8 x 8 grid cells
-      with tf.compat.v1.variable_scope("8x8"):
+      with tf.variable_scope("8x8"):
         # 8 x 8 x 2048 
         branch8x8 = slim.conv2d(inputs, 96, [1, 1])
         # 8 x 8 x 96
@@ -220,7 +219,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
         )
 
       # 6 x 6 grid cells
-      with tf.compat.v1.variable_scope("6x6"):
+      with tf.variable_scope("6x6"):
         # 8 x 8 x 2048 
         branch6x6 = slim.conv2d(inputs, 96, [3, 3])
         # 8 x 8 x 96
@@ -238,7 +237,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
       net = slim.conv2d(inputs, 256, [3, 3], stride=2)
 
       # 4 x 4 grid cells
-      with tf.compat.v1.variable_scope("4x4"):
+      with tf.variable_scope("4x4"):
         # 4 x 4 x 256
         branch4x4 = slim.conv2d(net, 128, [3, 3])
         # 4 x 4 x 128
@@ -251,7 +250,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
         )
 
       # 3 x 3 grid cells
-      with tf.compat.v1.variable_scope("3x3"):
+      with tf.variable_scope("3x3"):
         # 4 x 4 x 256
         branch3x3 = slim.conv2d(net, 128, [1, 1])
         # 4 x 4 x 128
@@ -266,7 +265,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
         )
         
       # 2 x 2 grid cells
-      with tf.compat.v1.variable_scope("2x2"):
+      with tf.variable_scope("2x2"):
         # 4 x 4 x 256
         branch2x2 = slim.conv2d(net, 128, [1, 1])
         # 4 x 4 x 128
@@ -281,7 +280,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
         )
         
       # 1 x 1 grid cell
-      with tf.compat.v1.variable_scope("1x1"):
+      with tf.variable_scope("1x1"):
         # 8 x 8 x 2048
         branch1x1 = slim.avg_pool2d(inputs, [8, 8], padding="VALID")
         # 1 x 1 x 2048
@@ -324,7 +323,7 @@ def build_detection_heads(inputs, num_bboxes_per_cell, scope='Multibox', reuse=N
     
   return locations, confidences, endpoints
 
-def build(inputs, num_bboxes_per_cell, reuse=False, scope=''):
+def build(inputs, num_bboxes_per_cell, reuse=tf.AUTO_REUSE, scope='InceptionResnetV2'):
   
   # Build the Inception-v3 model
   features, _ = inception_resnet_v2(inputs, reuse=reuse, scope='InceptionResnetV2')
@@ -334,7 +333,7 @@ def build(inputs, num_bboxes_per_cell, reuse=False, scope=''):
   original_inception_vars = {var.op.name:var for var in model_variables}
 
   # Add on the detection heads
-  locs, confs, _ = build_detection_heads(features, num_bboxes_per_cell)
+  locs, confs, _ = build_detection_heads(features, num_bboxes_per_cell, reuse=reuse)
 
   # model = irn_v2.InceptionResnetV2(weights=None, reuse=reuse, pooling=None)(inputs, reuse=reuse, scope='InceptionResnetV2')
   
