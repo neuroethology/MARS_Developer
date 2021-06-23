@@ -29,7 +29,7 @@ Each of these steps can be fine-tuned to your own data using the code in this re
 ## An Overview of the Training Process
 Training MARS to run on your own experiments includes the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
-[![](pose_annotation_tools/docs/jupyter_button.jpg)](MARS_tutorial.ipynb)
+[![](pose_annotation_tools/docs/jupyter_button.jpg)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_tutorial.ipynb)
 
 ### 1) 📁 Create a new MARS Training Project.
 MARS uses a set file strcture to keep track of data and models associated with your project. The script `create_new_project.py` will create one for you. It takes the arguments:
@@ -82,8 +82,8 @@ The module `hourglass_pose/evaluation` includes several scripts for evaluating p
 
 ### 5) 🚀 Deploy your new detection and pose models.
 Now that you have a working detector and pose estimator, we'll add them to your end-user version of MARS so you can run them on new videos!
- - Step-by-step: [something]()
+ - Step-by-step: [coming soon]()
 
 ### 6) 💪 Train new behavior classifiers.
 Once you've applied your trained pose estimator on some new behavior videos, you can annotate behaviors of interest in those videos and train MARS to detect those behaviors automatically.
- - Step-by-step: [something]()
+ - Step-by-step: [coming soon]()
