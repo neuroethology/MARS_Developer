@@ -29,6 +29,8 @@ Each of these steps can be fine-tuned to your own data using the code in this re
 ## An Overview of the Training Process
 Training MARS to run on your own experiments includes the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
+> **Important Note: the steps below only show the training commands themselves. Open the MARS_tutorial jupyter notebook to see the complete training process, including scripts to evaluate model performance at each step!**
+
 [![](pose_annotation_tools/docs/jupyter_button.jpg)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_tutorial.ipynb)
 
 ### 1) 📁 Create a new MARS Training Project.
