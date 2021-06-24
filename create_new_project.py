@@ -42,13 +42,13 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         if not os.path.isdir(location):
             print("I couldn't find the location " + location)
             return
-    if os.path.isdir(os.path.join(location,name)):
-        print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
-        return
+    # if os.path.isdir(os.path.join(location,name)):
+    #     print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
+    #     return
 
     # copy the config files
     project = os.path.join(location,name)
-    copytree('_template', project)
+    # copytree('_template', project)
 
     # download the model checkpoints and demo data
     if download_demo_data:
@@ -65,8 +65,8 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
 
     if download_MARS_checkpoints:
         ckpts_name = 'MARS_v1_8_models'
-        ckpts_id = '1N72WWzKEX0mPHzxdFuN-SffPcIBU3G5K'
-        print('  Downloading the pre-trained MARS models (1.85Gb)...')
+        ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op'
+        print('  Downloading the pre-trained MARS models (2.24Gb)...')
         download_from_google_drive(ckpts_id, os.path.join(project, ckpts_name+'.zip'))
         print('  unzipping...')
         with zipfile.ZipFile(os.path.join(project, ckpts_name+'.zip'), 'r') as zip_ref:
@@ -81,7 +81,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
                   os.path.join(project, 'detection'), os.path.join(project, 'pose')]
     for f in subfolders:
         if not os.path.exists(f):
-            os.makedir(f)
+            os.mkdir(f)
 
     print("Project " + name + " created successfully.")
 
