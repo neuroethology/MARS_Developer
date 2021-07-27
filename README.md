@@ -14,21 +14,25 @@ Navigate into the MARS_Developer directory you just created, and install the con
 ```
 conda env create -f MARS_dev.yml
 ```
-
 and activate this environment by calling
 ```
 conda activate mars_dev
 ```
-Finally, to be able to run jupyter notebooks from within the `MARS_dev` environment, you should furthermore install ipykernel:
+To be able to run jupyter notebooks from within the `MARS_dev` environment, use commands:
 ```
 conda install -c anaconda ipykernel
-```
-and then call
-```
 python -m ipykernel install --user --name=mars_dev
 ```
-
-
+Finally, to install the `MARSeval` module for evaluating performance of the detection and pose models:
+**on Linux**
+```
+pip install git+https://github.com/neuroethology/MARS_pycocotools.git#egg=MARSeval\&subdirectory=PythonAPI
+```
+**on Windows**
+* Install Microsoft Visual C++ Build Tools from [here](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+```
+pip install git+https://github.com/neuroethology/MARS_pycocotools.git#egg=MARSeval^&subdirectory=PythonAPI
+```
 ## The MARS Workflow
 MARS processes your videos in three steps:
 1) **Detection** - detects the location of animals in each video frame.
