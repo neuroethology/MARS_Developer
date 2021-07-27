@@ -3,16 +3,25 @@
 This repository contains all the code you'll need to train your own version of MARS.
 
 ## Installation
-You will first need to follow the installation instructions for the [end-user version of MARS](https://github.com/neuroethology/MARS).
+To set up your GPU to run tensorflow, follow the "Setting up your GPU for Tensorflow" section of the instructions from the end-user version of MARS, followed **steps 1-2** of the instructions to install conda: [for Linux](https://github.com/neuroethology/MARS/blob/master/docs/install_linux_nvidia.md#setting-up-your-gpu-for-tensorflow) | [for Windows](https://github.com/neuroethology/MARS/blob/master/docs/install_windows_nvidia.md#setting-up-your-gpu-for-tensorflow)
 
-Once you have the end-user version installed, the only other thing you'll need to do to use `MARS-Developer` is install the conda environment:
+Next, clone this Github repository + submodules with the call
+```
+git clone --recurse-submodules https://github.com/neuroethology/MARS_Developer
+```
+
+Navigate into the MARS_Developer directory you just created, and install the conda environment:
 ```conda env create -f MARS_dev.yml```
 
-You can run jupyter notebooks from within the MARS_dev environment by installing ipykernel:
+and activate this environment by calling
+```
+conda activate mars_dev
+```
+Finally, to be able to run jupyter notebooks from within the `MARS_dev` environment, you should furthermore install ipykernel:
 ```
 conda install -c anaconda ipykernel
 ```
-and then calling
+and then call
 ```
 python -m ipykernel install --user --name=mars_dev
 ```
