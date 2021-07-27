@@ -113,3 +113,16 @@ short_instructions : |
 full_instructions : |
   <p> Examples and detailed instructions for each body part:</p>
   <img src="https://s3.REGION.amazonaws.com/TEMPLATE_BUCKET/instruction_image_bodyparts.png" width="100%">
+  
+  
+# for training the multibox detector -----------------------------------------------------------------------------------
+
+pretrained_model_path : None
+
+fine_tune : False
+
+trainable_scopes : None
+
+use_moving_averages : False
+
+restore_moving_averages : False
