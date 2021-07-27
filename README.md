@@ -11,7 +11,9 @@ git clone --recurse-submodules https://github.com/neuroethology/MARS_Developer
 ```
 
 Navigate into the MARS_Developer directory you just created, and install the conda environment:
-```conda env create -f MARS_dev.yml```
+```
+conda env create -f MARS_dev.yml
+```
 
 and activate this environment by calling
 ```
