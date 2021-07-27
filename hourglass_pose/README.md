@@ -4,7 +4,7 @@ This is an implementation of **Stacked Hourglass Networks for Human Pose Estimat
 
 The original Stacked Hourglass paper can be found at [https://arxiv.org/abs/1603.06937](https://arxiv.org/abs/1603.06937). Towards Data Science also has [a helpful write-up](https://towardsdatascience.com/human-pose-estimation-with-stacked-hourglass-network-and-tensorflow-c4e9f84fd3ce) on human pose estimation using the stacked hourglass network, by Ethan Yanjia Li.
 
-All the related files of dataset and model can be found [here](https://www.dropbox.com/home/team_folder/MARS/tf_dataset_keypoints/top_correct). **TODO: fix this link!**
+Trained pose models can be found [here](https://drive.google.com/drive/u/0/folders/1N7keOHLa9utAa8bVhj-PLAVwWAzAzu0J) in MARS_v1_8_models.zip. MARS pose annotation training/test data can be found [here](https://data.caltech.edu/records/2011).
 
 ![hourglass model architecture](docs/stacked_hg.png)
 
