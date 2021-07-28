@@ -64,7 +64,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         for [src, tgt] in zip(search_keys, save_keys):
             src_model = glob.glob(os.path.join(project, ckpts_name, src))
             shutil.move(src_model[0], os.path.join(project, tgt))
-            ckpt_name = glob.glob(os.path.join(project, tgt, '*.ckpt'))
+            ckpt_name = glob.glob(os.path.join(project, tgt, '*.ckpt*'))
             # help tensorflow find this checkpoint to work from:
             with open(os.path.join(project, 'detection', 'black_top_log', 'checkpoint'), 'w') as f:
                 f.write('model_checkpoint_path: "' + ckpt_name[0] + '"')
