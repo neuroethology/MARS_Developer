@@ -296,7 +296,7 @@ def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTim
         ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
         ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
         ax[i, 0].plot(ckpt_steps, ckpt_vals, 'ro', label='saved checkpoints')
-        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)], 'o', label='best model', markersize=16,
+        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)[0][0]], 'o', label='best model', markersize=16,
                       markeredgewidth=4, markeredgecolor='orange', markerfacecolor='None')
 
         ax[i, 0].set_xlabel('Training step')
