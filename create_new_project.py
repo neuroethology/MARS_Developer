@@ -77,8 +77,6 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         os.remove(os.path.join(project, ckpts_name+'.zip')) # delete original zip file
         print('  models have been unpacked.')
 
-        #TODO: put the downloaded checkpoints in the right place!
-
     subfolders = [os.path.join(project, 'annotation_data'), os.path.join(project, 'annotation_data', 'raw_images'),
                   os.path.join(project, 'annotation_data', 'behavior_movies'), os.path.join(project, 'behavior'),
                   os.path.join(project, 'detection'), os.path.join(project, 'pose')]
