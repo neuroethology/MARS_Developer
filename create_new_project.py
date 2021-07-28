@@ -48,6 +48,12 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
     if download_MARS_checkpoints:
         ckpts_name = 'MARS_v1_8_models'
         ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op'
+        # names of the models we want to unpack:
+        search_keys = ['detect*black*', 'detect*white*', 'detect*resnet*', 'pose*']
+        # where we're unpacking them to:
+        save_keys   = [os.path.join('detection', x) for x in ['black_top_log', 'white_top_log', 'resnet_log']]
+        save_keys.append(os.path.join('pose', 'top_log'))
+
         print('Downloading the pre-trained MARS models (2.24Gb)...')
         download_from_google_drive(ckpts_id, os.path.join(project, ckpts_name+'.zip'))
         print('  unzipping...')
@@ -55,16 +61,15 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
             zip_ref.extractall(os.path.join(project))
         
         # move checkpoints to where they need to be within the project:
-        detector_black = glob.glob(os.path.join(project,ckpts_name,'detect*black*'))
-        detector_white = glob.glob(os.path.join(project,ckpts_name,'detect*white*'))
-        detector_resnet = glob.glob(os.path.join(project,ckpts_name,'detect*resnet*'))
-        pose = glob.glob(os.path.join(project,ckpts_name,'pose*'))
-        
-        shutil.move(detector_black[0],os.path.join(project,'detection','black_top_model'))
-        shutil.move(detector_white[0],os.path.join(project,'detection','white_top_model'))
-        shutil.move(detector_resnet[0],os.path.join(project,'detection','resnet_model'))
-        shutil.move(pose[0],os.path.join(project,'pose','top_model'))
-        
+        for [src, tgt] in zip(search_keys, save_keys):
+            src_model = glob.glob(os.path.join(project, ckpts_name, src))
+            shutil.move(src_model[0], os.path.join(project, tgt))
+            ckpt_name = glob.glob(os.path.join(project, tgt, '*.ckpt'))
+            # help tensorflow find this checkpoint to work from:
+            with open(os.path.join(project, 'detection', 'black_top_log', 'checkpoint'), 'w') as f:
+                f.write('model_checkpoint_path: "' + ckpt_name[0] + '"')
+
+        # cleanup
         shutil.rmtree(os.path.join(project, ckpts_name))
         os.remove(os.path.join(project, ckpts_name+'.zip')) # delete original zip file
         print('  models have been unpacked.')
