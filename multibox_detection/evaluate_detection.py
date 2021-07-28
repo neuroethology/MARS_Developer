@@ -29,6 +29,7 @@ import multibox_detection.model_detection as model
 from multibox_detection.config import parse_config_file
 from multibox_detection import eval_inputs as inputs
 from tensorboard.backend.event_processing import event_accumulator
+import pdb
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -112,14 +113,14 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         plt.figure(figsize=figsize)
         plt.imshow(im, cmap='gray')
         for pt in gt:
-            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]])/299. * dims[1]
-            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]])/299. * dims[0]
+            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]]) * dims[1]
+            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]]) * dims[0]
             plt.plot([x[0], x[1], x[1], x[0], x[0]], [y[0], y[0], y[1], y[1], y[0]], color=colors[0],
                      label='ground truth' if not legend_flag[0] else None)
             legend_flag[0] = True
         for rank, pt in enumerate(pred):
-            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]]) / 299. * dims[1]
-            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]]) / 299. * dims[0]
+            x = np.array([pt['bbox'][0], pt['bbox'][0] + pt['bbox'][2]])  * dims[1]
+            y = np.array([pt['bbox'][1], pt['bbox'][1] + pt['bbox'][3]])  * dims[0]
             if rank == 0:
                 plt.plot([x[0], x[1], x[1], x[0], x[0]], [y[0], y[0], y[1], y[1], y[0]], color=colors[1],
                          label='predicted' if not legend_flag[1] else None)
@@ -292,11 +293,13 @@ def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTim
             else:
                 step_inds.append(len(steps) - 1)
         ckpt_vals = [sm_vals[x] for x in step_inds]
+        
+#         pdb.set_trace()
 
         ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
         ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
         ax[i, 0].plot(ckpt_steps, ckpt_vals, 'ro', label='saved checkpoints')
-        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)], 'o', label='best model', markersize=16,
+        ax[i, 0].plot(min_step, sm_vals[np.where(steps == min_step)[0][0]], 'o', label='best model', markersize=16,
                       markeredgewidth=4, markeredgecolor='orange', markerfacecolor='None')
 
         ax[i, 0].set_xlabel('Training step')
@@ -413,7 +416,6 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                 print("Found model for global step: {:d}".format(global_step))
 
                 step = 0
-                img_id = 0
                 print_str = ', '.join(['Step: {:d}', 'Time/image (ms): {:.1f}'])
 
                 while not coord.should_stop():
@@ -427,7 +429,7 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                         gt_bboxes = outputs[2][b]
                         gt_num_bboxes = outputs[3][b]
                         gt_areas = outputs[4][b]
-                        # img_id = int(outputs[5][b])
+                        img_id = int(outputs[5][b])
                         # everything in this file up to here is more or less identical to evaluate_pose---
 
                         predicted_bboxes = locs + bbox_priors
@@ -471,7 +473,6 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                             gt_annotation_id += 1
 
                         dataset_image_ids.add(img_id)
-                        img_id += 1
 
                     # print(print_str.format(step, (dt / cfg.BATCH_SIZE) * 1000))
                     step += 1
