@@ -15,7 +15,7 @@ def extract_frames_to_label(project_path, n_frames=1000, to_skip=0):
     input_dir = os.path.join(project_path,'annotation_data','behavior_movies')
     output_dir = os.path.join(project_path,'annotation_data','raw_images')
     ef.extract_frames(input_dir, output_dir, n_frames, to_skip)
-    print("Added " + str(n_frames) + " frames to " + os.path.basename(project_path))
+    print("Added frames to " + os.path.basename(project_path))
 
 
 if __name__ ==  '__main__':
