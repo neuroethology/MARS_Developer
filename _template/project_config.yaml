@@ -7,12 +7,11 @@ project_name: 'my_project'
 # AWS (after you've run a labeling job) or a .csv from DeepLabCut.
 manifest_name : 'output.manifest'
 
-# provide approximate pixels per cm in your movies. If you leave this as "None",
-# behavior classifier performance might suffer.
-pixels_per_cm : None
+# provide approximate pixels per cm in your movies.
+pixels_per_cm : 18.33
 
 # provide movie framerate, for behavior classifiers.
-framerate : 30
+framerate : 25
 
 # name the detectors and pose estimators you will train, and specify which
 # animals in animal_names (see next section) will be used in training each one.
