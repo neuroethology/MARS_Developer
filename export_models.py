@@ -45,7 +45,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
 
         with open(prior_path, 'rb') as f:
             priors_bbox = pickle.load(f, encoding='latin1')
-        priors_bbox = np.array(priors_bbox).astype(np.float32)
+        priors_bbox = np.array(priors_bbox, dtype='object').astype(np.float32)
 
         #build model detection
         batch_norm_params = {
