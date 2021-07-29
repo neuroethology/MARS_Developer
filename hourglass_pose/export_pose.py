@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import yaml
+import re
 
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
@@ -16,9 +17,6 @@ from tensorflow.python.tools import optimize_for_inference_lib
 from tensorflow.python.util import deprecation
 
 slim = tf.contrib.slim
-import pdb
-import pickle
-import numpy as np
 
 sys.path.insert(0, os.path.abspath('..'))
 from hourglass_pose import model_pose
@@ -126,13 +124,13 @@ def do_export(checkpoint_path, export_dir, model_name, num_parts, num_stacks):
             with tf.io.gfile.GFile(save_path, 'wb') as f:
                 f.write(optimized_graph_def.SerializeToString())
 
-            print("Saved optimized model for mobile devices at: %s." % (save_path,))
-            print("Input node name: %s" % (input_node_name,))
-            print("Output node name: %s" % (output_node.name[:-2],))
+            print("Saved optimized model at: %s" % save_path)
+            print("Input node name: %s" % input_node_name)
+            print("Output node name: %s" % output_node.name)
             print("%d ops in the final graph." % len(optimized_graph_def.node))
 
 
-def export(project, pose_model_names=None):
+def export(project, pose_model_names=None, save_model_names=None):
     # load project config and model config
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
@@ -146,9 +144,20 @@ def export(project, pose_model_names=None):
         pose_model_list = cfg['pose']
         pose_model_names = pose_model_list.keys()
 
-    for model in pose_model_names:
+    if save_model_names:  # if the user provided custom model name(s), make sure they gave us the right number
+        if (len(pose_model_names) > 1 and not isinstance(save_model_names, list)) or \
+                (len(pose_model_names) == 1 and isinstance(save_model_names, list) and len(save_model_names) > 1) or \
+                (isinstance(save_model_names, list) and len(pose_model_names) != len(save_model_names)):
+            print('save_model_names must have a name for each pose model:')
+            print(pose_model_list)
+            return
+
+    for i, model in enumerate(pose_model_names):
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
-        model_name = cfg['project_name'] + '_' + model + '_pose.pb'
+        if save_model_names:
+            model_name = re.sub(r'\W+', '', save_model_names[i])
+        else:
+            model_name = cfg['project_name'] + '_' + model + '_pose.pb'
         do_export(checkpoint_path, export_dir, model_name, num_parts, num_stacks)
 
 
