@@ -33,9 +33,10 @@ def write_to_tfrecord(v_info, output_directory):
     val = v_info[ntrain:ntrain + nval]
     test = v_info[ntrain + nval:]
 
-    n_shards = math.ceil(ntrain / 1000)
+    n_shards = int(math.ceil(ntrain / 1000))
     # n_threads must be a factor of n_shards, which can get awkward if n_shards is prime.
     n_threads = n_shards if n_shards <= multiprocessing.cpu_count() else (n_shards / smallest_factor(n_shards))
+    n_threads = int(n_threads)
 
     create(
         dataset=train,

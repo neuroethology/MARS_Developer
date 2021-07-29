@@ -17,11 +17,14 @@ dependencies:
   - backcall=0.2.0
   - blas=1.0
   - bleach=3.2.1
+  - brotlipy=0.7.0
   - c-ares=1.16.1
-  - ca-certificates=2020.12.8
-  - certifi=2020.12.5
+  - ca-certificates=2021.5.30
+  - certifi=2021.5.30
   - cffi=1.14.0
+  - chardet=4.0.0
   - cloudpickle=1.6.0
+  - cryptography=3.4.4
   - cudatoolkit=10.0.130
   - cudnn=7.6.5
   - cupti=10.0.130
@@ -36,9 +39,11 @@ dependencies:
   - easydict=1.9
   - entrypoints=0.3
   - expat=2.2.9
+  - filelock=3.0.12
   - fontconfig=2.13.1
   - freetype=2.10.4
   - gast=0.2.2
+  - gdown=3.13.0
   - gettext=0.19.8.1
   - glib=2.66.2
   - google-pasta=0.2.0
@@ -48,6 +53,7 @@ dependencies:
   - h5py=2.10.0
   - hdf5=1.10.6
   - icu=67.1
+  - idna=2.10
   - imageio=2.9.0
   - importlib-metadata=2.0.0
   - importlib_metadata=2.0.0
@@ -60,12 +66,15 @@ dependencies:
   - jinja2=2.11.2
   - joblib=0.17.0
   - jpeg=9d
+  - json5=0.9.5
   - jsonschema=3.2.0
   - jupyter=1.0.0
   - jupyter_client=6.1.7
   - jupyter_console=6.2.0
   - jupyter_core=4.6.3
+  - jupyterlab=2.2.9
   - jupyterlab_pygments=0.1.2
+  - jupyterlab_server=1.2.0
   - keras-applications=1.0.8
   - keras-preprocessing=1.1.0
   - kiwisolver=1.2.0
@@ -96,6 +105,7 @@ dependencies:
   - libxkbcommon=0.10.0
   - libxml2=2.9.10
   - libxslt=1.1.33
+  - llvmlite=0.36.0
   - lz4-c=1.9.2
   - markdown=3.3.2
   - markupsafe=1.1.1
@@ -118,10 +128,11 @@ dependencies:
   - notebook=5.7.10
   - nspr=4.29
   - nss=3.58
+  - numba=0.53.1
   - numpy=1.19.2
   - numpy-base=1.19.2
   - olefile=0.46
-  - openssl=1.1.1i
+  - openssl=1.1.1k
   - opt_einsum=3.1.0
   - packaging=20.7
   - pandas=1.2.0
@@ -146,6 +157,7 @@ dependencies:
   - pycocotools=2.0.2
   - pycparser=2.20
   - pygments=2.7.1
+  - pyopenssl=20.0.1
   - pyparsing=2.4.7
   - pyqt=5.12.3
   - pyqt-impl=5.12.3
@@ -154,6 +166,7 @@ dependencies:
   - pyqtwebengine=5.12.1
   - pyrsistent=0.17.3
   - pyside2=5.13.2
+  - pysocks=1.7.1
   - python=3.7.8
   - python-dateutil=2.8.1
   - python_abi=3.7
@@ -165,6 +178,7 @@ dependencies:
   - qtconsole=4.7.7
   - qtpy=1.9.0
   - readline=8.0
+  - requests=2.25.1
   - scikit-image=0.17.2
   - scikit-learn=0.23.2
   - scipy=1.5.2
@@ -174,6 +188,7 @@ dependencies:
   - six=1.15.0
   - sk-video=1.1.10
   - sqlite=3.33.0
+  - tbb=2020.3
   - tensorboard=1.15.0
   - tensorflow=1.15.0
   - tensorflow-base=1.15.0
@@ -187,7 +202,9 @@ dependencies:
   - tk=8.6.10
   - toolz=0.11.1
   - tornado=6.0.4
+  - tqdm=4.61.2
   - traitlets=5.0.5
+  - urllib3=1.26.3
   - watchdog=0.10.4
   - wcwidth=0.2.5
   - webencodings=0.5.1
@@ -208,7 +225,8 @@ dependencies:
     - colour-demosaicing==0.1.5
     - colour-science==0.3.15
     - hmmlearn==0.2.4
+    - marseval==1.0
     - opencv-python==4.4.0.44
     - ruamel-yaml==0.16.12
     - ruamel-yaml-clib==0.2.2
-prefix: /home/andrew_work/miniconda3/envs/mars_dev
+prefix: /home/annremote/miniconda3/envs/mars_dev

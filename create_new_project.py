@@ -1,37 +1,18 @@
 import os, sys
 import pathlib
 import argparse
+import shutil
+import glob
+import re
 from shutil import copytree
 import requests
 import zipfile
+import gdown
 
 
 def download_from_google_drive(id, destination):
-    URL = "https://drive.google.com/uc?export=download"
-
-    session = requests.Session()
-    response = session.get(URL, params={'id': id}, stream=True)
-    token = get_confirm_token(response)
-
-    if token:
-        params = {'id': id, 'confirm': token}
-        response = session.get(URL, params=params, stream=True)
-    save_response_content(response, destination)
-
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning'):
-            return value
-    return None
-
-
-def save_response_content(response, destination):
-    CHUNK_SIZE = 32768
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
+    URL = "https://drive.google.com/uc?id=" + id
+    gdown.download(URL, destination, quiet=False)
 
 
 def create_new_project(location, name, download_MARS_checkpoints=True, download_demo_data=False):
@@ -42,39 +23,59 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         if not os.path.isdir(location):
             print("I couldn't find the location " + location)
             return
-    # if os.path.isdir(os.path.join(location,name)):
-    #     print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
-    #     return
+    if os.path.isdir(os.path.join(location,name)):
+        print("A project named " + name + " already exists at this location. Please delete it or choose a different name.")
+        return
 
     # copy the config files
     project = os.path.join(location,name)
-    # copytree('_template', project)
+    copytree('_template', project)
 
     # download the model checkpoints and demo data
     if download_demo_data:
         dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
         dataset_id = '1DGUmuWgiQXM7Kx6x-QHJQathVIjQOmMR'
 
-        print('  Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 275Mb)...')
+        print('Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 289Mb)...')
         download_from_google_drive(dataset_id, os.path.join(project, dataset_name+'.zip'))
         print('  unzipping...')
         with zipfile.ZipFile(os.path.join(project, dataset_name+'.zip'), 'r') as zip_ref:
             zip_ref.extractall(os.path.join(project))
         os.rename(os.path.join(project, dataset_name), os.path.join(project, 'annotation_data'))
-        print('  sample dataset has been downloaded.')
+        os.remove(os.path.join(project, dataset_name+'.zip')) # delete original zip file
+        print('  sample dataset has been unpacked.')
 
     if download_MARS_checkpoints:
         ckpts_name = 'MARS_v1_8_models'
         ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op'
-        print('  Downloading the pre-trained MARS models (2.24Gb)...')
+        # names of the models we want to unpack:
+        search_keys = ['detect*black*', 'detect*white*', 'detect*resnet*', 'pose*']
+        # where we're unpacking them to:
+        save_keys   = [os.path.join('detection', x) for x in ['black_top_log', 'white_top_log', 'resnet_log']]
+        save_keys.append(os.path.join('pose', 'top_log'))
+
+        print('Downloading the pre-trained MARS models (2.24Gb)...')
         download_from_google_drive(ckpts_id, os.path.join(project, ckpts_name+'.zip'))
         print('  unzipping...')
         with zipfile.ZipFile(os.path.join(project, ckpts_name+'.zip'), 'r') as zip_ref:
             zip_ref.extractall(os.path.join(project))
-        os.rename(os.path.join(project, ckpts_name), os.path.join(project, 'downloaded_models'))
-        print('  models have been downloaded.')
+        
+        # move checkpoints to where they need to be within the project:
+        for [src, tgt] in zip(search_keys, save_keys):
+            src_model = glob.glob(os.path.join(project, ckpts_name, src))
+            shutil.move(src_model[0], os.path.join(project, tgt))
+            ckpt_name = glob.glob(os.path.join(project, tgt, '*.ckpt*'))
+            ckpt_pth, ckpt_name = os.path.split(ckpt_name[0])
+            substr = re.compile("(ckpt-?[0-9]*)(\..*)")
+            ckpt_name = os.path.join(ckpt_pth, re.sub(substr, r"\1", ckpt_name))
+            # help tensorflow find this checkpoint to work from:
+            with open(os.path.join(project, tgt, 'checkpoint'), 'w') as f:
+                f.write('model_checkpoint_path: "' + ckpt_name + '"')
 
-        #TODO: put the downloaded checkpoints in the right place!
+        # cleanup
+        shutil.rmtree(os.path.join(project, ckpts_name))
+        os.remove(os.path.join(project, ckpts_name+'.zip')) # delete original zip file
+        print('  models have been unpacked.')
 
     subfolders = [os.path.join(project, 'annotation_data'), os.path.join(project, 'annotation_data', 'raw_images'),
                   os.path.join(project, 'annotation_data', 'behavior_movies'), os.path.join(project, 'behavior'),
