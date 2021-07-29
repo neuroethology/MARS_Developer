@@ -17,8 +17,6 @@ MAX_NUM_BBOXES : 1
 LOCATION_LOSS_ALPHA : 1000.0
 
 BATCH_SIZE : 4
-WIDTH : 1024
-HEIGHT : 570
 
 ###################
 # Image Processing and Augmentation 
