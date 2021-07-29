@@ -155,7 +155,7 @@ def export(project, pose_model_names=None, save_model_names=None):
     for i, model in enumerate(pose_model_names):
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
         if save_model_names:
-            model_name = re.sub(r'\W+', '', save_model_names[i])
+            model_name = re.sub(r'\W+', '', save_model_names[i]) + '.pb'
         else:
             model_name = cfg['project_name'] + '_' + model + '_pose.pb'
         do_export(checkpoint_path, export_dir, model_name, num_parts, num_stacks)
