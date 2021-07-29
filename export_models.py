@@ -40,8 +40,8 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
         input_depth = 3
 
         #we assume that we have already preprocessed the image
-        input_placeholder = tf.placeholder(tf.float32, [None, input_height * input_width * input_depth], name=input_node_name)
-        images = tf.reshape( input_placeholder, [-1, input_height,input_width,input_depth])
+        input_placeholder = tf.compat.v1.placeholder(tf.float32, [None, input_height * input_width * input_depth], name=input_node_name)
+        images = tf.reshape(input_placeholder, [-1, input_height,input_width,input_depth])
 
         with open(prior_path, 'rb') as f:
             priors_bbox = pickle.load(f, encoding='latin1')
@@ -53,7 +53,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
             'decay': 0.9997,
             # epsilon to prevent 0s in variance.
             'epsilon': 0.001,
-            'variables_collections': [tf.GraphKeys.MOVING_AVERAGE_VARIABLES],
+            'variables_collections': [tf.compat.v1.GraphKeys.MOVING_AVERAGE_VARIABLES],
             'is_training': False
         }
         with slim.arg_scope([slim.conv2d],
@@ -96,7 +96,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
         sess_config = tf.compat.v1.ConfigProto(
                 log_device_placement=False,
                 allow_soft_placement=True,
-                gpu_options=tf.GPUOptions(
+                gpu_options=tf.compat.v1.GPUOptions(
                     per_process_gpu_memory_fraction=0.9
                 )
             )
@@ -105,7 +105,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
         #start the session and restore the graph weights
         with sess.as_default():
 
-            tf.global_variables_initializer().run()
+            tf.compat.v1.global_variables_initializer().run()
             saver.restore(sess, checkpoint_path)
 
             #export varibales to constants
@@ -124,7 +124,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
             if not os.path.exists(export_dir):
                 os.makedirs(export_dir)
             save_path = os.path.join(export_dir, model_name)
-            with tf.gfile.GFile(save_path, 'wb') as f:
+            with tf.io.gfile.GFile(save_path, 'wb') as f:
                 f.write(optimized_graph_def.SerializeToString())
 
             print("Saved optimized detection model at: %s" % (save_path,))
@@ -260,9 +260,10 @@ def export(project, pose_model_names=None, detector_names=None):
         model_name = cfg['project_name'] + '_' + model + '_detector.pb'
         prior_path = os.path.join(project, 'detection', 'priors_' + model + '.pkl')
         export_detector(checkpoint_path, project, model_name, prior_path)
+        print('--')
 
     for model in pose_model_names:
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
         model_name = cfg['project_name'] + '_' + model + '_pose.pb'
         export_pose(checkpoint_path, project, model_name, num_parts, num_stacks)
-
+        print('--')
