@@ -151,6 +151,7 @@ def export(project, pose_model_names=None, save_model_names=None):
             print('save_model_names must have a name for each pose model:')
             print(pose_model_list)
             return
+        save_model_names = [save_model_names] if not isinstance(save_model_names,list) else save_model_names
 
     for i, model in enumerate(pose_model_names):
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
