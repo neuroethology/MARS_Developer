@@ -21,8 +21,8 @@ import pickle
 import numpy as np
 
 sys.path.insert(0, os.path.abspath('..'))
-import model_pose
-from config import parse_config_file
+from hourglass_pose import model_pose
+from hourglass_pose.config import parse_config_file
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 
@@ -83,10 +83,10 @@ def do_export(checkpoint_path, export_dir, model_name, num_parts, num_stacks):
             if checkpoint_path is None:
                 raise ValueError("Unable to find a model checkpoint in the directory %s" % (checkpoint_dir,))
 
-        tf.logging.info('Exporting model: %s' % checkpoint_path)
+        tf.compat.v1.logging.info('Exporting model: %s' % checkpoint_path)
 
         # we import the meta graph and retrieve the saver
-        saver = tf.train.Saver(variables_to_restore, reshape=True)
+        saver = tf.compat.v1.train.Saver(variables_to_restore, reshape=True)
 
         #reteieve the protobuf graph definition
         input_graph_def = graph.as_graph_def()  # graph used to retrieve the nodes
