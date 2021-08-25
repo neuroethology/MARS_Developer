@@ -8,7 +8,7 @@ import matplotlib.image as mpimg
 from pose_annotation_tools.json_util import *
 
 
-def plot_frame(project, fr, markersize=8, figsize=[15, 10]):
+def plot_frame(project, frames, markersize=8, figsize=[15, 10], toFile=False):
     # plots annotations from all workers plus the worker median for an example frame.
 
     config_fid = os.path.join(project ,'project_config.yaml')
@@ -24,21 +24,31 @@ def plot_frame(project, fr, markersize=8, figsize=[15, 10]):
     plt.figure(figsize=figsize)
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
     markers = 'vosd*p'
+    
+    if not isinstance(frames,list):
+        frames = [frames]
 
-    im = mpimg.imread(D[fr]['image'])
-    plt.imshow(im, cmap='gray')
-
-    # plot the labels from each individual worker:
-    for mouse in config['animal_names']:
-        for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
-            for i, [px, py] in enumerate(zip(x, y)):
-                plt.plot(px * D[fr]['width'], py * D[fr]['height'],
-                         colors[i % 9], marker=markers[w % 6], markersize=markersize)
-
-        for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
-            plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
-                     'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
-    plt.show()
+    for fr in frames:
+        im = mpimg.imread(D[fr]['image'])
+        plt.imshow(im, cmap='gray')
+    
+        # plot the labels from each individual worker:
+        for mouse in config['animal_names']:
+            for w, [x, y] in enumerate(zip(D[fr]['ann_' + mouse]['X'], D[fr]['ann_' + mouse]['Y'])):
+                for i, [px, py] in enumerate(zip(x, y)):
+                    plt.plot(px * D[fr]['width'], py * D[fr]['height'],
+                             colors[i % 9], marker=markers[w % 6], markersize=markersize)
+    
+            for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
+                plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
+                         'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
+        if toFile:
+            if not os.path.exists(os.path.join(project, 'annotation_data', 'annotated_images')):
+    	        os.mkdir(os.path.join(project, 'annotation_data', 'annotated_images'))
+            plt.savefig(os.path.join(project, 'annotation_data', 'annotated_images', 'frame_' + f'{fr:05d}' + '.png'))
+            plt.close()
+        else:
+            plt.show()
 
 
 def compute_human_PCK(project, animal_names=None, xlim=None, pixel_units=False):

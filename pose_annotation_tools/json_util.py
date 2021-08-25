@@ -103,7 +103,10 @@ def manifest_to_dict(project):
                 # now we can unpack this worker's annotations for each keypoint:
                 for pt in annot['annotatedResult']['keypoints']:
                     animal = next((n for n in animal_names if n in pt['label']),species)
-                    part = keypoint_names.index(pt['label'].replace(animal, '').replace(species, '').strip())
+                    kpt_clean = pt['label'].replace(animal, '').replace(species, '').strip()
+                    if not kpt_clean in keypoint_names:
+                    	continue
+                    part = keypoint_names.index(kpt_clean)
 
                     rawPts[animal][part,0,w] = pt['x']/im.shape[1]
                     rawPts[animal][part,1,w] = pt['y']/im.shape[0]
