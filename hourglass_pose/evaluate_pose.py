@@ -876,9 +876,9 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
 
                         for eval_part in range(int(np.sum(part_visibilities > 0))):
                             gt_annotations.append({
-                                "id": gt_annotation_id,
-                                "image_id": image_id,
-                                "category_id": eval_part + 2,
+                                "id": int(gt_annotation_id),
+                                "image_id": int(image_id),
+                                "category_id": int(eval_part + 2),
                                 "area": (w * h).item(),
                                 "bbox": [x1.item(), y1.item(), w.item(), h.item()],
                                 "iscrowd": 0,
@@ -886,8 +886,8 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                                 "num_keypoints": 1
                             })
                         gt_annotations.append({
-                            "id": gt_annotation_id,
-                            "image_id": image_id,
+                            "id": int(gt_annotation_id),
+                            "image_id": int(image_id),
                             "category_id": 1,
                             "area": (w * h).item(),
                             "bbox": [x1.item(), y1.item(), w.item(), h.item()],
@@ -896,7 +896,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                             "num_keypoints": int(np.sum(part_visibilities > 0))
                         })
 
-                        dataset_image_ids.add(image_id)
+                        dataset_image_ids.add(int(image_id))
 
                         gt_annotation_id += 1
 
@@ -918,7 +918,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
             gt_dataset = {
                 'annotations': gt_annotations,
                 'images': [{'id': img_id} for img_id in dataset_image_ids],
-                'categories': [{'id': id + 1} for id in range(int(np.sum(part_visibilities > 0)) + 1)]
+                'categories': [{'id': int(id + 1)} for id in range(int(np.sum(part_visibilities > 0)) + 1)]
             }
 
             cocodata = {'gt_keypoints': gt_dataset,
