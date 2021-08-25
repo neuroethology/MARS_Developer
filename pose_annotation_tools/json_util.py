@@ -8,10 +8,10 @@ import yaml
 
 
 def count_workers(data):
-    nWorkers = 0
+    nWorkers = []
     for f,frame in enumerate(data):
         if 'annotatedResult' in frame.keys():  # check if this frame has at least one set of annotations
-            nWorkers = max(nWorkers, len(frame['annotatedResult']['annotationsFromAllWorkers']))
+            nWorkers.append(len(frame['annotatedResult']['annotationsFromAllWorkers']))
     return nWorkers
 
 
@@ -62,7 +62,6 @@ def manifest_to_dict(project):
     # loop over frames in the manifest file
     images = ['']*nSamp      # store local paths to labeled images
     hits = [False]*nSamp     # track which images have annotations (hopefully all of them)
-    workerCount = [0]*nSamp  # track the number of workers who labeled each image
 
     sourceStr = os.path.dirname(data[0]['source-ref'])  # image path on AWS
     localStr = os.path.join(project, 'annotation_data', 'raw_images')  # image path locally
@@ -92,10 +91,8 @@ def manifest_to_dict(project):
                 'ann': []
             }
 
-            rawPts = {n:np.zeros((nKpts, 2, nWorkers)) for n in animal_names}
-            for w,worker in enumerate(sample['annotatedResult']['annotationsFromAllWorkers']):
-                workerCount[f] = workerCount[f] + 1
-
+            rawPts = {n: np.zeros((nKpts, 2, nWorkers[f])) for n in animal_names}
+            for w, worker in enumerate(sample['annotatedResult']['annotationsFromAllWorkers']):
                 # the json of annotations from each worker is stored as a string for security reasons.
                 # we'll use eval to convert it into a dict:
                 annot = eval(worker['annotationData']['content'])
@@ -104,15 +101,14 @@ def manifest_to_dict(project):
                 for pt in annot['annotatedResult']['keypoints']:
                     animal = next((n for n in animal_names if n in pt['label']),species)
                     kpt_clean = pt['label'].replace(animal, '').replace(species, '').strip()
-                    if not kpt_clean in keypoint_names:
-                    	continue
+                    if kpt_clean not in keypoint_names:
+                        continue
                     part = keypoint_names.index(kpt_clean)
 
-                    rawPts[animal][part,0,w] = pt['x']/im.shape[1]
-                    rawPts[animal][part,1,w] = pt['y']/im.shape[0]
+                    rawPts[animal][part, 0, w] = pt['x']/im.shape[1]
+                    rawPts[animal][part, 1, w] = pt['y']/im.shape[0]
 
             for animal in animal_names:
-                rawPts[animal] = rawPts[animal][:, :, :workerCount[f] + 1]  # remove missing annotators
 
                 if check_pairs:  # adjust L/R assignments to try to find better median estimates.
                     meds = np.median(rawPts[animal], axis=2)
@@ -309,3 +305,4 @@ def make_annot_dict(project):
         csv_to_dict(project)
     elif ext == '.manifest':
         manifest_to_dict(project)
+
