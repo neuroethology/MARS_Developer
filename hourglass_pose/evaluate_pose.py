@@ -846,7 +846,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                             pred_parts += [x, y, v]
                             # and as separate entries of pred_annotations for part-wise evaluation
                             pred_annotations.append({
-                                'image_id': image_id,
+                                'image_id': int(image_id),
                                 'keypoints': [x, y, v],
                                 'score': selected_scores[-1],
                                 'category_id': count + 2
@@ -855,7 +855,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                         avg_score = np.mean(selected_scores)
                         # Store the results
                         pred_annotations.append({
-                            'image_id': image_id,
+                            'image_id': int(image_id),
                             'keypoints': pred_parts,
                             'score': avg_score.item(),
                             'category_id': 1
