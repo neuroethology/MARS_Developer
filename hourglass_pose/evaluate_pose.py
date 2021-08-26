@@ -160,7 +160,8 @@ def compute_model_pck(cocoEval, lims=None, pixels_per_cm=None, pixel_units=False
     pck = []
     partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
     for i in cocoEval.params.imgIds:
-        pck.append(cocoEval.computePcks(i, partID)[0][0])
+        for samp in cocoEval.computePcks(i, partID)[0]:  # we're just pooling across instances in an image for now
+            pck.append(samp)
     pck = np.array(pck)
 
     if not lims:
@@ -943,7 +944,6 @@ def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, 
     # Set the logging level.
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
-    performance = {n: None for n in pose_model_names}
     for model in pose_model_names:
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
         if not os.path.isdir(checkpoint_path):
@@ -972,8 +972,7 @@ def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, 
             show_layer_heatmaps=False,
             cfg=cfg
         )
-
-        performance[model] = coco_eval(project, pose_model_names=pose_model_names)
+    performance = coco_eval(project, pose_model_names=pose_model_names)
 
     return performance
 
