@@ -112,7 +112,7 @@ def plot_frame(project, frame_num, pose_model_names=None, markersize=8, figsize=
         if not image:
             print("I couldn't fine image " + str(frame_num))
             return
-        matched_id = re.search('(?<=image)\d*', image[0]).group(0)
+        matched_id = int(re.search('(?<=image)\d*', image[0]).group(0))
 
         infile = os.path.join(project, 'pose', model + '_evaluation', 'performance_pose.json')
         with open(infile) as jsonfile:
