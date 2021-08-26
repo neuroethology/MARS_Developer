@@ -1,7 +1,13 @@
 from __future__ import division
 import numpy as np
+import os, yaml
 from sklearn.metrics import precision_recall_fscore_support as score
 import random
+
+
+def set_equivalences(project, equivalences):
+    with open(os.path.join(project, 'behavior_equivalences.yaml'), 'w') as outfile:
+        yaml.dump(equivalences, outfile, default_flow_style=False)
 
 
 def score_info(y, y_pred):
