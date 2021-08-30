@@ -1,13 +1,7 @@
 from __future__ import division
 import numpy as np
-import os, yaml
 from sklearn.metrics import precision_recall_fscore_support as score
 import random
-
-
-def set_equivalences(project, equivalences):
-    with open(os.path.join(project, 'behavior_equivalences.yaml'), 'w') as outfile:
-        yaml.dump(equivalences, outfile, default_flow_style=False)
 
 
 def score_info(y, y_pred):
@@ -15,7 +9,7 @@ def score_info(y, y_pred):
     print('#Precision: {}'.format(np.round(precision, 3)))
     print('#Recall:    {}'.format(np.round(recall, 3)))
     print('#F1score:   {}'.format(np.round(fscore, 3)))
-    return precision,recall,fscore
+    return precision, recall, fscore
 
 
 def prf_metrics(y_tr_beh, pd_class, beh):

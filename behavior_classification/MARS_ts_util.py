@@ -9,7 +9,7 @@ from sklearn.ensemble import BaggingClassifier
 from hmmlearn import hmm
 import scipy
 from scipy import signal
-import MARS_annotation_parsers as map
+import annotation_parsers as map
 import pywt
 from scipy.signal import medfilt
 import progressbar

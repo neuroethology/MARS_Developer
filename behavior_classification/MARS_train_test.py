@@ -11,11 +11,11 @@ from scipy import signal
 import copy
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
-import MARS_annotation_parsers as map
+import annotation_parsers as map
 import gc
 import MARS_ts_util as mts
 import joblib
-from MARS_clf_helpers import *
+from behavior_helpers import *
 from seqIo import *
 import scipy.io as sio
 import pdb
@@ -253,17 +253,17 @@ def load_data(video_path, video_list, keep_labels, ver=[7, 8], feat_type='top', 
                             for x in fn:
                                 feats_wnd_names.append('_'.join([f,str(w),x]))
                     names = feats_wnd_names
-                    
+
                 elif do_cwt:
                     d = mts.apply_wavelet_transform(d)
                 data.append(d)
-                
+
                 beh = map.parse_annotations(os.path.join(video_path, v, ann), timestamps=timestamps)
                 if len(beh['behs_frame']) == 1+d.shape[0]: # this happens sometimes?
                     beh['behs_frame'] = beh['behs_frame'][:-1]
                 all_keep = []
                 for i in keep_labels.keys():
-                    all_keep += keep_labels[i] 
+                    all_keep += keep_labels[i]
                 labels += map.merge_channels(beh['behs_bout'], beh['keys'], len(beh['behs_frame']), target_behaviors = all_keep)
                 behList += [beh]
 
