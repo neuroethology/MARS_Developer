@@ -135,29 +135,37 @@ def summarize_annotation_split(project):
     with open(splitfile) as f:
         assignments = json.load(f)
 
-    fig, ax = plt.subplots(1, 3, figsize=[10, 5])
+    behavior_time = {'train': {}, 'test': {}, 'val': {}}
+    master_keys = []
     for idx, key in enumerate(['train', 'test', 'val']):
-        behavior_time = {}
         for k in assignments[key].keys():
             anno_dict = map.parse_annotations(assignments[key][k]['anno'])
             counts = summarize_annotations(anno_dict)
             for beh in counts.keys():
-                if beh not in behavior_time.keys():
-                    behavior_time[beh] = counts[beh]
+                if beh not in behavior_time[key].keys():
+                    behavior_time[key][beh] = counts[beh]
                 else:
-                    behavior_time[beh] += counts[beh]
+                    behavior_time[key][beh] += counts[beh]
+        master_keys += list(behavior_time[key].keys())
+    master_keys = list(set(master_keys))
+    master_keys.sort()
 
-        if 'other' in behavior_time.keys():
-            sizes = [behavior_time['other']]
+    fig, ax = plt.subplots(1, 3, figsize=[15, 5])
+    for idx, key in enumerate(['train', 'test', 'val']):
+        if 'other' in behavior_time[key].keys():
+            sizes = [behavior_time[key]['other']]
             labels = ['other']
             explode = [0.1]
         else:
             sizes = []
             labels = []
             explode = []
-        for beh in behavior_time.keys():
+        for beh in master_keys:
             if beh != 'other':
-                sizes.append(behavior_time[beh])
+                if beh in behavior_time[key].keys():
+                    sizes.append(behavior_time[key][beh])
+                else:
+                    sizes.append(0)
                 labels.append(beh)
                 explode.append(0)
 
@@ -235,21 +243,21 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
         keys = list(video_list)
         random.shuffle(keys)
         T = 0
-        assignments = {'train': [], 'test': [], 'val': []}
+        assignments = {'train': {}, 'test': {}, 'val': {}}
         for video in keys:
-            entry = {str(Path(video).stem):
-                         {'video': video,
-                          'anno': video_list[video]['anno'],
-                          'pose': video_list[video]['pose']}}
+            entry = {'video': video,
+                     'anno': video_list[video]['anno'],
+                     'pose': video_list[video]['pose']}
             if T < tVal:  # assign to val
-                assignments['val'].append(entry)
+                assignments['val'][str(Path(video).stem)] = entry
             elif T < (tVal + tTest):  # assign to test
-                assignments['test'].append(entry)
+                assignments['test'][str(Path(video).stem)] = entry
             else:  # assign to train
-                assignments['train'].append(entry)
+                assignments['train'][str(Path(video).stem)] = entry
+
             T += video_list[video]['anno_dict']['nFrames']
 
-        with open(os.path.join(project, 'behavior', 'train_test_split.json')) as f:
+        with open(os.path.join(project, 'behavior', 'train_test_split.json'),'w') as f:
             json.dump(assignments, f)
 
     summarize_annotation_split(project)
