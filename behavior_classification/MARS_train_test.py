@@ -11,12 +11,12 @@ from scipy import signal
 import copy
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
-import annotation_parsers as map
+from behavior_classification import annotation_parsers as map
 import gc
-import MARS_ts_util as mts
+from behavior_classification import MARS_ts_util as mts
 import joblib
-from behavior_helpers import *
-from seqIo import *
+from behavior_classification.behavior_helpers import *
+from Util.seqIo import *
 import scipy.io as sio
 import pdb
 

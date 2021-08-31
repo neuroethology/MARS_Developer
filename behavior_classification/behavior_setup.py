@@ -1,9 +1,10 @@
 from __future__ import division
 import os, yaml, fnmatch
+import json
 from pathlib import Path
 import behavior_classification.annotation_parsers as map
 import random
-import pdb
+import matplotlib.pyplot as plt
 
 
 def get_files(root, extensions, fname='*'):
@@ -49,7 +50,7 @@ def find_videos(project):
                 pose_depth = i - 1
                 break
 
-        if match_anno and match_pose: # greedy matching of annotation and pose files to a behavior movie:
+        if match_anno and match_pose:  # greedy matching of annotation and pose files to a behavior movie:
             if len(match_anno) == 1 and len(match_pose) == 1:  # single match, keep it for now
                 video_list[str(v)] = {'anno': str(match_anno[0]), 'anno_depth': anno_depth,
                                       'pose': str(match_pose[0]), 'pose_depth': pose_depth}
@@ -67,7 +68,7 @@ def find_videos(project):
         else:
             no_match.append(str(v))
 
-        for anno in anno_list.keys(): #check to see if multiple videos ever got mapped to the same file
+        for anno in anno_list.keys():  # check to see if multiple videos ever got mapped to the same file
             if len(anno_list[anno]) > 1:
                 anno_depths = []
                 for v in anno_list[anno]:
@@ -115,11 +116,57 @@ def find_videos(project):
                                     pose_list[p].remove(v)
                             no_match.append(str(v))
 
-
-
-
     return video_list, multi_match, no_match
 
+
+def summarize_annotations(anno_dict):
+    counts = {}
+    for beh in list(set(anno_dict['behs_frame'])):
+        counts[beh] = anno_dict['behs_frame'].count(beh)
+    return counts
+
+
+def summarize_annotation_split(project):
+    splitfile = os.path.join(project, 'behavior', 'train_test_split.json')
+    if not os.path.exists(splitfile):
+        print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory')
+        return
+
+    with open(splitfile) as f:
+        assignments = json.load(f)
+
+    fig, ax = plt.subplots(1, 3, figsize=[10, 5])
+    for idx, key in enumerate(['train', 'test', 'val']):
+        behavior_time = {}
+        for k in assignments[key].keys():
+            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+            counts = summarize_annotations(anno_dict)
+            for beh in counts.keys():
+                if beh not in behavior_time.keys():
+                    behavior_time[beh] = counts[beh]
+                else:
+                    behavior_time[beh] += counts[beh]
+
+        if 'other' in behavior_time.keys():
+            sizes = [behavior_time['other']]
+            labels = ['other']
+            explode = [0.1]
+        else:
+            sizes = []
+            labels = []
+            explode = []
+        for beh in behavior_time.keys():
+            if beh != 'other':
+                sizes.append(behavior_time[beh])
+                labels.append(beh)
+                explode.append(0)
+
+        ax[idx].pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=90)
+        ax[idx].axis('equal')
+        ax[idx].title.set_text(key)
+    fig.suptitle('Behaviors observed in train/test/validation sets')
+
+    plt.show()
 
 def check_behavior_data(project):
     # matches up videos with annotations, alerts to any videos that are missing annotations or have multiple matches,
@@ -179,22 +226,33 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
         video_list[video]['anno_dict'] = map.parse_annotations(anno)
         tMax += video_list[video]['anno_dict']['nFrames']
 
-    tVal = tMax * val    # minimum number of frames to assign to the validation set
+    tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
-    if reshuffle or not os.path.exists(os.path.join(project,'behavior','train_test_split.json')):
+    if reshuffle or not os.path.exists(os.path.join(project, 'behavior', 'train_test_split.json')):
         if not reshuffle:
-            print('Couldn''t find a saved train/test split, overriding reshuffle=False argument.')
+            print('Couldn\'t find a saved train/test split, overriding reshuffle=False argument.')
         keys = list(video_list)
         random.shuffle(keys)
         T = 0
+        assignments = {'train': [], 'test': [], 'val': []}
         for video in keys:
-            if T < tVal:
-                # assign to val
-            elif T < (tVal + tTest):
-                # assign to test
-            else:
-                # assign to train
+            entry = {str(Path(video).stem):
+                         {'video': video,
+                          'anno': video_list[video]['anno'],
+                          'pose': video_list[video]['pose']}}
+            if T < tVal:  # assign to val
+                assignments['val'].append(entry)
+            elif T < (tVal + tTest):  # assign to test
+                assignments['test'].append(entry)
+            else:  # assign to train
+                assignments['train'].append(entry)
+            T += video_list[video]['anno_dict']['nFrames']
+
+        with open(os.path.join(project, 'behavior', 'train_test_split.json')) as f:
+            json.dump(assignments, f)
+
+    summarize_annotation_split(project)
 
 
 def set_equivalences(project, equivalences):
