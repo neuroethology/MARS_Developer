@@ -281,14 +281,17 @@ def apply_clf_splits(project):
 
     with open(splitfile) as f:
         assignments = json.load(f)
+
+    behs = []
+    for key in ['train', 'test', 'val']:
+        behs += get_unique_behaviors(assignments[key])
+    behs = list(set(behs))
+    beh_dict = {'other': 0}
+    for i, b in enumerate(behs):
+        beh_dict[b] = i + 1
+
     for idx, key in enumerate(['train', 'test', 'val']):
         print('saving ' + key + ' set...')
-
-        behs = get_unique_behaviors(assignments[key])
-        beh_dict = {'other': 0}
-        for i,b in enumerate(behs):
-            beh_dict[b] = i + 1
-
         savedata = {'vocabulary': beh_dict, 'sequences': {cfg['project_name']: {}}}
         keylist = list(assignments[key].keys())
         for k in keylist:
