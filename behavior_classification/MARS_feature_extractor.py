@@ -194,22 +194,22 @@ def center_on_mouse(xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb, xlims, yli
 
 def smooth_keypoint_trajectories(keypoints):
     # TODO: do Kalman smoothing or something to get rid of bad keypoints.
-    # This will be especially important if we choose to use mouse-centric features.
     keypoints_sm = keypoints
 
     return keypoints_sm
 
 
-def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','m2'],
+def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','m2'],
                      smooth_keypoints=False, center_mouse=False):
 
-    frames_pose = load_pose(pose_fullpath)
-    keypoints = [f for f in frames_pose['keypoints']]
+    keypoints = [f for f in sequence['keypoints']]
 
+    # currently not implemented smoothing:
     if smooth_keypoints:
         keypoints = smooth_keypoint_trajectories(keypoints)
 
-    fps = 30
+    dscale = cfg['pixels_per_cm']
+    fps = cfg['framerate']
     num_frames = len(keypoints)
 
     feats = generate_feature_list()
@@ -218,7 +218,7 @@ def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','
         use_grps = feats[use_cam]['m1'].keys()
     else:
         for grp in use_grps:
-            if not grp in feats[use_cam]['m1'].keys():
+            if grp not in feats[use_cam]['m1'].keys():
                 raise Exception(grp+' is not a valid feature group name.')
     features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=use_mice)
     num_features = len(features)
@@ -239,7 +239,7 @@ def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','
         allx = []
         ally = []
         for f in range(num_frames):
-            keypoints = frames_pose['keypoints'][f]
+            keypoints = sequence['keypoints'][f]
             xm1 = np.asarray(keypoints[0][0])
             ym1 = np.asarray(keypoints[0][1])
             xm2 = np.asarray(keypoints[1][0])
@@ -248,9 +248,6 @@ def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','
             [allx.append(x) for x in (xm1, xm2)]
             [ally.append(y) for y in (ym1, ym2)]
             mouse_length[f] = np.linalg.norm((xm1[3] - xm1[6], ym1[3] - ym1[6]))
-
-        # pixels per cm in the MABe dataset:
-        dscale = 37.7
 
         # estimate the extent of our arena from tracking data
         allx = np.concatenate(allx).ravel()/dscale
@@ -275,11 +272,11 @@ def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','
                 ym10 = ym1
                 xm20 = xm2
                 ym20 = ym2
-            xm1 = np.asarray(frames_pose['keypoints'][f][0][0])
-            ym1 = np.asarray(frames_pose['keypoints'][f][0][1])
-            xm2 = np.asarray(frames_pose['keypoints'][f][1][0])
-            ym2 = np.asarray(frames_pose['keypoints'][f][1][1])
-            bboxes = np.asarray(frames_pose['bbox'][f])
+            xm1 = np.asarray(sequence['keypoints'][f][0][0])
+            ym1 = np.asarray(sequence['keypoints'][f][0][1])
+            xm2 = np.asarray(sequence['keypoints'][f][1][0])
+            ym2 = np.asarray(sequence['keypoints'][f][1][1])
+            bboxes = np.asarray(sequence['bbox'][f])
             if f==0:
                 xm10 = xm1
                 ym10 = ym1
@@ -392,3 +389,5 @@ def extract_features(pose_fullpath, use_grps=[], use_cam='top', use_mice=['m1','
         print('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, tb.tb_lineno, line.strip(), exc_obj))
         print(e)
         return []
+
+

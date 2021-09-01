@@ -313,11 +313,10 @@ def apply_clf_splits(project):
 
             with open(assignments[key][k]['pose']) as f:
                 posedata = json.load(f)
-            keypoints = posedata['keypoints']
-            scores = posedata['scores']
 
-            entry = {'keypoints': keypoints,
-                     'scores': scores,
+            entry = {'keypoints': posedata['keypoints'],
+                     'bbox': posedata['bbox'],
+                     'scores': posedata['scores'],
                      'annotations': annotations,
                      'metadata': assignments[key][k]}
 
