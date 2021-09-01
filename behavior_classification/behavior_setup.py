@@ -176,6 +176,21 @@ def summarize_annotation_split(project):
 
     plt.show()
 
+
+def get_unique_behaviors(video_list):
+    bhv_list = []
+    for video in video_list.keys():
+        anno = video_list[video]['anno']
+        anno_dict = map.parse_annotations(anno)
+        for ch in anno_dict['keys']:
+            bhv_list += list(anno_dict['behs_bout'][ch].keys())
+
+    bhv_unique = list(set(bhv_list))
+    bhv_list = [i for i in bhv_unique if i != 'other']
+
+    return bhv_list
+
+
 def check_behavior_data(project):
     # matches up videos with annotations, alerts to any videos that are missing annotations or have multiple matches,
     # and prints a list of all annotated behaviors.
@@ -187,15 +202,7 @@ def check_behavior_data(project):
     if len(video_list.keys()) == total_vids:
         print('  all videos successfully matched with annotation and pose files!')
 
-    bhv_list = []
-    for video in video_list.keys():
-        anno = video_list[video]['anno']
-        anno_dict = map.parse_annotations(anno)
-        for ch in anno_dict['keys']:
-            bhv_list += list(anno_dict['behs_bout'][ch].keys())
-
-    bhv_unique = list(set(bhv_list))
-    bhv_list = [i for i in bhv_unique if i != 'other']
+    bhv_list = get_unique_behaviors(video_list)
     print('List of behavior annotations found:')
     for b in bhv_list:
         print('  ' + b)
@@ -261,6 +268,40 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
             json.dump(assignments, f)
 
     summarize_annotation_split(project)
+
+
+def apply_clf_splits(project):
+    splitfile = os.path.join(project, 'behavior', 'train_test_split.json')
+    if not os.path.exists(splitfile):
+        print('apply_clf_splits failed, couldn\'t find train_test_split.json in the project directory')
+        return
+
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+    with open(splitfile) as f:
+        assignments = json.load(f)
+
+    for idx, key in enumerate(['train', 'test', 'val']):
+        savedata = {cfg['project_name']: {}}
+        keylist = list(assignments[key].keys())
+        for k in keylist[:1]:
+            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+
+            with open(assignments[key][k]['pose']) as f:
+                posedata = json.load(f)
+            keypoints = posedata['keypoints']
+            scores = posedata['scores']
+            annotations = []
+
+            entry = {'keypoints': keypoints,
+                     'scores': scores,
+                     'anntations': annotations,
+                     'metadata': assignments[key][k]}
+
+            savedata[cfg['project_name']][k] = entry
+
 
 
 def set_equivalences(project, equivalences):
