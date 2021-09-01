@@ -179,8 +179,8 @@ def summarize_annotation_split(project):
 
 def get_unique_behaviors(video_list):
     bhv_list = []
-    for video in video_list.keys():
-        anno = video_list[video]['anno']
+    for k in video_list.keys():
+        anno = video_list[k]['anno']
         anno_dict = map.parse_annotations(anno)
         for ch in anno_dict['keys']:
             bhv_list += list(anno_dict['behs_bout'][ch].keys())
@@ -275,25 +275,30 @@ def apply_clf_splits(project):
     if not os.path.exists(splitfile):
         print('apply_clf_splits failed, couldn\'t find train_test_split.json in the project directory')
         return
-
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     with open(splitfile) as f:
         assignments = json.load(f)
-
     for idx, key in enumerate(['train', 'test', 'val']):
+        print('saving ' + key + ' set...')
         savedata = {cfg['project_name']: {}}
         keylist = list(assignments[key].keys())
-        for k in keylist[:1]:
+
+        behs = get_unique_behaviors(assignments[key])
+        beh_dict = {'other': 0}
+        for i,b in enumerate(behs):
+            beh_dict[b] = i + 1
+
+        for k in keylist:
             anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+            annotations = [beh_dict[b] for b in anno_dict['behs_frame']]
 
             with open(assignments[key][k]['pose']) as f:
                 posedata = json.load(f)
             keypoints = posedata['keypoints']
             scores = posedata['scores']
-            annotations = []
 
             entry = {'keypoints': keypoints,
                      'scores': scores,
@@ -301,7 +306,8 @@ def apply_clf_splits(project):
                      'metadata': assignments[key][k]}
 
             savedata[cfg['project_name']][k] = entry
-
+        with open(os.path.join(project, 'behavior', key + '_data.json'),'w') as f:
+            json.dump(savedata[cfg['project_name']], f)
 
 
 def set_equivalences(project, equivalences):
