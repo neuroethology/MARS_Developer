@@ -264,7 +264,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
 
             T += video_list[video]['anno_dict']['nFrames']
 
-        with open(os.path.join(project, 'behavior', 'train_test_split.json'),'w') as f:
+        with open(os.path.join(project, 'behavior', 'train_test_split.json'), 'w') as f:
             json.dump(assignments, f)
 
     summarize_annotation_split(project)
@@ -283,14 +283,14 @@ def apply_clf_splits(project):
         assignments = json.load(f)
     for idx, key in enumerate(['train', 'test', 'val']):
         print('saving ' + key + ' set...')
-        savedata = {cfg['project_name']: {}}
-        keylist = list(assignments[key].keys())
 
         behs = get_unique_behaviors(assignments[key])
         beh_dict = {'other': 0}
         for i,b in enumerate(behs):
             beh_dict[b] = i + 1
 
+        savedata = {'vocabulary': beh_dict, 'sequences': {cfg['project_name']: {}}}
+        keylist = list(assignments[key].keys())
         for k in keylist:
             anno_dict = map.parse_annotations(assignments[key][k]['anno'])
             annotations = [beh_dict[b] for b in anno_dict['behs_frame']]
@@ -302,12 +302,12 @@ def apply_clf_splits(project):
 
             entry = {'keypoints': keypoints,
                      'scores': scores,
-                     'anntations': annotations,
+                     'annotations': annotations,
                      'metadata': assignments[key][k]}
 
-            savedata[cfg['project_name']][k] = entry
+            savedata['sequences'][cfg['project_name']][k] = entry
         with open(os.path.join(project, 'behavior', key + '_data.json'),'w') as f:
-            json.dump(savedata[cfg['project_name']], f)
+            json.dump(savedata, f)
 
 
 def set_equivalences(project, equivalences):
