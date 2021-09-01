@@ -78,7 +78,8 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         print('  models have been unpacked.')
 
     subfolders = [os.path.join(project, 'annotation_data'), os.path.join(project, 'annotation_data', 'raw_images'),
-                  os.path.join(project, 'annotation_data', 'behavior_movies'), os.path.join(project, 'behavior'),
+                  os.path.join(project, 'annotation_data', 'behavior_movies'),
+                  os.path.join(project, 'behavior'), os.path.join(project, 'behavior', 'behavior_data'),
                   os.path.join(project, 'detection'), os.path.join(project, 'pose')]
     for f in subfolders:
         if not os.path.exists(f):

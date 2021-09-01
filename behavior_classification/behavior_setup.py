@@ -129,7 +129,7 @@ def summarize_annotations(anno_dict):
 def summarize_annotation_split(project):
     splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
-        print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory')
+        print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory.')
         return
 
     with open(splitfile) as f:
@@ -244,6 +244,17 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
     tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
+    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json')):
+        a = 'x'
+        while not a.lower() in ['y', 'n']:
+            a = input('Delete existing train/test splits and reshuffle? (y/n)')
+        if a.lower() == 'y':
+            os.remove(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json'))
+            os.remove(os.path.join(project, 'behavior', 'behavior_jsons', 'test_data.json'))
+            os.remove(os.path.join(project, 'behavior', 'behavior_jsons', 'val_data.json'))
+        else:
+            reshuffle = False
+
     if reshuffle or not os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')):
         if not reshuffle:
             print('Couldn\'t find a saved train/test split, overriding reshuffle=False argument.')
@@ -264,6 +275,8 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
 
             T += video_list[video]['anno_dict']['nFrames']
 
+        if not os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons')):
+            os.mkdir(os.path.join(project, 'behavior', 'behavior_jsons'))
         with open(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json'), 'w') as f:
             json.dump(assignments, f)
 
@@ -273,7 +286,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
 def apply_clf_splits(project):
     splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
-        print('apply_clf_splits failed, couldn\'t find train_test_split.json in the project directory')
+        print('apply_clf_splits failed, please run prep_behavior_data first.')
         return
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
