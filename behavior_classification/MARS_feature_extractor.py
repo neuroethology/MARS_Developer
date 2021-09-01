@@ -1354,15 +1354,12 @@ def append_features(project, progress_bar_sig=''):
 
         keylist = list(data['sequences'][cfg['project_name']].keys())
         for i, k in enumerate(keylist):
-            t = time.time()
+            print('%s (%i/%i): %s' % (key, i+1, len(keylist), k))
             feat = extract_features_top(data['sequences'][cfg['project_name']][k], cfg, progress_bar_sig=progress_bar_sig)
             if feat == []:
                 print('skipping for no feats, something went wrong')
             else:
                 data['sequences'][cfg['project_name']][k]['feats'] = feat
-
-            dt = (time.time() - t) / 60.
-            print('  %s (%i/%i) %s %5.2f mins' % (key, i, len(keylist), k, dt))
 
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'), 'w') as f:
             json.dump(data, f)
