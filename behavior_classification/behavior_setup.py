@@ -127,7 +127,7 @@ def summarize_annotations(anno_dict):
 
 
 def summarize_annotation_split(project):
-    splitfile = os.path.join(project, 'behavior', 'train_test_split.json')
+    splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
         print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory')
         return
@@ -244,7 +244,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
     tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
-    if reshuffle or not os.path.exists(os.path.join(project, 'behavior', 'train_test_split.json')):
+    if reshuffle or not os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')):
         if not reshuffle:
             print('Couldn\'t find a saved train/test split, overriding reshuffle=False argument.')
         keys = list(video_list)
@@ -264,14 +264,14 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
 
             T += video_list[video]['anno_dict']['nFrames']
 
-        with open(os.path.join(project, 'behavior', 'train_test_split.json'), 'w') as f:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json'), 'w') as f:
             json.dump(assignments, f)
 
     summarize_annotation_split(project)
 
 
 def apply_clf_splits(project):
-    splitfile = os.path.join(project, 'behavior', 'train_test_split.json')
+    splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
         print('apply_clf_splits failed, couldn\'t find train_test_split.json in the project directory')
         return
@@ -309,7 +309,7 @@ def apply_clf_splits(project):
                      'metadata': assignments[key][k]}
 
             savedata['sequences'][cfg['project_name']][k] = entry
-        with open(os.path.join(project, 'behavior', key + '_data.json'),'w') as f:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'),'w') as f:
             json.dump(savedata, f)
 
 
