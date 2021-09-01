@@ -22,7 +22,7 @@ import numpy.core.records as npc
 warnings.filterwarnings('ignore')
 sys.path.append('./')
 from Util.genericVideo import *
-from MARS_feature_machinery import *
+from behavior_classification.MARS_feature_machinery import *
 
 
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, Iterable) else (a,)))
