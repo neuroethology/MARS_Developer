@@ -1268,7 +1268,7 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
                 return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
             ######################
-            keypoints = np.array(frames_pose['keypoints'])
+            keypoints = np.array(sequence['keypoints'])
             pts = np.zeros((len(keypoints), 2, 15))
             pts[:, :, :7] = keypoints[:, 0, :, :]
             pts[:, :, 7] = (pts[:, :, 1] + pts[:, :, 2]) / 2.
