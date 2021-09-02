@@ -1181,151 +1181,9 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
                         track['data_smooth'][s, :, indn + p] = track['data'][s, :, indn + p]
                         track['data_smooth'][s, 1:-1, indn + p] = sig.convolve(track['data_smooth'][s, :, indn + p], smooth_kernel, 'valid')
 
-        if 'resh_twd_itrhb' in features:
-            ind = features.index('resh_twd_itrhb')
-
-            # def get_ell_distance(pt, theta):
-            #     # (x,y) coordinate of the nearest point from the intruder's face to an
-            #     # ellipse (intruder's head or body), traveling along a line at angle theta
-            #     # theta = -pi/2 ->  3 o'clock (dead right)
-            #     # theta = 0     -> 12 o'clock (straight ahead)
-            #     # theta = pi/2  ->  9 o'clock (dead left)
-            #
-            #     # (xc,yc) -> centroid of ellipse
-            #     # M -> major axis of ellipse (radius)
-            #     # m -> minor axis of ellipse (radius)
-            #     # s -> orientation of ellipse
-            #     # b -> y-intercept of line
-            #     # k -> slope of line
-            #     theta += np.pi / 2.
-            #
-            #     b = 0
-            #     k = np.tan(theta)
-            #     xc = np.mean(pt[0, :])
-            #     yc = np.mean(pt[1, :])
-            #     m = distance(pt[:, 1], pt[:, 2]) / 2.
-            #     M = distance(pt[:, 0], pt[:, 3]) / 2.
-            #     s = pt[:, 0] - np.array([xc, yc])
-            #     x, y = intercept_ell(xc, yc, s[1] / s[0], m, M, k, b)
-            #
-            #     if (theta > np.pi / 2. and x >= 0) or (theta <= np.pi / 2. and x <= 0):
-            #         x = np.Inf
-            #         y = np.Inf
-            #
-            #     if not np.isreal(x) or not np.isreal(y):
-            #         x = np.Inf
-            #         y = np.Inf
-            #
-            #     return np.array([x, y])
-            #
-            # def intercept_ell(xc, yc, s, m, M, k, b):
-            #     A = (k - s)
-            #     B = (b - yc + s * xc)
-            #     C = (1 + s * k)
-            #     D = (s * b - s * yc - xc)
-            #     w1 = m ** 2 * (1 + s ** 2)
-            #     w2 = M ** 2 * (1 + s ** 2)
-            #
-            #     aa = (A ** 2 / w1 + C ** 2 / w2)
-            #     bb = (2 * A * B / w1 + 2 * C * D / w2)
-            #     cc = (B ** 2 / w1 + D ** 2 / w2 - 1)
-            #
-            #     x1 = (-bb + cmh.sqrt(bb ** 2 - 4 * aa * cc)) / (2 * aa)
-            #     x2 = (-bb - cmh.sqrt(bb ** 2 - 4 * aa * cc)) / (2 * aa)
-            #
-            #     y1 = k * x1 + b
-            #     y2 = k * x2 + b
-            #
-            #     if (cmh.sqrt(x1 ** 2 + y1 ** 2).real < cmh.sqrt(x2 ** 2 + y2 ** 2).real):
-            #         x = x1
-            #         y = y1
-            #     else:
-            #         x = x2
-            #         y = y2
-            #
-            #     return x, y
-            #
-            # def smooths(vin, wsize, sigma):
-            #     wsize = np.array([1, wsize])
-            #     overshoots = np.floor(wsize[1] / 2).astype(int)
-            #     if overshoots * 2 == wsize[1]:
-            #         downshoot = overshoots - 1
-            #         upshoot = overshoots
-            #     else:
-            #         downshoot = overshoots
-            #         upshoot = overshoots
-            #     vout = vin
-            #     x = np.arange(-(wsize[1] - 1) / 2, (wsize[1]) / 2)
-            #     smoothfilt = np.exp(-(x * x) / (2 * sigma))
-            #     smoothfilt = smoothfilt / sum(smoothfilt)
-            #     for hdx in range(vin.shape[0]):
-            #         tvout = np.convolve(vin[hdx, :], smoothfilt, mode='full')
-            #         vout[hdx, :] = tvout[downshoot:len(tvout) - upshoot]
-            #
-            #     return vout
-            #
-            # def distance(p1, p2):
-            #     return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-            #
-            # ######################
-            # keypoints = np.array(sequence['keypoints'])
-            # pts = np.zeros((len(keypoints), 2, 15))
-            # pts[:, :, :7] = keypoints[:, 0, :, :]
-            # pts[:, :, 7] = (pts[:, :, 1] + pts[:, :, 2]) / 2.
-            # pts[:, :, 8:] = keypoints[:, 1, :, :]
-            # pts -= pts[:, :, 7, np.newaxis]
-            # pts[:, :, 2] = smooths(pts[:, :, 2].transpose(), 125, 25).transpose()
-            #
-            # for fr in range(num_frames):
-            #     # rotate all the points so the resident is facing straight ahead (positive
-            #     # direction on y-axis). I define "straight ahead" as making the line between
-            #     # the ears have zero slope- you could equivalently set it so the line from
-            #     # center-eyes to nose has inf slope (or do 0 slope then rotate an additional 90
-            #     # degrees, to avoid numerical treachery.)
-            #     p = pts[fr]
-            #     th = -mh.atan2(p[1, 2], p[0, 2])
-            #     R = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
-            #     p = R.dot(p)
-            #
-            #     # compute distance to closest point on intruder mouse's head and body.
-            #     # Works kind of like ray tracing- over a range of theta, ask what the
-            #     # distance from intruder's head to closest point on the resident is, when
-            #     # you travel along a line at orientation theta.
-            #     #
-            #     # theta = -pi/2 ->  3 o'clock (dead right)
-            #     # theta = 0     -> 12 o'clock (straight ahead)
-            #     # theta = pi/2  ->  9 o'clock (dead left)
-            #     # range of angles to check  (can replace this with thR = 0 if you just want to check straight ahead)
-            #     thR = np.arange(-np.pi * 3 / 4, np.pi / 4 + .01, .02)
-            #     head = np.zeros((2, len(thR)))
-            #     body = np.zeros((2, len(thR)))
-            #     for i, t in enumerate(thR):
-            #         head[:, i] = get_ell_distance(p[:, 8:12], t)
-            #         body[:, i] = get_ell_distance(p[:, 11:], t)
-            #     # convert coordinates to distances:
-            #     dHead = np.array([distance(np.array([0, 0]), head[:, i]) for i in range(head.shape[1])])
-            #     dBody = np.array([distance(np.array([0, 0]), body[:, i]) for i in range(body.shape[1])])
-            #     dMouse = np.minimum(dHead, dBody)
-            #
-            #     # find if there are point of interception
-            #     pp = np.where(dMouse != np.Inf)[0]
-            #     if pp.size: track['data'][:, fr, ind] = 1
-            #     # part = np.zeros(len(dMouse))
-            #     # for i in range(len(dMouse)):    part[i] = 1 if dMouse[i] == dHead[i] else 2
-            #     # int_points = np.zeros((2, len(pp)))
-            #     # for i in range(len(pp)):  int_points[:, i] = head[:, pp[i]] if part[pp[i]] == 1 else body[:, pp[i]]
-
-            track['data_smooth'][:, :, ind] = track['data'][:, :, ind]
-
         del track['data']
         bar.finish()
-        # augment features
 
-
-        # del track['bbox']
-        # del track['bbox_front']
-        # del track['keypoints']
-        # del track['keypoints_front']
         reader.close()
         return track
     except Exception as e:
@@ -1343,7 +1201,7 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
         return []
 
 
-def append_features(project, progress_bar_sig=''):
+def extract_features(project, progress_bar_sig=''):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -1352,14 +1210,16 @@ def append_features(project, progress_bar_sig=''):
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
             data = json.load(f)
 
+        feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
         keylist = list(data['sequences'][cfg['project_name']].keys())
         for i, k in enumerate(keylist):
             print('%s (%i/%i): %s' % (key, i+1, len(keylist), k))
-            feat = extract_features_top(data['sequences'][cfg['project_name']][k], cfg, progress_bar_sig=progress_bar_sig)
-            if feat == []:
+            feat_dict = extract_features_top(data['sequences'][cfg['project_name']][k], cfg, progress_bar_sig=progress_bar_sig)
+            if feat_dict == []:
                 print('skipping for no feats, something went wrong')
             else:
-                data['sequences'][cfg['project_name']][k]['feats'] = feat
+                feats['feature_names'] = feat_dict['features']
+                feats['sequences'][cfg['project_name']][k]['features'] = feat_dict['data_smooth'].tolist()
 
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'), 'w') as f:
-            json.dump(data, f)
+            json.dump(feats, f)
