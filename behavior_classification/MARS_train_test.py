@@ -151,7 +151,7 @@ def quick_loader(filename, keep_labels):
     return data, names, labels
 
 
-def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=0, do_wnd=False, do_cwt=False):
+def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True, do_wnd=False, do_cwt=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -171,33 +171,40 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=0, d
     keylist = list(data['sequences'][cfg['project_name']].keys())
     data_stack = []
     annot_raw = []
-    for i, k in enumerate(keylist()):
+    for i, k in enumerate(keylist):
         if verbose:
             print('  preprocessing %s (%d/%d)' % (dataset, i+1, len(keylist)))
-        d = mts.clean_data(data['sequences'][cfg['project_name']][k]['features'])
-        a = data['sequences'][cfg['project_name']][k]['annotations']
-        if len(annot_raw) != d.shape[0]:
-            print('Length mismatch: %s %d %d' % (k, len(a), d.shape[0]))
+        feats = np.array(data['sequences'][cfg['project_name']][k]['features'])
+        feats = np.swapaxes(feats, 0, 1)
+        feats = mts.clean_data(feats)
+        annots = data['sequences'][cfg['project_name']][k]['annotations']
+        if len(annots) != feats.shape[0]:
+            print('Length mismatch: %s %d %d' % (k, len(annots), d.shape[0]))
             print('Extra frames will be trimmed from the end of the sequence.')
-            if len(a) > d.shape[0]:
-                a = a[:d.shape[0]]
+            if len(annots) > feats.shape[0]:
+                annots = annots[:feats.shape[0]]
             else:
-                d = d[:len(a)]
+                feats = feats[:len(annots), :, :]
 
         if do_wnd:
-            d = mts.apply_windowing(d, cfg['framerate'])
+            feats = mts.apply_windowing(feats, cfg['framerate'])
         elif do_cwt:
-            d = mts.apply_wavelet_transform(d)
+            feats = mts.apply_wavelet_transform(feats)
 
         if drop:
-            if drop in equivalences.keys():
-                drop_list = [data['vocabulary'][i] for i in equivalences[drop]]
-            else:
-                drop_list = [data['vocabulary'][drop]]
-            a = [i for i in a if i not in drop_list]
-            d = [i for i in d if i not in drop_list]
-        annot_raw.append(a)
-        data_stack.append(d)
+            if not isinstance(drop,list):
+                drop = [drop]
+            drop_list = []
+            for d in drop:
+                if d in equivalences.keys():
+                    drop_list += [data['vocabulary'][i] for i in equivalences[d]]
+                else:
+                    drop_list.append(data['vocabulary'][d])
+            keep_inds = [i for i,_annots in enumerate(annots) if _annots not in drop_list]
+            annots = annots[keep_inds]
+            feats = feats[keep_inds,:,:]
+        annot_raw += annots
+        data_stack.append(feats)
     if verbose:
         print('all sequences processed')
     data_stack = np.concatenate(data_stack, axis=0)
@@ -205,9 +212,9 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=0, d
     if verbose:
         print('processing annotations...')
     annot_clean = {}
-    for label_name in keep_labels.keys():
+    for label_name in keep_labels:
         if label_name in equivalences.keys():
-            hit_list = [data['vocabulary'][i] for i in equivalences[label_name]]
+            hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
         else:
             hit_list = [data['vocabulary'][label_name]]
         annot_clean[label_name] = [1 if i in hit_list else 0 for i in annot_raw]
