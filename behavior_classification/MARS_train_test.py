@@ -31,130 +31,67 @@ lcat = lambda L: [i for j in L for i in j]
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
 
 
-def load_default_parameters():
-    default_params = {'clf_type': 'xgb',
-                      'feat_type': 'top',  # keep this to just top for now
-                      'downsample_rate': 1,  # temporal downsampling applied to training data
-                      'smk_kn': np.array([0.5, 0.25, 0.5]),
-                      'blur': 4,
-                      'shift': 4,
-                      'do_wnd': False,
-                      'do_cwt': False,
-                      'early_stopping': 20,  # set to zero to turn off early stopping
-                      'clf_path_hardcoded': ''
-                      }
-
-    # in addition to these parameters, you can also store classifier-specific parameters in clf_params.
-    # default values for those are defined below in choose_classifier.
-
-    return default_params
-
-
-def clf_suffix(clf_type='xgb', clf_params=dict()):
-    
-    if clf_type.lower() == 'mlp':
+def clf_suffix(clf_params):
+    if clf_params['clf_type'].lower() == 'mlp':
         suff = '_layers' + '-'.join(clf_params['hidden_layer_sizes']) if 'hidden_layer_sizes' in clf_params.keys() else ''
         suff = suff + '/'
-    else:
-        if not clf_type.lower() == 'xgb':
-            print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_type)
 
+    elif clf_params['clf_type'].lower() == 'xgb':
+        suff = '_es' + str(clf_params['early_stopping']) if 'early_stopping' in clf_params.keys() else ''
+        suff = suff + '_depth' + str(clf_params['max_depth']) if 'max_depth' in clf_params.keys() else suff
+        suff = suff + '_child' + str(
+            clf_params['min_child_weight']) if 'min_child_weight' in clf_params.keys() else suff
+
+    else:  # defaults to xgb
         suff = '_es' + str(clf_params['early_stopping']) if 'early_stopping' in clf_params.keys() else ''
         suff = suff + '_depth' + str(clf_params['max_depth']) if 'max_depth' in clf_params.keys() else suff
         suff = suff + '_child' + str(clf_params['min_child_weight']) if 'min_child_weight' in clf_params.keys() else suff
-        suff = suff + '_wnd' if clf_params['do_wnd'] else suff
-        suff = suff + '_cwt' if clf_params['do_cwt'] else suff
-        suff = suff + '_' + str(clf_params['user_suff']) if 'user_suff' in clf_params.keys() else suff
-        suff = suff + '/'
-    
+
+    suff = suff + '_wnd' if clf_params['do_wnd'] else suff
+    suff = suff + '_cwt' if clf_params['do_cwt'] else suff
+    suff = suff + '_' + str(clf_params['user_suff']) if 'user_suff' in clf_params.keys() else suff
+    suff = suff + '/'
     return suff
 
 
-def choose_classifier(clf_type='xgb', clf_params=dict()):
-    
-    MLPdefaults = {'hidden_layer_sizes': (256, 512),
-                   'learning_rate_init': 0.001,
-                   'learning_rate': 'adaptive',
-                   'max_iter': 100000,
-                   'alpha': 0.0001}
+def unpack_params(clf_params, clf_type):
+    with open('clf_defaults.yaml') as f:
+        defaults = yaml.load(f, Loader=yaml.FullLoader)
+    params = {}
+    for k in defaults[clf_type].keys():
+        if k in clf_params.keys():
+            params[k] = clf_params[k]
+        else:
+            params[k] = defaults[clf_type][k]
+    return params
 
-    XGBdefaults = {'n_estimators': 2000,
-                   'eta': 0.1,
-                   'max_depth': 9,
-                   'gamma': 1,
-                   'min_child_weight': 4,
-                   'subsample': 0.8,
-                   'scale_pos_weight': 1,
-                   'colsample_bytree': 0.8,
-                   'max_bin': 256,
-                   # 'objective': 'binary:logistic',
-                   'tree_method': 'hist',
-                   'silent': 1,
-                   'seed': 33
-                   }
 
-    # insert defaults for other classifier types here!
+def choose_classifier(clf_params):
+    if clf_params['clf_type'].lower() == 'mlp':
+        params = unpack_params(clf_params, 'mlp_defaults')
+        mlp = MLPClassifier(**params)
+        clf = BaggingClassifier(mlp, max_samples=0.1, n_jobs=3, random_state=7, verbose=0)
 
-    if clf_type.lower() == 'mlp':
-        for k in MLPdefaults.keys():
-            if not k in clf_params.keys():
-                clf_params[k] = MLPdefaults[k]
-
-        mlp = MLPClassifier(solver='adam',
-                            alpha=clf_params['alpha'],
-                            hidden_layer_sizes=clf_params['hidden_layer_sizes'],
-                            learning_rate=clf_params['learning_rate'],
-                            max_iter=clf_params['max_iter'],
-                            learning_rate_init=clf_params['learning_rate_init'],
-                            verbose=0,
-                            random_state=1
-                            )
-        clf = BaggingClassifier(mlp, max_samples=.1, n_jobs=3, random_state=7, verbose=0)
+    elif clf_params['clf_type'].lower() == 'xgb':
+        params = unpack_params(clf_params, 'xgb_defaults')
+        clf = XGBClassifier(**params)
 
     else:
-        if not clf_type.lower() == 'xgb':
-            print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_type)
-
-        for k in XGBdefaults.keys():
-            if not k in clf_params.keys():
-                clf_params[k] = XGBdefaults[k]
-
-        clf = XGBClassifier(n_estimators=clf_params['n_estimators'],
-                            eta=clf_params['eta'],
-                            max_depth=clf_params['max_depth'],
-                            gamma=clf_params['gamma'],
-                            min_child_weight=clf_params['min_child_weight'],
-                            subsample=clf_params['subsample'],
-                            scale_pos_weight=clf_params['scale_pos_weight'],
-                            colsample_bytree=clf_params['colsample_bytree'],
-                            max_bin=clf_params['max_bin'],
-                            objective=clf_params['objective'],
-                            tree_method=clf_params['tree_method'],
-                            silent=clf_params['silent'],
-                            seed=clf_params['seed']
-                            )
-
+        print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_params['clf_type'])
+        params = unpack_params(clf_params, 'xgb_defaults')
+        clf = XGBClassifier(**params)
     return clf
 
 
-def quick_loader(filename, keep_labels):
-    temp = np.load(filename, allow_pickle=True)
-    data = temp['data']
-    names = temp['names']
-    behList = temp['behList']
-    all_keep = []
-    for i in keep_labels.keys():
-        all_keep += keep_labels[i] 
-    labels = []
-    for beh in behList:
-        labels += map.merge_channels(beh['behs_bout'], beh['keys'], len(beh['behs_frame']), target_behaviors = all_keep)
-    return data, names, labels
-
-
-def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True, do_wnd=False, do_cwt=False):
-    config_fid = os.path.join(project, 'project_config.yaml')
-    with open(config_fid) as f:
+def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
+    with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
+    with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
+        clf_params = yaml.load(f, Loader=yaml.FullLoader)
+    with open(os.path.join(project, 'behavior', 'behavior_equivalences.yaml')) as f:
+        equivalences = yaml.load(f, Loader=yaml.FullLoader)
+        if equivalences is None:
+            equivalences = {}
 
     if dataset in ['train', 'test', 'val']:
         with open(os.path.join(project, 'behavior', 'behavior_jsons', dataset + '_features.json')) as f:
@@ -162,7 +99,7 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True
     else:
         print('dataset must be train, test, or val.')
         return
-    for label in keep_labels:
+    for label in train_behaviors:
         if label not in data['vocabulary']:
             print('Error: target behavior ' + label + ' not found in this dataset.\nAvailable labels:')
             print(list(data['vocabulary'].keys()))
@@ -172,7 +109,7 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True
     data_stack = []
     annot_raw = []
     for i, k in enumerate(keylist):
-        if verbose:
+        if clf_params['verbose']:
             print('  preprocessing %s (%d/%d)' % (dataset, i+1, len(keylist)))
         feats = np.array(data['sequences'][cfg['project_name']][k]['features'])
         feats = np.swapaxes(feats, 0, 1)
@@ -186,16 +123,16 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True
             else:
                 feats = feats[:len(annots), :, :]
 
-        if do_wnd:
+        if clf_params['do_wnd']:
             feats = mts.apply_windowing(feats, cfg['framerate'])
-        elif do_cwt:
+        elif clf_params['do_cwt']:
             feats = mts.apply_wavelet_transform(feats)
 
-        if drop:
-            if not isinstance(drop,list):
-                drop = [drop]
+        if drop_behaviors:
+            if not isinstance(drop_behaviors, list):
+                drop_behaviors = [drop_behaviors]
             drop_list = []
-            for d in drop:
+            for d in drop_behaviors:
                 if d in equivalences.keys():
                     drop_list += [data['vocabulary'][i] for i in equivalences[d]]
                 else:
@@ -205,14 +142,14 @@ def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=True
             feats = feats[keep_inds,:,:]
         annot_raw += annots
         data_stack.append(feats)
-    if verbose:
+    if clf_params['verbose']:
         print('all sequences processed')
     data_stack = np.concatenate(data_stack, axis=0)
 
-    if verbose:
+    if clf_params['verbose']:
         print('processing annotations...')
     annot_clean = {}
-    for label_name in keep_labels:
+    for label_name in train_behaviors:
         if label_name in equivalences.keys():
             hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
         else:
@@ -454,73 +391,58 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0):
     return gt, proba, preds, preds_fbs_hmm, proba_fbs_hmm
 
 
-def train_classifier(behs, video_path, train_videos, eval_videos=[], clf_params={}, ver=[7, 8], verbose=0):
+def train_classifier(project, train_behaviors, drop_behaviors=[]):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     # unpack user-provided classification parameters, and use default values for those not provided.
-    default_params = load_default_parameters()
-    for k in default_params.keys():
-        if k not in clf_params.keys():
-            clf_params[k] = default_params[k]
-
-    # determine which classifier type we're training, which features we're using, and what windowing to use:
-    clf_type = clf_params['clf_type']
-    feat_type = clf_params['feat_type']
-    do_wnd = clf_params['do_wnd']
-    do_cwt = clf_params['do_cwt']
+    config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
+    with open(config_fid) as f:
+        clf_params = yaml.load(f, Loader=yaml.FullLoader)
 
     if not (clf_params['downsample_rate']==int(clf_params['downsample_rate'])):
-        print('Training set downsampling rate must be an integer; reverting to default value.')
-        clf_params['downsample_rate'] = default_params['downsample_rate']
+        print('Training set downsampling rate must be an integer; reverting to default value of 1.')
+        clf_params['downsample_rate'] = 1
 
     # now create the classifier and give it an informative name:
-    classifier = choose_classifier(clf_type, clf_params)
-    suff = clf_suffix(clf_type, clf_params)
-    classifier_name = feat_type + '_' + clf_type + suff
-    folder = 'mars_v1_' + str(ver[-1])
-    savedir = os.path.join('trained_classifiers',folder, classifier_name)
+    classifier = choose_classifier(clf_params)
+    classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
+
+    savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
     if not os.path.exists(savedir): os.makedirs(savedir)
     print('Training classifier: ' + classifier_name.upper())
 
-    f = open(savedir + '/log_selection.txt', 'w')
-
     print('loading training data')
-    X_tr, y_tr, features = load_data(video_path, train_videos, behs, ver=ver, feat_type=feat_type,
-                                     verbose=verbose,do_wnd=do_wnd, do_cwt=do_cwt)
+    X_tr, y_tr = load_data(project, 'train', train_behaviors, drop_behaviors=drop_behaviors)
 
-    if eval_videos:
-        print('loading validation data')
-        X_ev, y_ev, features = load_data(video_path, eval_videos, behs, ver=ver, feat_type=feat_type,
-                                         verbose=verbose, do_wnd=do_wnd, do_cwt=do_cwt)
-    else:
-        X_ev = []
-        y_ev = []
+    print('loading validation data')
+    X_ev, y_ev = load_data(project, 'val', train_behaviors, drop_behaviors=drop_behaviors)
+
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
 
     # train each classifier in a loop:
-    for b,beh_name in enumerate(behs.keys()):
+    for b, beh_name in enumerate(train_behaviors.keys()):
         print('######################### %s #########################' % beh_name)
         beh_classifier = {'beh_name': beh_name,
                           'beh_id': b + 1,
                           'clf': classifier,
                           'params': clf_params}
-        results = do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose)
+        results = do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, clf_params['verbose'])
 
     print('done training!')
     return results
 
 
-def test_classifier(behs, video_path, test_videos, clf_params={}, ver=[7,8], verbose=0, doPRC=0):
-
-    default_params = load_default_parameters()
-    for k in default_params.keys():
-        if k not in clf_params.keys():
-            clf_params[k] = default_params[k]
+def test_classifier(project, behs, video_path, test_videos, clf_params={}, ver=[7,8], verbose=0, doPRC=0):
+    config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
+    with open(config_fid) as f:
+        clf_params = yaml.load(f, Loader=yaml.FullLoader)
 
     clf_type = clf_params['clf_type']
     feat_type = clf_params['feat_type']
     do_wnd = clf_params['do_wnd']
     do_cwt = clf_params['do_cwt']
-    print(clf_params)
 
     if clf_params['clf_path_hardcoded'] is not '':
         savedir = clf_params['clf_path_hardcoded']
@@ -574,23 +496,21 @@ def test_classifier(behs, video_path, test_videos, clf_params={}, ver=[7,8], ver
     sio.savemat(savedir + 'results.mat', P)
 
 
-def run_classifier(behs, video_path, test_videos, test_annot, clf_params={}, save_path=[], ver=[7,8], verbose=0):
+def run_classifier(project, behs, video_path, test_videos, test_annot, clf_params={}, save_path=[], ver=[7,8], verbose=0):
     # this code actually saves *.annot files containing the raw predictions of the trained classifier,
     # instead of just giving you the precision and recall. You can load these *.annot files in Bento
-    # along with the *.seq movies to inspect behavior labels by eye.
+    # along with the movies to inspect behavior labels by eye.
     #
     # Unlike test_classifier, this function runs classification on each video separately.
 
-    default_params = load_default_parameters()
-    for k in default_params.keys():
-        if k not in clf_params.keys():
-            clf_params[k] = default_params[k]
+    config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
+    with open(config_fid) as f:
+        clf_params = yaml.load(f, Loader=yaml.FullLoader)
 
     clf_type = clf_params['clf_type']
     feat_type = clf_params['feat_type']
     do_wnd = clf_params['do_wnd']
     do_cwt = clf_params['do_cwt']
-    print(clf_params)
 
     suff = clf_suffix(clf_type, clf_params)
     classifier_name = feat_type + '_' + clf_type + suff

@@ -1,0 +1,13 @@
+
+clf_params:
+  clf_type: 'xgb'
+  feat_type: 'top'  # keep this to just top for now
+  downsample_rate: 1  # temporal downsampling applied to training data
+  smk_kn: np.array([0.5, 0.25, 0.5])
+  blur: 4
+  shift: 4
+  do_wnd: False
+  do_cwt: False
+  early_stopping: 20  # set to zero to turn off early stopping
+  clf_path_hardcoded: ''
+  verbose: True
