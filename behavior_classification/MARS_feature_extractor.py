@@ -1219,7 +1219,7 @@ def extract_features(project, progress_bar_sig=''):
                 print('skipping for no feats, something went wrong')
             else:
                 feats['feature_names'] = feat_dict['features']
-                feats['sequences'][cfg['project_name']][k]['features'] = feat_dict['data_smooth'].tolist()
+                feats['sequences'][cfg['project_name']][k] = {'features': feat_dict['data_smooth'].tolist()}
 
-        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'), 'w') as f:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
             json.dump(feats, f)
