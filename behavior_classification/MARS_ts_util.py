@@ -9,11 +9,8 @@ from sklearn.ensemble import BaggingClassifier
 from hmmlearn import hmm
 import scipy
 from scipy import signal
-import annotation_parsers as map
 import pywt
 from scipy.signal import medfilt
-import progressbar
-import multiprocessing as mp
 
 
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
