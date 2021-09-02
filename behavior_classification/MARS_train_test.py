@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import binarize
 import dill
+import json
+import yaml
 import time
 from sklearn.ensemble import BaggingClassifier
 from hmmlearn import hmm
@@ -29,27 +31,6 @@ lcat = lambda L: [i for j in L for i in j]
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
 
 
-def get_beh_dict(behavior):
-    behs = {'sniff_face':       ['sniffface', 'snifface', 'sniff-face', 'sniff_face', 'head-investigation','facesniffing'],
-            'sniff_genital':    ['sniffurogenital','sniffgenitals','sniff_genitals','sniff-genital','sniff_genital',
-                                    'anogen-investigation'],
-            'sniff_body':       ['sniff_body','sniffbody','bodysniffing','body-investigation','socialgrooming',
-                                    'sniff-body','closeinvestigate','closeinvestigation','investigation'],
-            'closeinvestigation': ['sniffface', 'snifface', 'sniff-face', 'sniff_face', 'head-investigation','facesniffing',
-                                    'sniffurogenital','sniffgenitals','sniff_genitals','sniff-genital','sniff_genital',
-                                    'anogen-investigation','sniff_body', 'sniffbody', 'bodysniffing', 'body-investigation',
-                                    'socialgrooming','sniff-body', 'closeinvestigate', 'closeinvestigation', 'investigation',
-                                    'investigate','first_inv','aggressive_investigation','attack_attempt','mount_attempt','dom_mount_attempt'],
-            'mount':            ['mount','aggressivemount','intromission','dom_mount','ejaculate','ejuculation'],
-            'attack':           ['attack','attempted_attack','chase']}
-    
-    if behavior.lower() in behs.keys():
-        return {behavior: behs[behavior.lower()]}
-    else:
-        print('I didn''t recognize that behavior, aborting')
-        return {}
-
-
 def load_default_parameters():
     default_params = {'clf_type': 'xgb',
                       'feat_type': 'top',  # keep this to just top for now
@@ -59,7 +40,7 @@ def load_default_parameters():
                       'shift': 4,
                       'do_wnd': False,
                       'do_cwt': False,
-                      'early_stopping': 20, # set to zero to turn off early stopping
+                      'early_stopping': 20,  # set to zero to turn off early stopping
                       'clf_path_hardcoded': ''
                       }
 
@@ -170,131 +151,69 @@ def quick_loader(filename, keep_labels):
     return data, names, labels
 
 
-def load_data(video_path, video_list, keep_labels, ver=[7, 8], feat_type='top', verbose=0, do_wnd=False, do_cwt=False, save_after=True):
-    data = []
-    labels = []
-    behList = []
-    feature_savefile = '_'.join(list(set([os.path.dirname(i) for i in video_list]))) + '_' + feat_type
-    feature_savefile = feature_savefile+'_wnd' if do_wnd else feature_savefile+'_cwt' if do_cwt else feature_savefile
-    feature_savefile = feature_savefile + '_v1_' + str(ver[-1])
+def load_data(project, dataset, equivalences, keep_labels, drop=[], verbose=0, do_wnd=False, do_cwt=False):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-    if os.path.exists(os.path.join(video_path, feature_savefile + '.npz')):
-        if verbose:
-            print('    quick-loading from file')
-        data, names, labels = quick_loader(os.path.join(video_path, feature_savefile + '.npz'), keep_labels)
-
+    if dataset in ['train', 'test', 'val']:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', dataset + '_features.json')) as f:
+            data = json.load(f)
     else:
-        for v in video_list:
-            vbase = os.path.basename(v)
-            vbase2 = '_'.join(vbase.split('_')[:-1])
-            vid = []
-            seq = []
+        print('dataset must be train, test, or val.')
+        return
+    for label in keep_labels:
+        if label not in data['vocabulary']:
+            print('Error: target behavior ' + label + ' not found in this dataset.\nAvailable labels:')
+            print(list(data['vocabulary'].keys()))
+            return
 
-            for file in os.listdir(os.path.join(video_path, v)):
-                if (fnmatch.fnmatch(file, '*.txt') and not fnmatch.fnmatch(file, '*OutputLikelihood.txt')) or fnmatch.fnmatch(file, '*.annot'):
-                    ann = file
-                elif fnmatch.fnmatch(file, '*.seq'):
-                    seq = os.path.join(video_path, v, file)
-
-            # we load exact frame timestamps for *.annot files to make sure we get the time->frame conversion correct
-            #if fnmatch.fnmatch(ann, '*.annot') and seq:
-            #    sr = seqIo_reader(seq)
-            #    timestamps = sr.getTs()
-            #else:
-            timestamps = []
-
-            for version in ver:
-                fstr = os.path.join(video_path, v, vbase + '_raw_feat_%s_v1_%d.npz' % (feat_type, version))
-                fstr2 = os.path.join(video_path, v, vbase2 + '_raw_feat_%s_v1_%d.npz' % (feat_type, version))
-                if os.path.isfile(fstr):
-                    vid = np.load(open(fstr, 'rb'))
-                    if verbose:
-                        print('loaded file: ' + os.path.basename(fstr))
-                elif os.path.isfile(fstr2):
-                    vid = np.load(open(fstr2, 'rb'))
-                    if verbose:
-                        print('loaded file: ' + os.path.basename(fstr2))
-
-            if not vid:
-                print('Feature file not found for %s' % vbase)
+    keylist = list(data['sequences'][cfg['project_name']].keys())
+    data_stack = []
+    annot_raw = []
+    for i, k in enumerate(keylist()):
+        if verbose:
+            print('  preprocessing %s (%d/%d)' % (dataset, i+1, len(keylist)))
+        d = mts.clean_data(data['sequences'][cfg['project_name']][k]['features'])
+        a = data['sequences'][cfg['project_name']][k]['annotations']
+        if len(annot_raw) != d.shape[0]:
+            print('Length mismatch: %s %d %d' % (k, len(a), d.shape[0]))
+            print('Extra frames will be trimmed from the end of the sequence.')
+            if len(a) > d.shape[0]:
+                a = a[:d.shape[0]]
             else:
-                names = vid['features'].tolist()
-                if 'data_smooth' in vid.keys():
-                    d = vid['data_smooth']
-                    d = mts.clean_data(d)
-                    d = mts.normalize_pixel_data(d,'top')
-                    d = mts.clean_data(d)
-                    n_feat = d.shape[2]
+                d = d[:len(a)]
 
-                    # we remove some features that have the same value for both mice (hardcoded for now, shaaame)
-                    # featToKeep = lcat([range(39), range(49, 58), [59, 61, 62, 63], range(113, n_feat)])
-                    featToKeep = list(flatten([range(39), range(42, 58), 59, 61, 62, 63, range(113, n_feat)]))
+        if do_wnd:
+            d = mts.apply_windowing(d, cfg['framerate'])
+        elif do_cwt:
+            d = mts.apply_wavelet_transform(d)
 
-                    d = np.hstack((d[0, :, :], d[1, :, featToKeep].transpose()))
-                    names_r = np.array(['1_' + f for f in names])
-                    names_i = np.array(['2_' + names[f] for f in featToKeep])
-                    names = np.concatenate((names_r, names_i)).tolist()
-
-                    # for this project, we also remove raw pixel-based features to keep things simple
-                    # d = mts.remove_pixel_data(d, 'top')
-                    # names = mts.remove_pixel_data(names, 'top')
-
-                else: # this is for features created with MARS_feature_extractor (which currently doesn't build data_smooth)
-                    d = vid['data']
-                    d = mts.clean_data(d)
-
-                if do_wnd:
-                    d = mts.apply_windowing(d)
-                    feats_wnd_names=[]
-                    fn = ['min','max','mean','std']
-                    win=[3,11,21]
-                    for f in names:
-                        for w in win:
-                            for x in fn:
-                                feats_wnd_names.append('_'.join([f,str(w),x]))
-                    names = feats_wnd_names
-
-                elif do_cwt:
-                    d = mts.apply_wavelet_transform(d)
-                data.append(d)
-
-                beh = map.parse_annotations(os.path.join(video_path, v, ann), timestamps=timestamps)
-                if len(beh['behs_frame']) == 1+d.shape[0]: # this happens sometimes?
-                    beh['behs_frame'] = beh['behs_frame'][:-1]
-                all_keep = []
-                for i in keep_labels.keys():
-                    all_keep += keep_labels[i]
-                labels += map.merge_channels(beh['behs_bout'], beh['keys'], len(beh['behs_frame']), target_behaviors = all_keep)
-                behList += [beh]
-
-                if len(beh['behs_frame']) != d.shape[0]:
-                    print('Length mismatch: %s %d %d' % (v, len(beh['behs_frame']), d.shape[0]))
-        if not data:
-            print('No feature files found')
-            return [], [], []
-        if (verbose):
-            print('all files loaded')
-
-        data = np.concatenate(data, axis=0)
+        if drop:
+            if drop in equivalences.keys():
+                drop_list = [data['vocabulary'][i] for i in equivalences[drop]]
+            else:
+                drop_list = [data['vocabulary'][drop]]
+            a = [i for i in a if i not in drop_list]
+            d = [i for i in d if i not in drop_list]
+        annot_raw.append(a)
+        data_stack.append(d)
+    if verbose:
+        print('all sequences processed')
+    data_stack = np.concatenate(data_stack, axis=0)
 
     if verbose:
-        print('    processing annotation files')
-    y = {}
+        print('processing annotations...')
+    annot_clean = {}
     for label_name in keep_labels.keys():
-        y_temp = np.array([]).astype(int)
-        for i in labels:
-            y_temp = np.append(y_temp, 1) if i in keep_labels[label_name] else np.append(y_temp, 0)
-        y[label_name] = y_temp
-
-    if save_after and not os.path.exists(os.path.join(video_path, feature_savefile + '.npz')):
-        if verbose:
-            print('    saving processed data for future use')
-        saveData = {'data': data, 'names': names, 'behList': behList}
-        np.savez(os.path.join(video_path, feature_savefile), **saveData)
-
+        if label_name in equivalences.keys():
+            hit_list = [data['vocabulary'][i] for i in equivalences[label_name]]
+        else:
+            hit_list = [data['vocabulary'][label_name]]
+        annot_clean[label_name] = [1 if i in hit_list else 0 for i in annot_raw]
     print('done!\n')
-
-    return data, y, names
+    
+    return data_stack, annot_clean
 
 
 def assign_labels(all_predicted_probabilities, behaviors_used):
@@ -564,7 +483,7 @@ def train_classifier(behs, video_path, train_videos, eval_videos=[], clf_params=
     if eval_videos:
         print('loading validation data')
         X_ev, y_ev, features = load_data(video_path, eval_videos, behs, ver=ver, feat_type=feat_type,
-                                         verbose=verbose,do_wnd=do_wnd, do_cwt=do_cwt)
+                                         verbose=verbose, do_wnd=do_wnd, do_cwt=do_cwt)
     else:
         X_ev = []
         y_ev = []

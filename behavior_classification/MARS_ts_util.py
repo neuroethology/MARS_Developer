@@ -25,9 +25,9 @@ def clean_data(data):
     if idx[0].size>0:
         for j in range(len(idx[0])):
             if idx[0][j] == 0:
-                data[idx[0][j], idx[1][j],idx[2][j]] = 0.
+                data[idx[0][j], idx[1][j], idx[2][j]] = 0.
             else:
-                data[idx[0][j], idx[1][j],idx[2][j]] = data[idx[0][j] - 1, idx[1][j],idx[2][j]]
+                data[idx[0][j], idx[1][j], idx[2][j]] = data[idx[0][j] - 1, idx[1][j], idx[2][j]]
     return data
 
 
