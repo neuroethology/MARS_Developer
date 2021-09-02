@@ -422,7 +422,7 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
 
     # train each classifier in a loop:
-    for b, beh_name in enumerate(train_behaviors.keys()):
+    for b, beh_name in enumerate(train_behaviors):
         print('######################### %s #########################' % beh_name)
         beh_classifier = {'beh_name': beh_name,
                           'beh_id': b + 1,
