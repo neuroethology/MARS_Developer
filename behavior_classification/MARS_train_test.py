@@ -55,7 +55,8 @@ def clf_suffix(clf_params):
 
 
 def unpack_params(clf_params, clf_type):
-    with open('clf_defaults.yaml') as f:
+    
+    with open(os.path.join('behavior_classification','clf_defaults.yaml')) as f:
         defaults = yaml.load(f, Loader=yaml.FullLoader)
     params = {}
     for k in defaults[clf_type].keys():
@@ -108,9 +109,9 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
     keylist = list(data['sequences'][cfg['project_name']].keys())
     data_stack = []
     annot_raw = []
+    if clf_params['verbose']:
+        print('applying filters...')
     for i, k in enumerate(keylist):
-        if clf_params['verbose']:
-            print('  preprocessing %s (%d/%d)' % (dataset, i+1, len(keylist)))
         feats = np.array(data['sequences'][cfg['project_name']][k]['features'])
         feats = np.swapaxes(feats, 0, 1)
         feats = mts.clean_data(feats)
@@ -127,6 +128,8 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
             feats = mts.apply_windowing(feats, cfg['framerate'])
         elif clf_params['do_cwt']:
             feats = mts.apply_wavelet_transform(feats)
+        else:
+            feats = np.concatenate((feats[:,0,:],feats[:,1,:]),axis=1)
 
         if drop_behaviors:
             if not isinstance(drop_behaviors, list):
@@ -139,7 +142,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
                     drop_list.append(data['vocabulary'][d])
             keep_inds = [i for i,_annots in enumerate(annots) if _annots not in drop_list]
             annots = annots[keep_inds]
-            feats = feats[keep_inds,:,:]
+            feats = feats[keep_inds,:]
         annot_raw += annots
         data_stack.append(feats)
     if clf_params['verbose']:
@@ -400,7 +403,7 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
     config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
     with open(config_fid) as f:
         clf_params = yaml.load(f, Loader=yaml.FullLoader)
-
+    
     if not (clf_params['downsample_rate']==int(clf_params['downsample_rate'])):
         print('Training set downsampling rate must be an integer; reverting to default value of 1.')
         clf_params['downsample_rate'] = 1
@@ -413,10 +416,10 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
     if not os.path.exists(savedir): os.makedirs(savedir)
     print('Training classifier: ' + classifier_name.upper())
 
-    print('loading training data')
+    print('loading training data...')
     X_tr, y_tr = load_data(project, 'train', train_behaviors, drop_behaviors=drop_behaviors)
 
-    print('loading validation data')
+    print('loading validation data...')
     X_ev, y_ev = load_data(project, 'val', train_behaviors, drop_behaviors=drop_behaviors)
 
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
