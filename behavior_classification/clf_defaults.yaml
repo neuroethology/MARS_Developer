@@ -1,0 +1,23 @@
+mlp_defaults:
+  solver: 'adam'
+  alpha: 0.0001
+  hidden_layer_sizes: (256, 512)
+  learning_rate: 'adaptive'
+  max_iter: 100000
+  learning_rate_init: 0.001
+  verbose: 0
+  random_state: 1
+
+xgb_defaults:
+  n_estimators: 2000
+  eta: 0.1
+  max_depth': 9
+  gamma': 1
+  min_child_weight': 4
+  subsample': 0.8
+  scale_pos_weight': 1
+  colsample_bytree': 0.8
+  max_bin': 256
+  tree_method': 'hist'
+  silent': 1
+  seed': 33

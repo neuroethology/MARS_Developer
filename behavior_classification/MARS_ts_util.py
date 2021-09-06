@@ -9,11 +9,8 @@ from sklearn.ensemble import BaggingClassifier
 from hmmlearn import hmm
 import scipy
 from scipy import signal
-import MARS_annotation_parsers as map
 import pywt
 from scipy.signal import medfilt
-import progressbar
-import multiprocessing as mp
 
 
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
@@ -25,9 +22,9 @@ def clean_data(data):
     if idx[0].size>0:
         for j in range(len(idx[0])):
             if idx[0][j] == 0:
-                data[idx[0][j], idx[1][j],idx[2][j]] = 0.
+                data[idx[0][j], idx[1][j], idx[2][j]] = 0.
             else:
-                data[idx[0][j], idx[1][j],idx[2][j]] = data[idx[0][j] - 1, idx[1][j],idx[2][j]]
+                data[idx[0][j], idx[1][j], idx[2][j]] = data[idx[0][j] - 1, idx[1][j], idx[2][j]]
     return data
 
 
@@ -89,7 +86,7 @@ def get_JAABA_feats(starter_feature, window_size=3):
     number_of_frames = np.shape(starter_feature)[0]
     # Get the radius of the window.
     radius = (window_size - 1) / 2
-    radius = int(radius)
+    radius = int(np.ceil(radius))
     r = int(radius)
     row_placeholder = np.zeros(window_size)
     column_placeholder = np.zeros(number_of_frames)
@@ -119,25 +116,25 @@ def get_JAABA_feats(starter_feature, window_size=3):
     return window_feats
 
 
-def apply_windowing(starter_features):
-    windows = [3, 11, 21]
+def apply_windowing(starter_features, framerate):
+    windows = [int(np.ceil(w/30.*framerate)) for w in [3, 11, 21]]
     total_feat_num = np.shape(starter_features)[1]
 
     window_features = np.array([])
     for i in range(total_feat_num):
         feat_temp = compute_win_feat(starter_features[:, i], windows)
-        if i==0:
+        if i == 0:
             window_features = feat_temp
         else:
-            window_features = np.concatenate((window_features,feat_temp), axis=1)
+            window_features = np.concatenate((window_features, feat_temp), axis=1)
     
     return window_features
 
 
 def normalize_pixel_data(data,view):
     if view == 'top':fd = [range(40, 49)]
-    elif view == 'front': fd = [range(47,67)]
-    elif view == 'top_pcf': fd = [range(40,57)]
+    elif view == 'front': fd = [range(47, 67)]
+    elif view == 'top_pcf': fd = [range(40, 57)]
     fd = list(flatten(fd))
     md = np.nanmedian(data[:, :, fd], 1, keepdims=True)
     data[:, :, fd] /= md
@@ -172,7 +169,7 @@ def get_transmat(gt, n_states):
     return transitions
 
 
-def get_emissionmat(gt,pred,n_states):
+def get_emissionmat(gt, pred, n_states):
     # The emissions are the translations from ground truth to predicted
     # Count emissions
     cs = [Counter() for _ in range(n_states)]
@@ -213,11 +210,11 @@ def do_fbs(y_pred_class, kn, blur, blur_steps, shift):
     z[2, :] = extended_predictions[shift + 1:-shift]
 
     z_mean = np.mean(z, axis=0)  # Average the blurred and shifted signals together.
-    y_pred_fbs = binarize(z_mean.reshape((-1, 1)), .5).astype(int).reshape((1, -1))[0]  # Anything that has a signal strength over 0.5, is taken to be positive.
+    y_pred_fbs = binarize(z_mean.reshape((-1, 1)), threshold=0.5).astype(int).reshape((1, -1))[0]  # Anything that has a signal strength over 0.5, is taken to be positive.
     return y_pred_fbs
 
 
-def do_hmm(gt,pd):
+def do_hmm(gt, pd):
     hmm_bin = hmm.MultinomialHMM(n_components=2, algorithm="viterbi", random_state=42, params="", init_params="")
     hmm_bin.startprob_ = np.array([np.sum(gt == i) / float(len(gt)) for i in range(2)])
     hmm_bin.transmat_ = get_transmat(gt, 2)

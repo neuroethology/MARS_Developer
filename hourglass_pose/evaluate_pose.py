@@ -112,7 +112,7 @@ def plot_frame(project, frame_num, pose_model_names=None, markersize=8, figsize=
         if not image:
             print("I couldn't fine image " + str(frame_num))
             return
-        matched_id = re.search('(?<=image)\d*',image[0])
+        matched_id = int(re.search('(?<=image)\d*', image[0]).group(0))
 
         infile = os.path.join(project, 'pose', model + '_evaluation', 'performance_pose.json')
         with open(infile) as jsonfile:
@@ -160,7 +160,8 @@ def compute_model_pck(cocoEval, lims=None, pixels_per_cm=None, pixel_units=False
     pck = []
     partID = list(cocoEval.cocoGt.catToImgs.keys())[0]  # which body part are we looking at?
     for i in cocoEval.params.imgIds:
-        pck.append(cocoEval.computePcks(i, partID)[0][0])
+        for samp in cocoEval.computePcks(i, partID)[0]:  # we're just pooling across instances in an image for now
+            pck.append(samp)
     pck = np.array(pck)
 
     if not lims:
@@ -846,7 +847,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                             pred_parts += [x, y, v]
                             # and as separate entries of pred_annotations for part-wise evaluation
                             pred_annotations.append({
-                                'image_id': image_id,
+                                'image_id': int(image_id),
                                 'keypoints': [x, y, v],
                                 'score': selected_scores[-1],
                                 'category_id': count + 2
@@ -855,7 +856,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                         avg_score = np.mean(selected_scores)
                         # Store the results
                         pred_annotations.append({
-                            'image_id': image_id,
+                            'image_id': int(image_id),
                             'keypoints': pred_parts,
                             'score': avg_score.item(),
                             'category_id': 1
@@ -876,9 +877,9 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
 
                         for eval_part in range(int(np.sum(part_visibilities > 0))):
                             gt_annotations.append({
-                                "id": gt_annotation_id,
-                                "image_id": image_id,
-                                "category_id": eval_part + 2,
+                                "id": int(gt_annotation_id),
+                                "image_id": int(image_id),
+                                "category_id": int(eval_part + 2),
                                 "area": (w * h).item(),
                                 "bbox": [x1.item(), y1.item(), w.item(), h.item()],
                                 "iscrowd": 0,
@@ -886,8 +887,8 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                                 "num_keypoints": 1
                             })
                         gt_annotations.append({
-                            "id": gt_annotation_id,
-                            "image_id": image_id,
+                            "id": int(gt_annotation_id),
+                            "image_id": int(image_id),
                             "category_id": 1,
                             "area": (w * h).item(),
                             "bbox": [x1.item(), y1.item(), w.item(), h.item()],
@@ -896,7 +897,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
                             "num_keypoints": int(np.sum(part_visibilities > 0))
                         })
 
-                        dataset_image_ids.add(image_id)
+                        dataset_image_ids.add(int(image_id))
 
                         gt_annotation_id += 1
 
@@ -918,7 +919,7 @@ def evaluation(tfrecords, summary_dir, checkpoint_path, cfg,
             gt_dataset = {
                 'annotations': gt_annotations,
                 'images': [{'id': img_id} for img_id in dataset_image_ids],
-                'categories': [{'id': id + 1} for id in range(int(np.sum(part_visibilities > 0)) + 1)]
+                'categories': [{'id': int(id + 1)} for id in range(int(np.sum(part_visibilities > 0)) + 1)]
             }
 
             cocodata = {'gt_keypoints': gt_dataset,
@@ -943,7 +944,6 @@ def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, 
     # Set the logging level.
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
-    performance = {n: None for n in pose_model_names}
     for model in pose_model_names:
         checkpoint_path = os.path.join(project, 'pose', model + '_model')
         if not os.path.isdir(checkpoint_path):
@@ -972,8 +972,7 @@ def run_test(project, pose_model_names=None, num_images=0, show_heatmaps=False, 
             show_layer_heatmaps=False,
             cfg=cfg
         )
-
-        performance[model] = coco_eval(project, pose_model_names=pose_model_names)
+    performance = coco_eval(project, pose_model_names=pose_model_names)
 
     return performance
 

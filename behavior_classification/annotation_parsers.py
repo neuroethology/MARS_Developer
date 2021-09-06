@@ -1,6 +1,10 @@
 from __future__ import division
 import numpy as np
-import pdb
+
+
+def list_supported_formats():
+    # modify this as additional supported file formats are added
+    return ['annot', 'txt']
 
 
 def parse_annotations(fid, use_channels=[], timestamps=[]):
@@ -26,8 +30,8 @@ def parse_txt(f_ann):
     assert ann[2].rstrip() == conf
     # parse action list
     l = 3
-    names = [None] *1000
-    keys = [None] *1000
+    names = [None] * 1000
+    keys = [None] * 1000
     k = -1
 
     #get config keys and names
@@ -159,11 +163,19 @@ def parse_annot(filename, use_channels = [], timestamps = []):
 
         line = annot_file.readline().rstrip()
         split_line = line.split()
-        start_frame = int(split_line[-1])
+        start_time = 0
+        end_time = 0
+        if split_line[-2] == 'frame:':
+            start_frame = int(split_line[-1])
+        else:
+            start_time = float(split_line[-1])
 
         line = annot_file.readline().rstrip()
         split_line = line.split()
-        end_frame = int(split_line[-1])
+        if split_line[-2] == 'frame:':
+            end_frame = int(split_line[-1])
+        else:
+            end_time = float(split_line[-1])
 
         framerate = 30 # provide a default framerate if the annot file doesn't have one
         line = annot_file.readline().rstrip()
@@ -172,6 +184,9 @@ def parse_annot(filename, use_channels = [], timestamps = []):
             framerate = float(split_line[-1])
             line = annot_file.readline().rstrip()
         assert (line == '')
+        if start_time:
+            start_frame = int(start_time * framerate)
+            end_frame = int(end_time * framerate)
 
         # Just pass through whitespace
         while line == '':
@@ -309,7 +324,9 @@ def merge_channels(channel_dict, use_channels, end_frame, target_behaviors = [])
         use_channels = channel_dict.keys()
     for ch in use_channels:
         if (ch in channel_dict):
-            keep_behaviors = target_behaviors if not target_behaviors==[] else filter(lambda x: x != '', set(channel_dict[ch].keys()))
+            keep_behaviors = target_behaviors if not target_behaviors == [] else set(channel_dict[ch].keys())
+            if 'other' in keep_behaviors:
+                keep_behaviors.remove('other')
             chosen_behavior_list = bouts_to_rast(channel_dict[ch], end_frame, keep_behaviors)
             if not(behFlag):
                 changed_behavior_list = [annotated_behavior if annotated_behavior in keep_behaviors else 'other' for annotated_behavior in

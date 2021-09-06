@@ -12,6 +12,7 @@ from tensorflow.python.framework import importer
 from tensorflow.python.platform import gfile
 from tensorflow.python.framework import graph_util
 from tensorflow.python.tools import optimize_for_inference_lib
+from tensorflow.python.util import deprecation
 
 slim = tf.contrib.slim
 import pdb
@@ -19,7 +20,9 @@ import pickle
 import numpy as np
 
 sys.path.insert(0, os.path.abspath('..'))
-import multibox_detection.model_detection as model_detection
+import model_detection
+
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def export(checkpoint_path, export_dir, export_version, prior_path, strain, view):
 
