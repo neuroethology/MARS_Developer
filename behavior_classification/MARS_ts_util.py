@@ -28,10 +28,9 @@ def clean_data(data):
     return data
 
 
-def apply_wavelet_transform(starter_features):
+def apply_wavelet_transform(starter_features, scales=[1, 3, 5, 10, 30, 90, 270]):
     wave1 = pywt.ContinuousWavelet('gaus8')
     # wave2 = pywt.ContinuousWavelet('gaus7')
-    scales = [1, 3, 5, 10, 30, 90, 270]
     dims = np.shape(starter_features)
     nfeat = dims[1]
 
@@ -116,8 +115,7 @@ def get_JAABA_feats(starter_feature, window_size=3):
     return window_feats
 
 
-def apply_windowing(starter_features, framerate):
-    windows = [int(np.ceil(w/30.*framerate)) for w in [3, 11, 21]]
+def apply_windowing(starter_features, windows=[3,11,21]):
     total_feat_num = np.shape(starter_features)[1]
 
     window_features = np.array([])

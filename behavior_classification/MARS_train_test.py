@@ -133,9 +133,11 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
         feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
 
         if clf_params['do_wnd']:
-            feats = mts.apply_windowing(feats, cfg['framerate'])
+            windows = [int(np.ceil(w * cfg['framerate'])) for w in cfg['windows']]
+            feats = mts.apply_windowing(feats, windows)
         elif clf_params['do_cwt']:
-            feats = mts.apply_wavelet_transform(feats)
+            scales = [int(np.ceil(w * cfg['framerate'])) for w in cfg['wavelets']]
+            feats = mts.apply_wavelet_transform(feats, scales)
 
         if drop_behaviors:
             if not isinstance(drop_behaviors, list):
