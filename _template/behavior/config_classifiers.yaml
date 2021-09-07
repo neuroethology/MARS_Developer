@@ -1,12 +1,13 @@
 
 clf_type: 'xgb'
-feat_type: 'top'  # keep this to just top for now
+feat_type: 'top'
 downsample_rate: 1  # temporal downsampling applied to training data
-smk_kn: np.array([0.5, 0.25, 0.5])
+smk_kn: [0.5, 0.25, 0.5]
 blur: 4
 shift: 4
-do_wnd: False
-do_cwt: False
-early_stopping: 20  # set to zero to turn off early stopping
-clf_path_hardcoded: ''
+do_wnd: True  # JAABA-style windowing of features
+windows: [0.033333, 0.16667, 0.33333]  # windows for JAABA-style windowing (seconds)
+do_cwt: False  # Gabor wavelet transform of features
+scales: [0.033333, 0.01, 0.16667, 0.33333, 1, 2, 9]  # 1/frequency for wavelets (seconds)
+early_stopping: 20  # rounds after which to stop training if loss fails to improve. set this to zero to turn off early stopping
 verbose: True
