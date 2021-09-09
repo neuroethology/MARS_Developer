@@ -227,11 +227,18 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
     # get the labels for the current behavior
     t = time.time()
     y_tr_beh = np.array(y_tr[beh_name])
+    if not X_ev == []:
+        y_ev_beh = np.array(y_ev[beh_name])
     if dropEmptyTrials:
         X_tr = X_tr[[i != -1 for i in y_tr_beh]]
-        y_tr_beh = [i for i in y_tr_beh if i != -1]
+        y_tr_beh = np.array([i for i in y_tr_beh if i != -1])
+        if not X_ev == []:
+            X_ev = X_ev[[i != -1 for i in y_ev_beh]]
+            y_ev_beh = np.array([i for i in y_ev_beh if i != -1])
     else:
-        y_tr_beh = [i if i != -1 else 0 for i in y_tr_beh]  # remove the -1's
+        y_tr_beh = np.array([i if i != -1 else 0 for i in y_tr_beh])  # remove the -1's
+        if not X_ev == []:
+            y_ev_beh = np.array([i if i != -1 else 0 for i in y_ev_beh])
 
 
     # scale the data
@@ -253,7 +260,7 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
         print('    training set: %d positive / %d total (%d %%)' % (
             sum(y_tr_beh), len(y_tr_beh), 100*sum(y_tr_beh)/len(y_tr_beh)))
     if not X_ev==[]:
-        eval_set = [(X_ev, y_ev[beh_name])]
+        eval_set = [(X_ev, y_ev_beh)]
         print('    eval set: %d positive / %d total (%d %%)' % (
             sum(y_ev[beh_name]), len(y_ev[beh_name]), 100 * sum(y_ev[beh_name]) / len(y_ev[beh_name])))
         if clf_params['early_stopping']:
@@ -354,12 +361,18 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0, dropEmptyTrials=Fal
         kn = classifier['k']
         blur_steps = classifier['blur_steps']
         shift = classifier['shift']
-    
+
+    y_te_beh = y_te[beh_name]
+    if dropEmptyTrials:
+        X_te = X_te[[i != -1 for i in y_te_beh]]
+        y_te_beh = np.array([i for i in y_te_beh if i != -1])
+    else:
+        y_te_beh = np.array([i if i != -1 else 0 for i in y_te_beh])  # remove the -1's
+
     # scale the data
     X_te = scaler.transform(X_te)
     t = time.time()
-    len_y = len(y_te[beh_name])
-    y_te_beh = y_te[beh_name]
+    len_y = len(y_te_beh)
     gt = y_te_beh
 
     # predict probabilities:
