@@ -1213,6 +1213,7 @@ def extract_features(project, progress_bar_sig=''):
         feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
         keylist = list(data['sequences'][cfg['project_name']].keys())
         for i, k in enumerate(keylist):
+            os.system('cls||clear')
             print('%s (%i/%i): %s' % (key, i+1, len(keylist), k))
             feat_dict = extract_features_top(data['sequences'][cfg['project_name']][k], cfg, progress_bar_sig=progress_bar_sig)
             if feat_dict == []:

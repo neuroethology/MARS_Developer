@@ -21,6 +21,7 @@ from behavior_classification.behavior_helpers import *
 from Util.seqIo import *
 import scipy.io as sio
 import progressbar
+import pdb
 
 
 # warnings.filterwarnings("ignore")
@@ -84,7 +85,7 @@ def choose_classifier(clf_params):
     return clf
 
 
-def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
+def load_data(project, dataset, train_behaviors, drop_behaviors=[], dropEmptyTrials=False):
     with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
@@ -104,7 +105,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
         if label not in data['vocabulary']:
             print('Error: target behavior ' + label + ' not found in this dataset.\nAvailable labels:')
             print(list(data['vocabulary'].keys()))
-            return
+            return [], [], []
 
     keylist = list(data['sequences'][cfg['project_name']].keys())
     data_stack = []
@@ -123,6 +124,13 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
         feats = np.swapaxes(feats, 0, 1)
         feats = mts.clean_data(feats)
         annots = data['sequences'][cfg['project_name']][k]['annotations']
+        for label_name in train_behaviors:
+            if label_name in equivalences.keys():
+                hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
+            else:
+                hit_list = [data['vocabulary'][label_name]]
+            if dropEmptyTrials and not any([i in hit_list for i in annots]):
+                continue
         if len(annots) != feats.shape[0]:
             print('Length mismatch: %s %d %d' % (k, len(annots), d.shape[0]))
             print('Extra frames will be trimmed from the end of the sequence.')
@@ -149,27 +157,34 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[]):
             keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
             annots = annots[keep_inds]
             feats = feats[keep_inds, :]
-        annot_raw += annots
+        annot_raw.append(annots)
         data_stack.append(feats)
-        bar.update(i)
+        if clf_params['do_wnd'] or clf_params['do_cwt']:
+            bar.update(i)
+    if clf_params['do_wnd'] or clf_params['do_cwt']:
+        bar.finish()
     data_stack = np.concatenate(data_stack, axis=0)
-    bar.finish()
 
     annot_clean = {}
     for label_name in train_behaviors:
+        annot_clean[label_name] = []
         if label_name in equivalences.keys():
             hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
         else:
             hit_list = [data['vocabulary'][label_name]]
-        annot_clean[label_name] = [1 if i in hit_list else 0 for i in annot_raw]
+        for a in annot_raw:
+            a_clean = [1 if i in hit_list else 0 for i in a]
+            if 1 in a_clean:
+                annot_clean[label_name] += a_clean
+            else:
+                annot_clean[label_name] += [-1]*len(a_clean)
     print('done!\n')
-    
+
     return data_stack, annot_clean, data['vocabulary']
 
 
-def assign_labels(all_predicted_probabilities, behaviors_used, vocabulary):
+def assign_labels(all_predicted_probabilities, vocabulary):
     # Assigns labels based on the provided probabilities.
-    labels = []
     labels_num = []
     num_frames = all_predicted_probabilities.shape[0]
     # Looping over frames, determine which annotation label to take.
@@ -187,7 +202,7 @@ def assign_labels(all_predicted_probabilities, behaviors_used, vocabulary):
             beh_frame = 0
             # How do we get the probability of it being "other?" Since everyone's predicting it, we just take the mean.
             proba_frame = np.mean(predicted_class_probabilities)
-            labels += ['other']
+            labels_num.append(vocabulary['other'])
         else:
             # If we have positive predictions, we find the probabilities of the positive labels and take the argmax.
             pos = np.where(onehot_class_predictions)[0]
@@ -196,13 +211,12 @@ def assign_labels(all_predicted_probabilities, behaviors_used, vocabulary):
             # This argmax is, by construction, the id for this behavior.
             beh_frame = pos[max_prob]
             proba_frame = predicted_class_probabilities[beh_frame]
-            labels += [behaviors_used[beh_frame]]
-        labels_num.append(vocabulary[behaviors_used[beh_frame]])
+            labels_num.append(beh_frame)
 
     return labels_num
 
 
-def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0):
+def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmptyTrials=False):
     beh_name = beh_classifier['beh_name']
     clf = beh_classifier['clf']
     clf_params = beh_classifier['params']
@@ -213,7 +227,13 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0):
     # get the labels for the current behavior
     t = time.time()
     y_tr_beh = np.array(y_tr[beh_name])
-    
+    if dropEmptyTrials:
+        X_tr = X_tr[[i != -1 for i in y_tr_beh]]
+        y_tr_beh = [i for i in y_tr_beh if i != -1]
+    else:
+        y_tr_beh = [i if i != -1 else 0 for i in y_tr_beh]  # remove the -1's
+
+
     # scale the data
     if(verbose):
         print('fitting preprocessing parameters...')
@@ -239,8 +259,9 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0):
         if clf_params['early_stopping']:
             if verbose:
                 print('  + early stopping')
-            clf.fit(X_tr[::clf_params['downsample_rate'], :], y_tr_beh[::clf_params['downsample_rate']],
-                    eval_set=eval_set, #eval_metric='aucpr',
+            clf.fit(X_tr[::clf_params['downsample_rate'], :],
+                    y_tr_beh[::clf_params['downsample_rate']],
+                    eval_set=eval_set,
                     early_stopping_rounds=clf_params['early_stopping'], verbose=True)
         else:
             clf.fit(X_tr[::clf_params['downsample_rate'], :], y_tr_beh[::clf_params['downsample_rate']],
@@ -313,7 +334,7 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0):
     return results
 
 
-def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0):
+def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0, dropEmptyTrials=False):
 
     classifier = joblib.load(name_classifier)
     # unpack the classifier
@@ -342,8 +363,6 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0):
     gt = y_te_beh
 
     # predict probabilities:
-    if (verbose):
-        print('predicting behavior probability')
     y_pred_proba = clf.predict_proba(X_te)
     proba = y_pred_proba
     
@@ -357,8 +376,6 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0):
     y_pred_class = np.argmax(y_pred_proba, axis=1)
     preds = y_pred_class
     # forward-backward smoothing:
-    if (verbose):
-        print('forward-backward smoothing')
     if doPRC:
         y_pred_fbs_hmm_range = np.zeros(proba_thr.shape)
         for thr in range(100):
@@ -375,15 +392,10 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0):
     dt = time.time() - t
     print('inference took %.2f sec' % dt)
 
-    print('########## pd ##########')
-    prf_metrics(np.array(y_te[beh_name]), preds, beh_name)
-    print('########## fbs ##########')
-    prf_metrics(np.array(y_te[beh_name]), preds_fbs_hmm, beh_name)
-
     return gt, proba, preds, preds_fbs_hmm, proba_fbs_hmm
 
 
-def train_classifier(project, train_behaviors, drop_behaviors=[]):
+def train_classifier(project, train_behaviors, drop_behaviors=[], dropEmptyTrials=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -393,7 +405,7 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
         clf_params = yaml.load(f, Loader=yaml.FullLoader)
         if 'smk_kn' in clf_params.keys():
             clf_params['smk_kn'] = np.array(clf_params['smk_kn'])
-    if not (clf_params['downsample_rate']==int(clf_params['downsample_rate'])):
+    if not (clf_params['downsample_rate'] == int(clf_params['downsample_rate'])):
         print('Training set downsampling rate must be an integer; reverting to default value of 1.')
         clf_params['downsample_rate'] = 1
 
@@ -405,9 +417,13 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
         os.makedirs(savedir)
     print('Training classifier: ' + classifier_name.upper())
     print('loading training data...')
-    X_tr, y_tr, _ = load_data(project, 'train', train_behaviors, drop_behaviors=drop_behaviors)
+    X_tr, y_tr, _ = load_data(project, 'train', train_behaviors,
+                              drop_behaviors=drop_behaviors,
+                              dropEmptyTrials=dropEmptyTrials)
     print('loading validation data...')
-    X_ev, y_ev, _ = load_data(project, 'val', train_behaviors, drop_behaviors=drop_behaviors)
+    X_ev, y_ev, _ = load_data(project, 'val', train_behaviors,
+                              drop_behaviors=drop_behaviors,
+                              dropEmptyTrials=dropEmptyTrials)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
     # train each classifier in a loop:
     for b, beh_name in enumerate(train_behaviors):
@@ -416,12 +432,14 @@ def train_classifier(project, train_behaviors, drop_behaviors=[]):
                           'beh_id': b + 1,
                           'clf': classifier,
                           'params': clf_params}
-        results = do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, clf_params['verbose'])
+        results = do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir,
+                           verbose=clf_params['verbose'],
+                           dropEmptyTrials=dropEmptyTrials)
     print('done training!')
     return results
 
 
-def test_classifier(project, test_behaviors, drop_behaviors=[]):
+def test_classifier(project, test_behaviors, drop_behaviors=[], dropEmptyTrials=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -435,31 +453,35 @@ def test_classifier(project, test_behaviors, drop_behaviors=[]):
     classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
     savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
     print('loading test data...')
-    X_te_0, y_te, vocab = load_data(project, 'test', test_behaviors, drop_behaviors=drop_behaviors)
+    X_te_0, y_te, vocab = load_data(project, 'test', test_behaviors,
+                                    drop_behaviors=drop_behaviors,
+                                    dropEmptyTrials=dropEmptyTrials)
     print('loaded test data: %d X %d - %s ' % (X_te_0.shape[0], X_te_0.shape[1], list(set(y_te))))
 
     T = len(list(y_te.values())[0])
-    n_classes = len(test_behaviors)
+    n_classes = max([vocab[b] for b in list(vocab.keys())])+1
     gt = np.zeros((T, n_classes)).astype(int)
     proba = np.zeros((T, n_classes, 2))
     preds = np.zeros((T, n_classes)).astype(int)
     preds_fbs_hmm = np.zeros((T, n_classes)).astype(int)
     proba_fbs_hmm = np.zeros((T, n_classes, 2))
-    beh_list = list()
+    print('loading classifiers from %s' % savedir)
     for b, beh_name in enumerate(test_behaviors):
-        print('predicting behavior %s...' % beh_name)
-        beh_list.append(beh_name)
+        print('predicting %s...' % beh_name)
         name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
-        print('loading classifier %s' % name_classifier)
-        gt[:, b], proba[:, b, :], preds[:, b], preds_fbs_hmm[:, b], proba_fbs_hmm[:, b, :] = \
-            do_test(name_classifier, X_te_0, y_te, clf_params['verbose'], True)
-    all_pred = assign_labels(proba, beh_list, vocab)
-    all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, beh_list)
+        gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
+        preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
+            do_test(name_classifier, X_te_0, y_te,
+                    verbose=clf_params['verbose'],
+                    doPRC=True,
+                    dropEmptyTrials=dropEmptyTrials)
+    all_pred = assign_labels(proba, vocab)
+    all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
+    gt = np.argmax(gt,axis=1)
 
-    print('Raw predictions:')
-    score_info(gt, all_pred)
-    print('Predictions after HMM and forward-backward smoothing:')
-    score_info(gt, all_pred_fbs_hmm)
+    print(' ')
+    print('Classifier performance:')
+    score_info(gt, all_pred_fbs_hmm, vocab)
     P = {'0_G': gt,
          '0_Gc': y_te,
          '1_pd': preds,
