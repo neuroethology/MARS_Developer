@@ -173,8 +173,9 @@ def summarize_annotation_split(project):
         ax[idx].axis('equal')
         ax[idx].title.set_text(key)
     fig.suptitle('Behaviors observed in train/test/validation sets')
-
     plt.show()
+    print('list of all observed annotations:')
+    print(master_keys)
 
 
 def get_unique_behaviors(video_list):
@@ -244,7 +245,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
     tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
-    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json')):
+    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json') and reshuffle):
         a = 'x'
         while not a.lower() in ['y', 'n']:
             a = input('Delete existing train/test splits and reshuffle? (y/n)')
