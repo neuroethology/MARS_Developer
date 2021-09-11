@@ -219,7 +219,8 @@ def parse_annot(filename, use_channels = [], timestamps = []):
 
             assert ('----------' in line)
             channel_name = line.rstrip('-')
-            channel_name = channel_name[:3] # sloppy fix for now, to get simplified channel name-----------------------
+            if 'Ch1' in channel_name or 'Ch2' in channel_name:
+                channel_name = channel_name[:3]  # sloppy fix for now, to get simplified channel name-------------------
             channel_names.append(channel_name)
 
             behaviors_framewise = [''] * end_frame

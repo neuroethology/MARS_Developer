@@ -73,7 +73,7 @@ def compute_win_feat(starter_feature, windows=[3, 11, 21]):
         # Get the space where we should put the newly computed features.
         left_endpt = window_num * num_fxns
         right_endpt = window_num * num_fxns + num_fxns
-        
+
         # Compute the features and store them.
         features[:, left_endpt:right_endpt] = get_JAABA_feats(starter_feature=starter_feature, window_size=w)
 
@@ -89,20 +89,20 @@ def get_JAABA_feats(starter_feature, window_size=3):
     r = int(radius)
     row_placeholder = np.zeros(window_size)
     column_placeholder = np.zeros(number_of_frames)
-    
+
     row_placeholder[:r] = np.flip(starter_feature[1:(radius + 1)], 0)
     row_placeholder[r:] = starter_feature[:(radius + 1)]
-    
+
     column_placeholder[:-radius] = starter_feature[radius:]
     column_placeholder[-radius:] = np.flip(starter_feature[-(radius + 1):-1], 0)
-    
+
     # Create the matrix that we're going to compute on.
     window_matrix = scipy.linalg.toeplitz(column_placeholder, row_placeholder)
-    
+
     # Set the functions.
     fxns = [np.min, np.max, np.mean, np.std]
     num_fxns = len(fxns)
-    
+
     # Make a placeholder for the window features we're computing.
     window_feats = np.zeros((number_of_frames, num_fxns))
 
@@ -125,7 +125,7 @@ def apply_windowing(starter_features, windows=[3,11,21]):
             window_features = feat_temp
         else:
             window_features = np.concatenate((window_features, feat_temp), axis=1)
-    
+
     return window_features
 
 
