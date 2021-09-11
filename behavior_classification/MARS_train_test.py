@@ -85,7 +85,7 @@ def choose_classifier(clf_params):
     return clf
 
 
-def load_data(project, dataset, train_behaviors, drop_behaviors=[], dropEmptyTrials=False):
+def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False):
     with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
@@ -129,7 +129,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], dropEmptyTri
                 hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
             else:
                 hit_list = [data['vocabulary'][label_name]]
-            if dropEmptyTrials and not any([i in hit_list for i in annots]):
+            if drop_empty_trials and not any([i in hit_list for i in annots]):
                 continue
         if len(annots) != feats.shape[0]:
             print('Length mismatch: %s %d %d' % (k, len(annots), d.shape[0]))
@@ -216,38 +216,52 @@ def assign_labels(all_predicted_probabilities, vocabulary):
     return labels_num
 
 
-def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmptyTrials=False):
+def handle_missing_trials(X, y, drop_empty_trials=False):
+    mask = []
+    if type(y) is dict:  # if y is a dictionary, all behaviors must be annotated for in a trial
+        for k in list(y.keys()):
+            mask = min(mask, y[k]) if mask != [] else y[k]
+    else:
+        mask = y
+    if drop_empty_trials:
+        X = X[[i != -1 for i in mask]]
+        if type(y) is dict:
+            for k in list(y.keys()):
+                y[k] = np.array(y[k])
+                y[k] = np.array(y[k][[i != -1 for i in mask]])
+        else:
+            y = np.array(y)
+            y = np.array(y[[i != -1 for i in mask]])
+    else:
+        if type(y) is dict:
+            for k in list(y.keys()):
+                y[k] = np.array(y[k])
+                y[k] = np.array([i if i != -1 else 0 for i in y[k]])
+        else:
+            y = np.array([i if i != -1 else 0 for i in y])  # remove the -1's
+    return X, y
+
+
+def do_train(beh_classifier, X_tr, y_tr_beh, X_ev, y_ev_beh, savedir, verbose=0):
     beh_name = beh_classifier['beh_name']
     clf = beh_classifier['clf']
     clf_params = beh_classifier['params']
-    # set some parameters for post-classification smoothing:
-    kn = clf_params['smk_kn']
-    blur_steps = clf_params['blur'] ** 2
-    shift = clf_params['shift']
-    # get the labels for the current behavior
-    t = time.time()
-    y_tr_beh = np.array(y_tr[beh_name])
-    if not X_ev == []:
-        y_ev_beh = np.array(y_ev[beh_name])
-    if dropEmptyTrials:
-        X_tr = X_tr[[i != -1 for i in y_tr_beh]]
-        y_tr_beh = np.array([i for i in y_tr_beh if i != -1])
-        if not X_ev == []:
-            X_ev = X_ev[[i != -1 for i in y_ev_beh]]
-            y_ev_beh = np.array([i for i in y_ev_beh if i != -1])
-    else:
-        y_tr_beh = np.array([i if i != -1 else 0 for i in y_tr_beh])  # remove the -1's
-        if not X_ev == []:
-            y_ev_beh = np.array([i if i != -1 else 0 for i in y_ev_beh])
 
+    # downsample the data
+    X_tr = X_tr[::clf_params['downsample_rate'], :]
+    y_tr_beh = y_tr_beh[::clf_params['downsample_rate']]
+    if not X_ev == []:
+        X_ev = X_ev[::clf_params['downsample_rate'], :]
+        y_ev_beh = y_ev_beh[::clf_params['downsample_rate']]
 
     # scale the data
+    gc.collect()
     if(verbose):
         print('fitting preprocessing parameters...')
     scaler = StandardScaler()
     scaler.fit(X_tr)
     X_tr = scaler.transform(X_tr)
-    if not X_ev==[]:
+    if not X_ev == []:
         X_ev = scaler.transform(X_ev)
     # shuffle data
     X_tr, idx_tr = shuffle_fwd(X_tr)
@@ -259,31 +273,41 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
         print('fitting clf for %s' % beh_name)
         print('    training set: %d positive / %d total (%d %%)' % (
             sum(y_tr_beh), len(y_tr_beh), 100*sum(y_tr_beh)/len(y_tr_beh)))
-    if not X_ev==[]:
+    if not X_ev == []:
         eval_set = [(X_ev, y_ev_beh)]
         print('    eval set: %d positive / %d total (%d %%)' % (
-            sum(y_ev[beh_name]), len(y_ev[beh_name]), 100 * sum(y_ev[beh_name]) / len(y_ev[beh_name])))
+            sum(y_ev_beh), len(y_ev_beh), 100 * sum(y_ev_beh) / len(y_ev_beh)))
         if clf_params['early_stopping']:
             if verbose:
                 print('  + early stopping')
-            clf.fit(X_tr[::clf_params['downsample_rate'], :],
-                    y_tr_beh[::clf_params['downsample_rate']],
-                    eval_set=eval_set,
+            clf.fit(X_tr, y_tr_beh, eval_set=eval_set,
                     early_stopping_rounds=clf_params['early_stopping'], verbose=True)
         else:
-            clf.fit(X_tr[::clf_params['downsample_rate'], :], y_tr_beh[::clf_params['downsample_rate']],
-                    eval_set=eval_set, eval_metric='aucpr', verbose=True)
+            clf.fit(X_tr, y_tr_beh, eval_set=eval_set, eval_metric='aucpr', verbose=True)
         results = clf.evals_result()
     else:
         if verbose:
             print('  no validation set included')
-        clf.fit(X_tr[::clf_params['downsample_rate'], :], y_tr_beh[::clf_params['downsample_rate']],
-                eval_metric='aucpr', verbose=True)
+        clf.fit(X_tr, y_tr_beh, eval_metric='aucpr', verbose=True)
         results = []
 
-    # shuffle back
-    X_tr = shuffle_back(X_tr, idx_tr)
-    y_tr_beh = shuffle_back(y_tr_beh, idx_tr).astype(int)
+    beh_classifier.update({'clf': clf,
+                           'scaler': scaler})
+    dill.dump(beh_classifier, open(os.path.join(savedir, 'classifier_' + beh_name), 'wb'))
+    return results, beh_classifier
+
+
+def do_train_smooth(beh_classifier, X_tr, y_tr_beh, savedir, verbose=False):
+    beh_name = beh_classifier['beh_name']
+    clf = beh_classifier['clf']
+    scaler = beh_classifier['scaler']
+    clf_params = beh_classifier['params']
+    # set some parameters for post-classification smoothing:
+    kn = clf_params['smk_kn']
+    blur_steps = clf_params['blur'] ** 2
+    shift = clf_params['shift']
+    # get the labels for the current behavior
+    t = time.time()
 
     # evaluate on training set
     if (verbose):
@@ -292,7 +316,8 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
     gen = Batch(range(len(y_tr_beh)), lambda x: x % 1e5 == 0, 1e5)
     for i in gen:
         inds = list(i)
-        pd_proba_tmp = (clf.predict_proba(X_tr[inds]))
+        X_tr_s = scaler.transform(X_tr[inds])
+        pd_proba_tmp = (clf.predict_proba(X_tr_s))
         y_pred_proba[inds] = pd_proba_tmp
     y_pred_class = np.argmax(y_pred_proba, axis=1)
 
@@ -312,7 +337,8 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
     len_y = len(y_tr_beh)
     z = np.zeros((3, len_y))
     y_fbs = np.r_[y_pred_hmm[range(shift, -1, -1)], y_pred_hmm, y_pred_hmm[range(len_y - 1, len_y - 1 - shift, -1)]]
-    for s in range(blur_steps): y_fbs = signal.convolve(np.r_[y_fbs[0], y_fbs, y_fbs[-1]], kn / kn.sum(), 'valid')
+    for s in range(blur_steps):
+        y_fbs = signal.convolve(np.r_[y_fbs[0], y_fbs, y_fbs[-1]], kn / kn.sum(), 'valid')
     z[0, :] = y_fbs[2 * shift + 1:]
     z[1, :] = y_fbs[:-2 * shift - 1]
     z[2, :] = y_fbs[shift + 1:-shift]
@@ -336,13 +362,10 @@ def do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir, verbose=0, dropEmp
                            'f_measure': f_measure,
                            'hmm_bin': hmm_bin,
                            'hmm_fbs': hmm_fbs})
-
     dill.dump(beh_classifier, open(os.path.join(savedir, 'classifier_' + beh_name), 'wb'))
-    return results
 
 
-def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0, dropEmptyTrials=False):
-
+def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
     classifier = joblib.load(name_classifier)
     # unpack the classifier
     beh_name = classifier['beh_name']
@@ -361,13 +384,6 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0, dropEmptyTrials=Fal
         kn = classifier['k']
         blur_steps = classifier['blur_steps']
         shift = classifier['shift']
-
-    y_te_beh = y_te[beh_name]
-    if dropEmptyTrials:
-        X_te = X_te[[i != -1 for i in y_te_beh]]
-        y_te_beh = np.array([i for i in y_te_beh if i != -1])
-    else:
-        y_te_beh = np.array([i if i != -1 else 0 for i in y_te_beh])  # remove the -1's
 
     # scale the data
     X_te = scaler.transform(X_te)
@@ -408,7 +424,7 @@ def do_test(name_classifier, X_te, y_te, verbose=0, doPRC=0, dropEmptyTrials=Fal
     return gt, proba, preds, preds_fbs_hmm, proba_fbs_hmm
 
 
-def train_classifier(project, train_behaviors, drop_behaviors=[], dropEmptyTrials=False):
+def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False, max_positive=0):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -432,27 +448,41 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], dropEmptyTrial
     print('loading training data...')
     X_tr, y_tr, _ = load_data(project, 'train', train_behaviors,
                               drop_behaviors=drop_behaviors,
-                              dropEmptyTrials=dropEmptyTrials)
+                              drop_empty_trials=drop_empty_trials)
     print('loading validation data...')
     X_ev, y_ev, _ = load_data(project, 'val', train_behaviors,
                               drop_behaviors=drop_behaviors,
-                              dropEmptyTrials=dropEmptyTrials)
+                              drop_empty_trials=drop_empty_trials)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
     # train each classifier in a loop:
     for b, beh_name in enumerate(train_behaviors):
         print('######################### %s #########################' % beh_name)
+        X_tr_beh, y_tr_beh = handle_missing_trials(X_tr, y_tr[beh_name], drop_empty_trials=drop_empty_trials)
+        if X_ev != []:
+            X_ev_beh, y_ev_beh = handle_missing_trials(X_ev, y_ev[beh_name], drop_empty_trials=drop_empty_trials)
+        else:
+            X_ev_beh = []
+            y_ev_beh = []
+        if max_positive:
+            cutoff = np.argmax(np.cumsum(y_tr_beh) > max_positive)
+            X_tr_beh = X_tr_beh[:cutoff]
+            y_tr_beh = y_tr_beh[:cutoff]
+            if X_ev != []:
+                cutoff = np.argmax(np.cumsum(y_ev_beh) > max_positive)
+                X_ev_beh = X_ev_beh[:cutoff]
+                y_ev_beh = y_ev_beh[:cutoff]
         beh_classifier = {'beh_name': beh_name,
                           'beh_id': b + 1,
                           'clf': classifier,
                           'params': clf_params}
-        results = do_train(beh_classifier, X_tr, y_tr, X_ev, y_ev, savedir,
-                           verbose=clf_params['verbose'],
-                           dropEmptyTrials=dropEmptyTrials)
+        results = do_train(beh_classifier, X_tr_beh, y_tr_beh, X_ev_beh, y_ev_beh, savedir,
+                           verbose=clf_params['verbose'])
+        do_train_smooth(beh_classifier, X_tr_beh, y_tr_beh, savedir, verbose=clf_params['verbose'])
     print('done training!')
     return results
 
 
-def test_classifier(project, test_behaviors, drop_behaviors=[], dropEmptyTrials=False):
+def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trials=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -466,10 +496,10 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], dropEmptyTrials=
     classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
     savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
     print('loading test data...')
-    X_te_0, y_te, vocab = load_data(project, 'test', test_behaviors,
-                                    drop_behaviors=drop_behaviors,
-                                    dropEmptyTrials=dropEmptyTrials)
-    print('loaded test data: %d X %d - %s ' % (X_te_0.shape[0], X_te_0.shape[1], list(set(y_te))))
+    X_te, y_te, vocab = load_data(project, 'test', test_behaviors,
+                                    drop_behaviors=drop_behaviors)
+    print('loaded test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
+    X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
     T = len(list(y_te.values())[0])
     n_classes = max([vocab[b] for b in list(vocab.keys())])+1
@@ -482,15 +512,14 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], dropEmptyTrials=
     for b, beh_name in enumerate(test_behaviors):
         print('predicting %s...' % beh_name)
         name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
+
         gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
         preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
-            do_test(name_classifier, X_te_0, y_te,
-                    verbose=clf_params['verbose'],
-                    doPRC=True,
-                    dropEmptyTrials=dropEmptyTrials)
+            do_test(name_classifier, X_te, y_te[beh_name],
+                    verbose=clf_params['verbose'], doPRC=True)
     all_pred = assign_labels(proba, vocab)
     all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
-    gt = np.argmax(gt,axis=1)
+    gt = np.argmax(gt, axis=1)
 
     print(' ')
     print('Classifier performance:')
