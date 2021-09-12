@@ -126,7 +126,7 @@ def summarize_annotations(anno_dict):
     return counts
 
 
-def summarize_annotation_split(project):
+def summarize_annotation_split(project, do_bar=False):
     splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
         print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory.')
@@ -139,7 +139,7 @@ def summarize_annotation_split(project):
     master_keys = []
     for idx, key in enumerate(['train', 'test', 'val']):
         for k in assignments[key].keys():
-            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+            anno_dict = map.parse_annotations(assignments[key][k]['anno'], omit_channels=['intruder', 'stim'])
             counts = summarize_annotations(anno_dict)
             for beh in counts.keys():
                 if beh not in behavior_time[key].keys():
@@ -150,7 +150,10 @@ def summarize_annotation_split(project):
     master_keys = list(set(master_keys))
     master_keys.sort()
 
-    fig, ax = plt.subplots(1, 3, figsize=[15, 5])
+    if do_bar:
+        fig, ax = plt.subplots(3, 1, figsize=[15, 15])
+    else:
+        fig, ax = plt.subplots(1, 3, figsize=[15, 5])
     for idx, key in enumerate(['train', 'test', 'val']):
         if 'other' in behavior_time[key].keys():
             sizes = [behavior_time[key]['other']]
@@ -169,8 +172,12 @@ def summarize_annotation_split(project):
                 labels.append(beh)
                 explode.append(0)
 
-        ax[idx].pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax[idx].axis('equal')
+        if do_bar:
+            ax[idx].bar(labels[1:], sizes[1:])
+            ax[idx].tick_params(axis='x', labelrotation = 90)
+        else:
+            ax[idx].pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=90)
+            ax[idx].axis('equal')
         ax[idx].title.set_text(key)
     fig.suptitle('Behaviors observed in train/test/validation sets')
     plt.show()
@@ -182,7 +189,7 @@ def get_unique_behaviors(video_list):
     bhv_list = []
     for k in video_list.keys():
         anno = video_list[k]['anno']
-        anno_dict = map.parse_annotations(anno)
+        anno_dict = map.parse_annotations(anno, omit_channels=['intruder', 'stim'])
         for ch in anno_dict['keys']:
             bhv_list += list(anno_dict['behs_bout'][ch].keys())
 
@@ -239,7 +246,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
     tMax = 0
     for video in video_list.keys():
         anno = video_list[video]['anno']
-        video_list[video]['anno_dict'] = map.parse_annotations(anno)
+        video_list[video]['anno_dict'] = map.parse_annotations(anno, omit_channels=['intruder', 'stim'])
         tMax += video_list[video]['anno_dict']['nFrames']
 
     tVal = tMax * val  # minimum number of frames to assign to the validation set
@@ -309,7 +316,7 @@ def apply_clf_splits(project):
         savedata = {'vocabulary': beh_dict, 'sequences': {cfg['project_name']: {}}}
         keylist = list(assignments[key].keys())
         for k in keylist:
-            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+            anno_dict = map.parse_annotations(assignments[key][k]['anno'], omit_channels=['intruder', 'stim'])
             annotations = [beh_dict[b] for b in anno_dict['behs_frame']]
 
             with open(assignments[key][k]['pose']) as f:

@@ -77,9 +77,6 @@ def choose_classifier(clf_params):
         params = unpack_params(clf_params, 'xgb_defaults')
         clf = XGBClassifier(**params)
 
-    if dataset in ['train', 'test', 'val']:
-        with open(os.path.join(project, 'behavior', 'behavior_jsons', dataset + '_features.json')) as f:
-            data = json.load(f)
     else:
         print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_params['clf_type'])
         params = unpack_params(clf_params, 'xgb_defaults')
@@ -143,10 +140,10 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
 
         if clf_params['do_wnd']:
-            windows = [int(np.ceil(w * cfg['framerate'])) for w in cfg['windows']]
+            windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
             feats = mts.apply_windowing(feats, windows)
         elif clf_params['do_cwt']:
-            scales = [int(np.ceil(w * cfg['framerate'])) for w in cfg['wavelets']]
+            scales = [int(np.ceil(w * cfg['framerate'])) for w in clf_params['wavelets']]
             feats = mts.apply_wavelet_transform(feats, scales)
 
         if drop_behaviors:
@@ -170,6 +167,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
     data_stack = np.concatenate(data_stack, axis=0)
 
     annot_clean = {}
+    print(data['vocabulary'])
     for label_name in train_behaviors:
         annot_clean[label_name] = []
         if label_name in equivalences.keys():
