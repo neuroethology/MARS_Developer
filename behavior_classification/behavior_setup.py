@@ -7,20 +7,16 @@ import random
 import matplotlib.pyplot as plt
 
 
-def get_files(root, extensions, fname='*'):
+def get_files(root, extensions, must_contain=''):
     all_files = []
     for ext in extensions:
-        all_files.extend(Path(root).rglob(fname + '.' + ext))
-    return all_files
+        all_files.extend(Path(root).rglob('*.' + ext))
+    kept_files = [i for i in all_files if must_contain in str(i.parent)]
+    return kept_files
 
 
-def find_videos(project):
-    config_fid = os.path.join(project, 'project_config.yaml')
-    with open(config_fid) as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    video_path = os.path.join(project, 'behavior', 'behavior_data')
-    video_names = get_files(video_path + os.path.sep, cfg['video_formats'])
+def find_videos(video_path, video_formats, must_contain=''):
+    video_names = get_files(video_path + os.path.sep, video_formats, must_contain=must_contain)
     video_list = {}
     anno_list = {}
     pose_list = {}
@@ -202,7 +198,13 @@ def get_unique_behaviors(video_list):
 def check_behavior_data(project):
     # matches up videos with annotations, alerts to any videos that are missing annotations or have multiple matches,
     # and prints a list of all annotated behaviors.
-    video_list, multi_match, no_match = find_videos(project)
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+    video_path = os.path.join(project, 'behavior', 'behavior_data')
+
+    video_list, multi_match, no_match = find_videos(video_path, cfg['video_formats'])
     total_vids = len(no_match) + len(video_list.keys()) + len(multi_match.keys())
 
     print('Processing behavior annotations in project ' + project)
@@ -239,9 +241,26 @@ def check_behavior_data(project):
               str(len(video_list.keys())) + '/' + str(total_vids) + ')')
 
 
-def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
+def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True, do_bar=False, train_dir=[], val_dir=[], test_dir=[]):
     # shuffle data into training, validation, and test sets. Train/val/test split is currently only allowed by video.
-    video_list, _, _ = find_videos(project)
+    # passing train_dir, val_dir, and test_dir values will override the values of reshuffle/val/test
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    video_path = os.path.join(project, 'behavior', 'behavior_data')
+    video_list, _, _ = find_videos(video_path, cfg['video_formats'])
+    train_list = []
+    val_list = []
+    test_list = []
+    for d in train_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        train_list += list(temp.keys())
+    for d in val_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        val_list += list(temp.keys())
+    for d in test_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        test_list += list(temp.keys())
 
     tMax = 0
     for video in video_list.keys():
@@ -252,7 +271,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
     tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
-    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json') and reshuffle):
+    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json')) and reshuffle:
         a = 'x'
         while not a.lower() in ['y', 'n']:
             a = input('Delete existing train/test splits and reshuffle? (y/n)')
@@ -274,11 +293,11 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
             entry = {'video': video,
                      'anno': video_list[video]['anno'],
                      'pose': video_list[video]['pose']}
-            if T < tVal:  # assign to val
+            if T < tVal or video in val_list:  # assign to val
                 assignments['val'][str(Path(video).stem)] = entry
-            elif T < (tVal + tTest):  # assign to test
+            elif T < (tVal + tTest) or video in test_list:  # assign to test
                 assignments['test'][str(Path(video).stem)] = entry
-            else:  # assign to train
+            elif train_list == [] or video in train_list:  # assign to train
                 assignments['train'][str(Path(video).stem)] = entry
 
             T += video_list[video]['anno_dict']['nFrames']
@@ -288,7 +307,7 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
         with open(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json'), 'w') as f:
             json.dump(assignments, f)
 
-    summarize_annotation_split(project)
+    summarize_annotation_split(project, do_bar=do_bar)
 
 
 def apply_clf_splits(project):
