@@ -46,24 +46,24 @@ To get started, please check out our two Tutorial notebooks:
 [![](pose_annotation_tools/docs/pose_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_pose_tutorial.ipynb) [![](pose_annotation_tools/docs/behavior_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_behavior_tutorial.ipynb)
 
 ## An Overview of the Training Process
-Training MARS to run on your own experiments includes the following steps. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
+Training MARS to run on your own experiments includes the following steps, outlined in the Pose and Behavior tutorials above:
 
-### 1) 📁 Create a new MARS Training Project.
-MARS uses a set file strcture to keep track of data and models associated with your project.
+#### 1) 📁 Create a new MARS Training Project.
+MARS uses a set file strcture to keep track of data and models associated with your project. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
-### 2) ✍️ Collect a set of manually annotated animal poses.
+#### 2) ✍️ Collect a set of manually annotated animal poses.
 We provide code for crowdsourcing of pose annotation to a public workforce via Amazon SageMaker. Running this code requires an Amazon Web Services (AWS) account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68 cents/image.
 
-If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames), you can skip directly to the post-processing step to format your data for training.
+If you've already collected pose annotations via another interface such as [DeepLabCut](https://github.com/DeepLabCut/DeepLabCut/blob/master/docs/UseOverviewGuide.md#label-frames), you can skip directly to the post-processing step (step 2.3) to format your data for training.
 
-### 3) 🎯 Fine-tune the MARS mouse detector to your data.
+#### 3) 🎯 Fine-tune the MARS mouse detector to your data.
 Next, we need to teach MARS what your animals look like. The [Multibox Detection module](multibox_detection) covers training, validating, and testing your mouse detector.
 
-### 4) 🐁 Fine-tune the MARS pose estimator to your data.
+#### 4) 🐁 Fine-tune the MARS pose estimator to your data.
 Once you can detect your mice, we want to estimate their poses. In this step we'll train and evaluate a mouse pose estimator for your videos. The [Hourglass Pose module](hourglass_pose) covers training, validating, and testing a stacked hourglass model for animal pose estimation.
 
-### 5) 🚀 Deploy your new detection and pose models.
+#### 5) 🚀 Deploy your new detection and pose models.
 Now that you have a working detector and pose estimator, we'll add them to your end-user version of MARS so you can run them on new videos!
 
-### 6) 💪 Train new behavior classifiers. (behavior tutorial notebook)
+#### 6) 💪 Train new behavior classifiers. (behavior tutorial notebook)
 Once you've applied your trained pose estimator on some new behavior videos, you can annotate behaviors of interest in those videos and train MARS to detect those behaviors automatically.
