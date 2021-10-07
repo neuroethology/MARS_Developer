@@ -1,26 +1,23 @@
 from __future__ import division
 import os, yaml, fnmatch
 import json
+import copy
 from pathlib import Path
 import behavior_classification.annotation_parsers as map
 import random
 import matplotlib.pyplot as plt
 
 
-def get_files(root, extensions, fname='*'):
+def get_files(root, extensions, must_contain=''):
     all_files = []
     for ext in extensions:
-        all_files.extend(Path(root).rglob(fname + '.' + ext))
-    return all_files
+        all_files.extend(Path(root).rglob('*.' + ext))
+    kept_files = [i for i in all_files if must_contain in str(i.parent)]
+    return kept_files
 
 
-def find_videos(project):
-    config_fid = os.path.join(project, 'project_config.yaml')
-    with open(config_fid) as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    video_path = os.path.join(project, 'behavior', 'behavior_data')
-    video_names = get_files(video_path + os.path.sep, cfg['video_formats'])
+def find_videos(video_path, video_formats, must_contain=''):
+    video_names = get_files(video_path + os.path.sep, video_formats, must_contain=must_contain)
     video_list = {}
     anno_list = {}
     pose_list = {}
@@ -30,23 +27,23 @@ def find_videos(project):
         # split our video filename by '_''s, search for perfect-match annotations until we run out of components:
         anno_parts = v.stem.split('_')
         for i in range(len(anno_parts) - 1):
-            match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i + 1]) + '*')
+            match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i + 1]))
             if len(match_anno) == 1:
                 anno_depth = i
                 break
             elif len(match_anno) == 0:
-                match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i]) + '*')
+                match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i]))
                 anno_depth = i - 1
                 break
 
         pose_parts = v.stem.split('_')
         for i in range(len(pose_parts) - 1):
-            match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i + 1]) + '*')
+            match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i + 1]))
             if len(match_pose) == 1:
                 pose_depth = i
                 break
             elif len(match_pose) == 0:
-                match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i]) + '*')
+                match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i]))
                 pose_depth = i - 1
                 break
 
@@ -119,14 +116,14 @@ def find_videos(project):
     return video_list, multi_match, no_match
 
 
-def summarize_annotations(anno_dict):
+def summarize_annotations(anno_frames):
     counts = {}
-    for beh in list(set(anno_dict['behs_frame'])):
-        counts[beh] = anno_dict['behs_frame'].count(beh)
+    for beh in list(set(anno_frames)):
+        counts[beh] = anno_frames.count(beh)
     return counts
 
 
-def summarize_annotation_split(project):
+def summarize_annotation_split(project, do_bar=False):
     splitfile = os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json')
     if not os.path.exists(splitfile):
         print('summarize_annotation_split failed, couldn\'t find train_test_split.json in the project directory.')
@@ -139,18 +136,23 @@ def summarize_annotation_split(project):
     master_keys = []
     for idx, key in enumerate(['train', 'test', 'val']):
         for k in assignments[key].keys():
-            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
-            counts = summarize_annotations(anno_dict)
-            for beh in counts.keys():
-                if beh not in behavior_time[key].keys():
-                    behavior_time[key][beh] = counts[beh]
-                else:
-                    behavior_time[key][beh] += counts[beh]
+            anno_dict = map.parse_annotations(assignments[key][k][0]['anno'], omit_channels=['intruder', 'stim'])
+            for entry in assignments[key][k]:
+                anno_frames = [anno_dict['behs_frame'][b] for b in entry['keep_frames']]
+                counts = summarize_annotations(anno_frames)
+                for beh in counts.keys():
+                    if beh not in behavior_time[key].keys():
+                        behavior_time[key][beh] = counts[beh]
+                    else:
+                        behavior_time[key][beh] += counts[beh]
         master_keys += list(behavior_time[key].keys())
     master_keys = list(set(master_keys))
     master_keys.sort()
 
-    fig, ax = plt.subplots(1, 3, figsize=[15, 5])
+    if do_bar:
+        fig, ax = plt.subplots(3, 1, figsize=[15, 15])
+    else:
+        fig, ax = plt.subplots(1, 3, figsize=[15, 5])
     for idx, key in enumerate(['train', 'test', 'val']):
         if 'other' in behavior_time[key].keys():
             sizes = [behavior_time[key]['other']]
@@ -169,21 +171,33 @@ def summarize_annotation_split(project):
                 labels.append(beh)
                 explode.append(0)
 
-        ax[idx].pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax[idx].axis('equal')
+        if do_bar:
+            ax[idx].bar(labels[1:], sizes[1:])
+            ax[idx].tick_params(axis='x', labelrotation = 90)
+        else:
+            ax[idx].pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%', startangle=90)
+            ax[idx].axis('equal')
         ax[idx].title.set_text(key)
     fig.suptitle('Behaviors observed in train/test/validation sets')
-
     plt.show()
+    print('list of all observed annotations:')
+    print(master_keys)
 
 
 def get_unique_behaviors(video_list):
     bhv_list = []
     for k in video_list.keys():
-        anno = video_list[k]['anno']
-        anno_dict = map.parse_annotations(anno)
-        for ch in anno_dict['keys']:
-            bhv_list += list(anno_dict['behs_bout'][ch].keys())
+        if isinstance(video_list[k], list):
+            for entry in video_list[k]:
+                anno = entry['anno']
+                anno_dict = map.parse_annotations(anno, omit_channels=['intruder', 'stim'])
+                for ch in anno_dict['keys']:
+                    bhv_list += list(anno_dict['behs_bout'][ch].keys())
+        else:
+            anno = video_list[k]['anno']
+            anno_dict = map.parse_annotations(anno, omit_channels=['intruder', 'stim'])
+            for ch in anno_dict['keys']:
+                bhv_list += list(anno_dict['behs_bout'][ch].keys())
 
     bhv_unique = list(set(bhv_list))
     bhv_list = [i for i in bhv_unique if i != 'other']
@@ -194,7 +208,13 @@ def get_unique_behaviors(video_list):
 def check_behavior_data(project):
     # matches up videos with annotations, alerts to any videos that are missing annotations or have multiple matches,
     # and prints a list of all annotated behaviors.
-    video_list, multi_match, no_match = find_videos(project)
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+    video_path = os.path.join(project, 'behavior', 'behavior_data')
+
+    video_list, multi_match, no_match = find_videos(video_path, cfg['video_formats'])
     total_vids = len(no_match) + len(video_list.keys()) + len(multi_match.keys())
 
     print('Processing behavior annotations in project ' + project)
@@ -231,20 +251,50 @@ def check_behavior_data(project):
               str(len(video_list.keys())) + '/' + str(total_vids) + ')')
 
 
-def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
+def addtoset(mylist, key, entry):
+    if key in mylist.keys():
+        mylist[key].append(entry)
+    else:
+        mylist[key] = [entry]
+
+
+def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True, do_bar=False, cut_videos=False, drop_label='', train_dir=[], val_dir=[], test_dir=[]):
     # shuffle data into training, validation, and test sets. Train/val/test split is currently only allowed by video.
-    video_list, _, _ = find_videos(project)
+    # passing train_dir, val_dir, and test_dir values will override the values of reshuffle/val/test
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    video_path = os.path.join(project, 'behavior', 'behavior_data')
+    FR = cfg['framerate']
+    video_list, _, _ = find_videos(video_path, cfg['video_formats'])
+    train_list = []
+    val_list = []
+    test_list = []
+    for d in train_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        train_list += list(temp.keys())
+    for d in val_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        val_list += list(temp.keys())
+    for d in test_dir:
+        temp, _, _ = find_videos(video_path, cfg['video_formats'], must_contain=d)
+        test_list += list(temp.keys())
 
     tMax = 0
     for video in video_list.keys():
         anno = video_list[video]['anno']
-        video_list[video]['anno_dict'] = map.parse_annotations(anno)
-        tMax += video_list[video]['anno_dict']['nFrames']
+        video_list[video]['anno_dict'] = map.parse_annotations(anno, omit_channels=['intruder', 'stim'])
+        if drop_label != '':  # we're using a subset of frames, figure out which ones!
+            keep_frames = [i for i, j in zip(range(len(video_list[video]['anno_dict']['behs_frame'])),
+                                             video_list[video]['anno_dict']['behs_frame']) if j != 'omit']
+            tMax += len(keep_frames)
+        else:
+            tMax += video_list[video]['anno_dict']['nFrames']
 
     tVal = tMax * val  # minimum number of frames to assign to the validation set
     tTest = tMax * test  # minimum number of frame sto assign to the test set
 
-    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json')):
+    if os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons', 'train_data.json')) and reshuffle:
         a = 'x'
         while not a.lower() in ['y', 'n']:
             a = input('Delete existing train/test splits and reshuffle? (y/n)')
@@ -263,24 +313,47 @@ def prep_behavior_data(project, val=0.1, test=0.2, reshuffle=True):
         T = 0
         assignments = {'train': {}, 'test': {}, 'val': {}}
         for video in keys:
+            if drop_label == '':
+                keep_frames = list(range(len(video_list[video]['anno_dict']['behs_frame'])))
+            else:
+                keep_frames = [i for i, j in zip(range(len(video_list[video]['anno_dict']['behs_frame'])),
+                                                 video_list[video]['anno_dict']['behs_frame']) if j != drop_label]
             entry = {'video': video,
                      'anno': video_list[video]['anno'],
-                     'pose': video_list[video]['pose']}
-            if T < tVal:  # assign to val
-                assignments['val'][str(Path(video).stem)] = entry
-            elif T < (tVal + tTest):  # assign to test
-                assignments['test'][str(Path(video).stem)] = entry
-            else:  # assign to train
-                assignments['train'][str(Path(video).stem)] = entry
+                     'pose': video_list[video]['pose'],
+                     'keep_frames': keep_frames}
+            if cut_videos:  # rather than splitting by video, split by 1-minute time chunks.
+                chunksize = min(FR*60, tVal, tTest)
+                startframes = list(range(0, len(keep_frames), chunksize))
+                stopframes = list(range(chunksize, len(keep_frames), chunksize))
+                if len(stopframes) < len(startframes):
+                    startframes = startframes[:-1]
+                    stopframes[-1] = len(keep_frames)
+            else:
+                startframes = [0]
+                stopframes = [len(keep_frames)]
+            temp = list(zip(startframes, stopframes))
+            random.shuffle(temp)
+            startframes, stopframes = zip(*temp)
 
-            T += video_list[video]['anno_dict']['nFrames']
+            for count, [start, stop] in enumerate(zip(startframes, stopframes)):
+                sub_entry = copy.deepcopy(entry)
+                sub_entry['keep_frames'] = keep_frames[start:stop]
+
+                if T < tVal or video in val_list:
+                    addtoset(assignments['val'], str(Path(video).stem), sub_entry)
+                elif T < (tVal + tTest) or video in test_list:
+                    addtoset(assignments['test'], str(Path(video).stem), sub_entry)
+                elif train_list == [] or video in train_list:
+                    addtoset(assignments['train'], str(Path(video).stem), sub_entry)
+                T += len(keep_frames[start:stop])
 
         if not os.path.exists(os.path.join(project, 'behavior', 'behavior_jsons')):
             os.mkdir(os.path.join(project, 'behavior', 'behavior_jsons'))
         with open(os.path.join(project, 'behavior', 'behavior_jsons', 'train_test_split.json'), 'w') as f:
             json.dump(assignments, f)
 
-    summarize_annotation_split(project)
+    summarize_annotation_split(project, do_bar=do_bar)
 
 
 def apply_clf_splits(project):
@@ -308,19 +381,19 @@ def apply_clf_splits(project):
         savedata = {'vocabulary': beh_dict, 'sequences': {cfg['project_name']: {}}}
         keylist = list(assignments[key].keys())
         for k in keylist:
-            anno_dict = map.parse_annotations(assignments[key][k]['anno'])
+            anno_dict = map.parse_annotations(assignments[key][k][0]['anno'], omit_channels=['intruder', 'stim'])
             annotations = [beh_dict[b] for b in anno_dict['behs_frame']]
-
-            with open(assignments[key][k]['pose']) as f:
+            with open(assignments[key][k][0]['pose']) as f:
                 posedata = json.load(f)
+            for entry in assignments[key][k]:
+                indices = entry['keep_frames']
+                saveentry = {'keypoints': [posedata['keypoints'][i] for i in indices],
+                         'bbox': [posedata['bbox'][i] for i in indices],
+                         'scores': [posedata['scores'][i] for i in indices],
+                         'annotations': [annotations[i] for i in indices],
+                         'metadata': entry}
 
-            entry = {'keypoints': posedata['keypoints'],
-                     'bbox': posedata['bbox'],
-                     'scores': posedata['scores'],
-                     'annotations': annotations,
-                     'metadata': assignments[key][k]}
-
-            savedata['sequences'][cfg['project_name']][k] = entry
+            savedata['sequences'][cfg['project_name']][k] = saveentry
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'),'w') as f:
             json.dump(savedata, f)
 

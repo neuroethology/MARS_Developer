@@ -2,13 +2,29 @@ from __future__ import division
 import numpy as np
 from sklearn.metrics import precision_recall_fscore_support as score
 import random
+import pdb
 
-
-def score_info(y, y_pred):
+def score_info(y, y_pred, vocab):
     precision, recall, fscore, _ = score(y, y_pred)
-    print('#Precision: {}'.format(np.round(precision, 3)))
-    print('#Recall:    {}'.format(np.round(recall, 3)))
-    print('#F1score:   {}'.format(np.round(fscore, 3)))
+    beh_names = list(vocab.keys())
+    beh_list = [vocab[b] for b in beh_names]
+    print(f"{' ' : >12}", end=" ")
+    for i in list(np.unique(y)):
+        ind = beh_list.index(i)
+        print(f"{beh_names[ind] : ^9}", end=" ")
+    print(" ")
+    print(f"{'Precision:' : >12}", end=" ")
+    for i in precision:
+        print(f"{np.round(i, 3) : ^9}", end=" ")
+    print(" ")
+    print(f"{'Recall:' : >12}", end=" ")
+    for i in recall:
+        print(f"{np.round(i, 3) : ^9}", end=" ")
+    print(" ")
+    print(f"{'F1 Score:' : >12}", end=" ")
+    for i in fscore:
+        print(f"{np.round(i, 3) : ^9}", end=" ")
+    print(" ")
     return precision, recall, fscore
 
 
