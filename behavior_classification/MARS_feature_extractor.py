@@ -32,6 +32,7 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
     # there's a better version of this code in prep, for now we're leaving out user selection of features.
 
     video_fullpath = sequence['metadata']['video']
+    video_frames = sequence['metadata']['keep_frames']
     video_name = os.path.basename(video_fullpath)
 
     num_points = len(sequence['scores'][0][0])
@@ -39,7 +40,7 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
     ext = video_fullpath[-3:]
 
     reader = vidReader(video_fullpath)
-    num_frames = reader.NUM_FRAMES
+    num_frames = len(video_frames)
     im_h = reader.IM_H
     im_w = reader.IM_W
     fps = reader.fps
@@ -1059,12 +1060,12 @@ def extract_features_top(sequence, cfg, progress_bar_sig=''):
                     progress_bar_sig.emit(f,0)
 
                 if f == 1:
-                    frame1 = reader.getFrame(f-1)
+                    frame1 = reader.getFrame(video_frames[f-1])
                     frame1 = frame1.astype(np.float32)
                 else:
                     frame1 = frame2
 
-                frame2 = reader.getFrame(f)
+                frame2 = reader.getFrame(video_frames[f])
                 frame2 = frame2.astype(np.float32)
 
                 if 'pixel_change' in features:
@@ -1213,15 +1214,16 @@ def extract_features(project, progress_bar_sig=''):
         feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
         keylist = list(data['sequences'][cfg['project_name']].keys())
         for i, k in enumerate(keylist):
-            print('%s (%i/%i): %s' % (key, i+1, len(keylist), k))
-            feat_dict = extract_features_top(data['sequences'][cfg['project_name']][k], cfg, progress_bar_sig=progress_bar_sig)
-            if feat_dict == []:
-                print('skipping for no feats, something went wrong')
-            else:
-                feats['feature_names'] = feat_dict['features']
-                feats['vocabulary'] = data['vocabulary']
-                feats['sequences'][cfg['project_name']][k] = {'features': feat_dict['data_smooth'].tolist(),
-                                                              'annotations': data['sequences'][cfg['project_name']][k]['annotations']}
+            for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+                print('%s (%i/%i): %s (%i/%i)' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
+                feat_dict = extract_features_top(entry, cfg, progress_bar_sig=progress_bar_sig)
+                if feat_dict == []:
+                    print('skipping for no feats, something went wrong')
+                else:
+                    feats['feature_names'] = feat_dict['features']
+                    feats['vocabulary'] = data['vocabulary']
+                    feats['sequences'][cfg['project_name']][k] = {'features': feat_dict['data_smooth'].tolist(),
+                                                                  'annotations': entry['annotations']}
 
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
             json.dump(feats, f)
