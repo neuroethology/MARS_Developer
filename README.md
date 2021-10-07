@@ -46,7 +46,8 @@ Training MARS to run on your own experiments includes the following steps. We'll
 
 > **Important Note: the steps below only show the training commands themselves. Open the MARS_tutorial jupyter notebook to see the complete training process, including scripts to evaluate model performance at each step!**
 
-[![](pose_annotation_tools/docs/jupyter_button.jpg)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_tutorial.ipynb)
+
+[![](pose_annotation_tools/docs/pose_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_pose_tutorial.ipynb) [![](pose_annotation_tools/docs/behavior_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_behavior_tutorial.ipynb)
 
 ### 1) 📁 Create a new MARS Training Project.
 MARS uses a set file strcture to keep track of data and models associated with your project. The script `create_new_project.py` will create one for you. It takes the arguments:
