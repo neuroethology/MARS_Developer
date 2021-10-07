@@ -392,9 +392,9 @@ def apply_clf_splits(project):
                          'scores': [posedata['scores'][i] for i in indices],
                          'annotations': [annotations[i] for i in indices],
                          'metadata': entry}
+                addtoset(savedata['sequences'][cfg['project_name']], k, saveentry)
 
-            savedata['sequences'][cfg['project_name']][k] = saveentry
-        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'),'w') as f:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json'), 'w') as f:
             json.dump(savedata, f)
 
 
