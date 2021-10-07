@@ -42,6 +42,7 @@ MARS processes your videos in three steps:
 Each of these steps can be fine-tuned to your own data using the code in this repository.
 
 To get started, please check out our two Tutorial notebooks:
+
 [![](pose_annotation_tools/docs/pose_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_pose_tutorial.ipynb) [![](pose_annotation_tools/docs/behavior_tutorial_button.png)](https://nbviewer.jupyter.org/github/neuroethology/MARS_Developer/blob/master/MARS_behavior_tutorial.ipynb)
 
 ## An Overview of the Training Process
