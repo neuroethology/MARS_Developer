@@ -151,7 +151,11 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                     annots = annots[:feats.shape[0]]
                 else:
                     feats = feats[:len(annots), :, :]
-            feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
+
+            if np.shape(feats)[1] == 1:
+                feats = feats[:, 0, :]
+            else:  # TODO: make >2 mouse case
+                feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
 
             if clf_params['do_wnd']:
                 windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
@@ -451,7 +455,7 @@ def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
 
 
 def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False,
-                     max_positive=[0], drop_movies=[], do_quicksave=False):
+                     drop_movies=[], do_quicksave=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -479,70 +483,62 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
                               do_quicksave=do_quicksave)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
 
-    max_positive = [max_positive] if not isinstance(max_positive,list) else max_positive
-    bouts_store = np.ndarray((len(max_positive),5))
-    for ii, mm in enumerate(max_positive):
-        for jj, rep in enumerate(range(5)):
-            # now create the classifier and give it an informative name:
-            classifier = choose_classifier(clf_params)
-            classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params) if mm == 0 \
-                else cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params) + '_' + str(mm).zfill(5) \
-                     + '_' + str(rep)
-            savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
-            if not os.path.exists(savedir):
-                os.makedirs(savedir)
-            print('Training classifier: ' + classifier_name.upper())
-            # train each classifier in a loop:
-            for beh_name in train_behaviors:
-                print('######################### %s #########################' % beh_name)
-                # drop trials missing annotations for our behavior of interest
-                X_tr_beh, y_tr_beh = handle_missing_trials(X_tr, y_tr[beh_name], drop_empty_trials=drop_empty_trials)
-                if X_ev != []:
-                    X_ev_beh, y_ev_beh = handle_missing_trials(X_ev, y_ev[beh_name], drop_empty_trials=drop_empty_trials)
-                else:
-                    X_ev_beh = []
-                    y_ev_beh = []
+    # now create the classifier and give it an informative name:
+    classifier = choose_classifier(clf_params)
+    classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
+    savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
+    print('Training classifier: ' + classifier_name.upper())
+    # train each classifier in a loop:
+    for beh_name in train_behaviors:
+        print('######################### %s #########################' % beh_name)
+        # drop trials missing annotations for our behavior of interest
+        X_tr_beh, y_tr_beh = handle_missing_trials(X_tr, y_tr[beh_name], drop_empty_trials=drop_empty_trials)
+        if X_ev != []:
+            X_ev_beh, y_ev_beh = handle_missing_trials(X_ev, y_ev[beh_name], drop_empty_trials=drop_empty_trials)
+        else:
+            X_ev_beh = []
+            y_ev_beh = []
 
-                # shuffle in blocks of 2000 frames:
-                blocksize = 2000
-                num_blocks_tr = int(np.ceil(len(y_tr_beh) / blocksize))
-                blockorder_tr = list(range(num_blocks_tr))
-                random.shuffle(blockorder_tr)
-                newinds_tr = list([j + blocksize * i for i in blockorder_tr for j in np.arange(blocksize)])
-                X_tr_beh = np.array([X_tr_beh[i, :] for i in newinds_tr if i < len(y_tr_beh)])
-                y_tr_beh = np.array([y_tr_beh[i] for i in newinds_tr if i < len(y_tr_beh)])
-                if X_ev != []:
-                    num_blocks_ev = int(np.ceil(len(y_ev_beh) / blocksize))
-                    blockorder_ev = list(range(num_blocks_ev))
-                    random.shuffle(blockorder_ev)
-                    newinds_ev = list([j + blocksize * i for i in blockorder_ev for j in np.arange(blocksize)])
-                    X_ev_beh = np.array([X_ev_beh[i, :] for i in newinds_ev if i < len(y_ev_beh)])
-                    y_ev_beh = np.array([y_ev_beh[i] for i in newinds_ev if i < len(y_ev_beh)])
+        # shuffle in blocks of 2000 frames:
+        blocksize = 2000
+        num_blocks_tr = int(np.ceil(len(y_tr_beh) / blocksize))
+        blockorder_tr = list(range(num_blocks_tr))
+        random.shuffle(blockorder_tr)
+        newinds_tr = list([j + blocksize * i for i in blockorder_tr for j in np.arange(blocksize)])
+        X_tr_beh = np.array([X_tr_beh[i, :] for i in newinds_tr if i < len(y_tr_beh)])
+        y_tr_beh = np.array([y_tr_beh[i] for i in newinds_tr if i < len(y_tr_beh)])
+        if X_ev != []:
+            num_blocks_ev = int(np.ceil(len(y_ev_beh) / blocksize))
+            blockorder_ev = list(range(num_blocks_ev))
+            random.shuffle(blockorder_ev)
+            newinds_ev = list([j + blocksize * i for i in blockorder_ev for j in np.arange(blocksize)])
+            X_ev_beh = np.array([X_ev_beh[i, :] for i in newinds_ev if i < len(y_ev_beh)])
+            y_ev_beh = np.array([y_ev_beh[i] for i in newinds_ev if i < len(y_ev_beh)])
 
-                # cut to our target training set size
-                cutoff_tr = np.argmax(np.cumsum(y_tr_beh) > mm) if (mm > 0 and np.sum(y_tr_beh) > mm) else len(y_tr_beh)
-                cutoff_ev = np.argmax(np.cumsum(y_ev_beh) > mm) if (mm > 0 and np.sum(y_ev_beh) > mm) else len(y_ev_beh)
-                bouts_tr = sum([(i != 0 and j == 0) for i, j in zip(y_tr_beh[:cutoff_tr-1], y_tr_beh[1:cutoff_tr])])
-                print('training using %d positive frames (%s bouts)' % (mm, bouts_tr))
-                bouts_store[ii, jj] = bouts_tr
-                beh_classifier = {'beh_name': beh_name,
-                                  'beh_id': vocab[beh_name],
-                                  'clf': classifier,
-                                  'params': clf_params}
-                results = do_train(beh_classifier,
-                                   X_tr_beh[:cutoff_tr], y_tr_beh[:cutoff_tr],
-                                   X_ev_beh[:cutoff_ev], y_ev_beh[:cutoff_ev],
-                                   savedir, verbose=clf_params['verbose'])
-                do_train_smooth(beh_classifier,
-                                X_tr_beh[:cutoff_tr], y_tr_beh[:cutoff_tr],
-                                savedir, verbose=clf_params['verbose'])
+        # cut to our target training set size
+        bouts_tr = sum([(i != 0 and j == 0) for i, j in zip(y_tr_beh[:-1], y_tr_beh[1:])])
+        print('training using %d positive frames (%s bouts)' % (sum(y_tr_beh!=0), bouts_tr))
+
+        beh_classifier = {'beh_name': beh_name,
+                          'beh_id': vocab[beh_name],
+                          'clf': classifier,
+                          'params': clf_params}
+        results = do_train(beh_classifier,
+                           X_tr_beh, y_tr_beh,
+                           X_ev_beh, y_ev_beh,
+                           savedir, verbose=clf_params['verbose'])
+        do_train_smooth(beh_classifier,
+                        X_tr_beh, y_tr_beh,
+                        savedir, verbose=clf_params['verbose'])
+
         print('done training!')
-        print(bouts_store)
     return results
 
 
 def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trials=False,
-                    max_positive=[0], do_quicksave=False):
+                    do_quicksave=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -559,34 +555,31 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     print('loaded test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
     X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
-    for mm in max_positive:
-        for rep in range(5):
-            classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params) + \
-                              '_' + str(mm).zfill(5) + '_' + str(rep)
-            savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
-            T = len(list(y_te.values())[0])
-            n_classes = max([vocab[b] for b in list(vocab.keys())])+1
-            gt = np.zeros((T, n_classes)).astype(int)
-            proba = np.zeros((T, n_classes, 2))
-            preds = np.zeros((T, n_classes)).astype(int)
-            preds_fbs_hmm = np.zeros((T, n_classes)).astype(int)
-            proba_fbs_hmm = np.zeros((T, n_classes, 2))
-            print('loading classifiers from %s' % savedir)
-            for b, beh_name in enumerate(test_behaviors):
-                print('predicting %s...' % beh_name)
-                name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
+    classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
+    savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
+    T = len(list(y_te.values())[0])
+    n_classes = max([vocab[b] for b in list(vocab.keys())])+1
+    gt = np.zeros((T, n_classes)).astype(int)
+    proba = np.zeros((T, n_classes, 2))
+    preds = np.zeros((T, n_classes)).astype(int)
+    preds_fbs_hmm = np.zeros((T, n_classes)).astype(int)
+    proba_fbs_hmm = np.zeros((T, n_classes, 2))
+    print('loading classifiers from %s' % savedir)
+    for b, beh_name in enumerate(test_behaviors):
+        print('predicting %s...' % beh_name)
+        name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
 
-                gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
-                preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
-                    do_test(name_classifier, X_te, y_te[beh_name],
-                            verbose=clf_params['verbose'], doPRC=True)
-            all_pred = assign_labels(proba, vocab)
-            all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
-            gt = np.argmax(gt, axis=1)
+        gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
+        preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
+            do_test(name_classifier, X_te, y_te[beh_name],
+                    verbose=clf_params['verbose'], doPRC=True)
+    all_pred = assign_labels(proba, vocab)
+    all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
+    gt = np.argmax(gt, axis=1)
 
-            print(' ')
-            print('Classifier performance:')
-            score_info(gt, all_pred_fbs_hmm, vocab)
+    print(' ')
+    print('Classifier performance:')
+    score_info(gt, all_pred_fbs_hmm, vocab)
     P = {'0_G': gt,
          '0_Gc': y_te,
          '1_pd': preds,
