@@ -1,11 +1,12 @@
 from __future__ import print_function,division
 import sys, os
+import copy
 import warnings
 import json, yaml
 import numpy as np
 warnings.filterwarnings('ignore')
 from behavior_classification.MARS_feature_machinery import *
-
+import pdb
 
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
 
@@ -22,17 +23,20 @@ def load_pose(pose_fullpath):
 def generate_valid_feature_list(cfg):
 
     num_mice = len(cfg['animal_names']) * cfg['num_obj']
-    mice = ['m'+str(i+1) for i in range(num_mice)]
-
+    mice = ['m'+str(i) for i in range(num_mice)]
+    # TODO: multi-camera support
     # TODO: replace hard-coded feature names with keypoints from the project config file.
-    parts_top = ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base']
-    parts_front = ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base', 'left_front_paw',
-                   'right_front_paw', 'left_rear_paw', 'right_rear_paw']
+    cameras = {'top':   ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base'],
+               'front': ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base',
+                         'left_front_paw', 'right_front_paw', 'left_rear_paw', 'right_rear_paw']}
     inferred_parts = ['centroid', 'centroid_head', 'centroid_body']
 
-    feats = {'top': {'m1': {}, 'm2': {}}, 'front': {'m1': {}, 'm2': {}}}
-    for cam in ['top', 'front']:
+    feats = {}
+    for cam in cameras:
+        pairmice = copy.deepcopy(mice)
+        feats[cam] = {}
         for mouse in mice:
+            feats[cam][mouse] = {}
             feats[cam][mouse]['absolute_orientation'] = ['phi', 'ori_head', 'ori_body']
             feats[cam][mouse]['joint_angle'] = ['angle_head_body_l', 'angle_head_body_r']
             feats[cam][mouse]['fit_ellipse'] = ['major_axis_len', 'minor_axis_len', 'axis_ratio', 'area_ellipse']
@@ -40,19 +44,21 @@ def generate_valid_feature_list(cfg):
             feats[cam][mouse]['speed'] = ['speed', 'speed_centroid', 'speed_fwd', 'radial_vel', 'tangential_vel']
             feats[cam][mouse]['acceleration'] = ['acceleration_head', 'acceleration_body', 'acceleration_centroid']
 
-        if num_mice > 1:  # multi-animal features. TODO: generalize this to >2 mice.
-            feats[cam]['m1']['social_angle'] = ['angle_between', 'facing_angle', 'angle_social']
-            feats[cam]['m1']['relative_size'] = ['area_ellipse_ratio']
-            feats[cam]['m1']['social_distance'] = ['dist_centroid', 'dist_nose', 'dist_head', 'dist_body',
+        pairmice.remove(mouse)
+        for mouse2 in pairmice:
+            feats[cam][mouse+mouse2] = {}
+            feats[cam][mouse+mouse2]['social_angle'] = ['angle_between', 'facing_angle', 'angle_social']
+            feats[cam][mouse+mouse2]['relative_size'] = ['area_ellipse_ratio']
+            feats[cam][mouse+mouse2]['social_distance'] = ['dist_centroid', 'dist_nose', 'dist_head', 'dist_body',
                                                    'dist_head_body', 'dist_gap', 'dist_scaled', 'overlap_bboxes']
 
-    for cam, parts in zip(['top', 'front'], [parts_top, parts_front]):
+    for cam, parts in zip(cameras.keys(), [cameras[i] for i in cameras.keys()]):
         for mouse in mice:
             feats[cam][mouse]['raw_coordinates'] = [(p + c) for p in parts for c in ['_x', '_y']]
             [feats[cam][mouse]['raw_coordinates'].append(p + c) for p in inferred_parts for c in ['_x', '_y']]
             feats[cam][mouse]['intramouse_distance'] = [('dist_' + p + '_' + q) for p in parts for q in parts if q != p]
-        if num_mice > 1:
-            feats[cam]['m1']['intermouse_distance'] = [('dist_m1' + p + '_m2' + q) for p in parts for q in parts]
+        for mouse2 in pairmice:
+            feats[cam][mouse+mouse2]['intermouse_distance'] = [('dist_m1' + p + '_m2' + q) for p in parts for q in parts]
 
     return feats
 
@@ -63,11 +69,15 @@ def list_features(project):
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     feats = generate_valid_feature_list(cfg)
     print('All available feature categories:')
-    print("feats = ['" + "', '".join(list(feats['top']['m1'].keys())) + "']")
+    for cam in feats.keys():
+        for mouse in feats[cam].keys():
+            print("feats[" + cam + "][" + mouse + "] = ['" + "', '".join(list(feats[cam][mouse].keys())) + "']")
     print('\nFeatures included in each category:')
-    for feat in feats['top']['m1'].keys():
-        print(feat + ':')
-        print("   {'" + "', '".join(feats['top']['m1'][feat]) + "'}")
+    for cam in feats.keys():
+        for mouse in feats[cam].keys():
+            for feat in feats[cam][mouse].keys():
+                print(cam + '|' + mouse + '|' + feat + ':')
+                print("   {'" + "', '".join(feats[cam][mouse][feat]) + "'}")
 
 
 def generate_lambdas():
@@ -77,7 +87,7 @@ def generate_lambdas():
     # by the extract_features function.
 
     eps = np.spacing(1)
-    parts_front = ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base', 'left_front_paw',
+    parts_list = ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base', 'left_front_paw',
                    'right_front_paw', 'left_rear_paw', 'right_rear_paw']
 
     # lambdas are grouped by what kind of input they take. not very intuitive naming, this is supposed
@@ -104,12 +114,12 @@ def generate_lambdas():
     lam['xy']['centroid_head_y'] = lambda x, y: np.mean(y[:3])
     lam['xy']['centroid_body_x'] = lambda x, y: np.mean(x[4:])
     lam['xy']['centroid_body_y'] = lambda x, y: np.mean(y[4:])
-    for i, p1 in enumerate(parts_front):
-        for j, p2 in enumerate(parts_front):
+    for i, p1 in enumerate(parts_list):
+        for j, p2 in enumerate(parts_list):
             if p1 != p2:
                 lam['xy']['dist_' + p1 + '_' + p2] = lambda x, y, ind1=i, ind2=j: \
                                                             np.linalg.norm([x[ind1] - x[ind2], y[ind1] - y[ind2]])
-    for i, part in enumerate(parts_front):
+    for i, part in enumerate(parts_list):
         lam['xy'][part + '_x'] = lambda x, y, ind=i: x[ind]
         lam['xy'][part + '_y'] = lambda x, y, ind=i: y[ind]
 
@@ -155,8 +165,8 @@ def generate_lambdas():
     lam['xyxy_ang']['area_ellipse_ratio'] = lambda x1, y1, x2, y2: \
         lam['ell_area']['area_ellipse'](fit_ellipse(x1, y1))/lam['ell_area']['area_ellipse'](fit_ellipse(x2, y2))
 
-    for i, p1 in enumerate(parts_front):
-        for j, p2 in enumerate(parts_front):
+    for i, p1 in enumerate(parts_list):
+        for j, p2 in enumerate(parts_list):
             lam['xyxy']['dist_m1' + p1 + '_m2' + p2] = \
                 lambda x1, y1, x2, y2, ind1=i, ind2=j: np.linalg.norm([x1[ind1] - x2[ind2], y1[ind1] - y2[ind2]])
 
@@ -210,7 +220,24 @@ def smooth_keypoint_trajectories(keypoints):
     return keypoints_sm
 
 
-def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','m2'],
+def get_mars_keypoints(keypoints, num_mice, partorder):
+    xraw = []
+    yraw = []
+    for m in range(num_mice):
+        xraw.append(np.asarray(keypoints[m][0]))
+        yraw.append(np.asarray(keypoints[m][1]))
+    xm = []
+    ym = []
+    for m in range(num_mice):
+        xm.append(np.array([]))
+        ym.append(np.array([]))
+        for part in partorder:
+            xm[m] = np.append(xm[m], np.mean(xraw[m][part]))
+            ym[m] = np.append(ym[m], np.mean(yraw[m][part]))
+    return xm, ym
+
+
+def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list=[],
                      smooth_keypoints=False, center_mouse=False):
 
     keypoints = [f for f in sequence['keypoints']]
@@ -223,28 +250,42 @@ def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','
     fps = cfg['framerate']
     num_frames = len(keypoints)
     num_mice = len(cfg['animal_names'])*cfg['num_obj']
+    if not mouse_list:
+        mouse_list = ['m' + str(i) for i in range(num_mice)]
+
     parts = cfg['keypoints']
-    num_parts = len(parts)
+    nose       = [parts.index(i) for i in cfg['mars_name_matching']['nose']]
+    left_ear   = [parts.index(i) for i in cfg['mars_name_matching']['left_ear']]
+    right_ear  = [parts.index(i) for i in cfg['mars_name_matching']['right_ear']]
+    neck       = [parts.index(i) for i in cfg['mars_name_matching']['neck']]
+    left_side  = [parts.index(i) for i in cfg['mars_name_matching']['left_side']]
+    right_side = [parts.index(i) for i in cfg['mars_name_matching']['right_side']]
+    tail       = [parts.index(i) for i in cfg['mars_name_matching']['tail']]
+    # num_parts = len(parts)
+    num_parts = 7  # for now we're just supporting the MARS-style keypoints
+    partorder = [nose, right_ear, left_ear, neck, right_side, left_side, tail]
 
     feats = generate_valid_feature_list(cfg)
     lam = generate_lambdas()
     if not use_grps:
-        use_grps = feats[use_cam]['m1'].keys()
+        use_grps = []
+        for mouse in mouse_list:
+            use_grps = use_grps + list(feats[use_cam][mouse].keys())
     else:
         for grp in use_grps:
-            if grp not in feats[use_cam]['m1'].keys():
+            if grp not in feats[use_cam][mouse_list[0]].keys():
                 raise Exception(grp+' is not a valid feature group name.')
-    features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=use_mice)
+    features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=mouse_list)
     num_features = len(features)
 
     try:
-        bar = progressbar.ProgressBar(widgets= [progressbar.FormatLabel('Feats frame %(value)d'), '/',
-                                                progressbar.FormatLabel('%(max)d  '),
-                                                progressbar.Percentage(), ' -- ', ' [', progressbar.Timer(), '] ',
-                                                progressbar.Bar(), ' (', progressbar.ETA(), ') '], maxval=num_frames)
+        # bar = progressbar.ProgressBar(widgets=[progressbar.FormatLabel('Feats frame %(value)d'), '/',
+        #                                        progressbar.FormatLabel('%(max)d  '),
+        #                                        progressbar.Percentage(), ' -- ', ' [', progressbar.Timer(), '] ',
+        #                                        progressbar.Bar(), ' (', progressbar.ETA(), ') '], maxval=num_frames)
         track = {'features': features,
-                 'data': np.zeros((2, num_frames, num_features)),
-                 'bbox': np.zeros((2, 4, num_frames)),
+                 'data': np.zeros((num_mice, num_frames, num_features)),
+                 'bbox': np.zeros((num_mice, 4, num_frames)),
                  'keypoints': keypoints,
                  'fps': fps}
 
@@ -254,61 +295,62 @@ def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','
         ally = []
         for f in range(num_frames):
             keypoints = sequence['keypoints'][f]
-            xm1 = np.asarray(keypoints[0][0])
-            ym1 = np.asarray(keypoints[0][1])
-            xm2 = np.asarray(keypoints[1][0]) if num_mice > 1 else np.zeros()
-            ym2 = np.asarray(keypoints[1][1])
+            xm, ym = get_mars_keypoints(keypoints, num_mice, partorder)
 
-            [allx.append(x) for x in (xm1, xm2)]
-            [ally.append(y) for y in (ym1, ym2)]
-            mouse_length[f] = np.linalg.norm((xm1[3] - xm1[6], ym1[3] - ym1[6]))
+            [allx.append(x) for x in np.ravel(xm)]
+            [ally.append(y) for y in np.ravel(ym)]
+            mouse_length[f] = np.linalg.norm((xm[0][3] - xm[0][6], ym[0][3] - ym[0][6]))
 
         # estimate the extent of our arena from tracking data
-        allx = np.concatenate(allx).ravel()/dscale
-        ally = np.concatenate(ally).ravel()/dscale
+        allx = np.asarray(allx)/dscale
+        ally = np.asarray(ally)/dscale
         xlims_0 = [np.percentile(allx, 1), np.percentile(allx, 99)]
         ylims_0 = [np.percentile(ally, 1), np.percentile(ally, 99)]
+        xm0 = [np.array([]) for i in range(num_mice)]
+        ym0 = [np.array([]) for i in range(num_mice)]
+        xm00 = [np.array([]) for i in range(num_mice)]
+        ym00 = [np.array([]) for i in range(num_mice)]
 
         # extract features ##############################################################
-        mouse_list = ['m1', 'm2']
         pr = np.linspace(0, num_frames - 1, num_frames)  # for tracking progress
-        bar.start()
+        # bar.start()
         for f in range(num_frames):
-            bar.update(pr[f])
+            # bar.update(pr[f])
 
             if f > 1:
-                xm100 = xm10
-                ym100 = ym10
-                xm200 = xm20
-                ym200 = ym20
+                for m in range(num_mice):
+                    xm00[m] = xm0[m]
+                    ym00[m] = ym0[m]
             if f != 0:
-                xm10 = xm1
-                ym10 = ym1
-                xm20 = xm2
-                ym20 = ym2
-            xm1 = np.asarray(sequence['keypoints'][f][0][0])
-            ym1 = np.asarray(sequence['keypoints'][f][0][1])
-            xm2 = np.asarray(sequence['keypoints'][f][1][0]) if num_mice > 1 else np.zeros(num_parts)
-            ym2 = np.asarray(sequence['keypoints'][f][1][1]) if num_mice > 1 else np.zeros(num_parts)
-            bboxes1 = np.asarray(sequence['bbox'][f])[0, :]
-            bboxes2 = np.asarray(sequence['bbox'][f])[1, :] if num_mice > 1 else np.zeros(bboxes1.shape())
+                for m in range(num_mice):
+                    xm0[m] = xm[m]
+                    ym0[m] = ym[m]
+
+            keypoints = sequence['keypoints'][f]
+            xm, ym = get_mars_keypoints(keypoints, num_mice, partorder)
+
+            bboxes = []
+            for m in range(num_mice):
+                bboxes.append(np.asarray(sequence['bbox'][f])[0, :])
             if f == 0:
-                xm10 = xm1
-                ym10 = ym1
-                xm20 = xm2
-                ym20 = ym2
+                for m in range(num_mice):
+                    xm0[m] = xm[m]
+                    ym0[m] = ym[m]
             if f <= 1:
-                xm100 = xm10
-                ym100 = ym10
-                xm200 = xm20
-                ym200 = ym20
+                for m in range(num_mice):
+                    xm00[m] = xm0[m]
+                    ym00[m] = ym0[m]
 
-            m1_vals = (xm1, ym1, xm2, ym2, xm10, ym10, xm100, ym100, bboxes1, bboxes2)
-            m2_vals = (xm2, ym2, xm1, ym1, xm20, ym20, xm200, ym200, bboxes2, bboxes1)
-            for m, (xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb) in enumerate([m1_vals, m2_vals]):
-                if not mouse_list[m] in use_mice:
-                    continue
-
+            mouse_vals = []
+            if num_mice > 1:
+                for mouse1 in range(num_mice):
+                    for mouse2 in range(num_mice):
+                        if mouse2 == mouse1:
+                            continue
+                        mouse_vals.append((xm[mouse1], ym[mouse1], xm[mouse2], ym[mouse2], xm0[mouse1], ym0[mouse1], xm00[mouse1], ym00[mouse1], bboxes[mouse1], bboxes[mouse2]))
+            else:
+                mouse_vals.append((xm[0], ym[0], xm[0], ym[0], xm0[0], ym0[0], xm00[0], ym00[0], bboxes[0], bboxes[0]))
+            for m, (xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb) in enumerate(mouse_vals):
                 if center_mouse:
                     (xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb, xlims, ylims) = \
                         center_on_mouse(xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb, xlims_0, ylims_0)
@@ -392,7 +434,7 @@ def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xybd'][feat](xa, ya, xlims, ylims) / dscale
 
-        bar.finish()
+        # bar.finish()
         return track
 
     except Exception as e:
@@ -406,3 +448,28 @@ def extract_features(sequence, cfg, use_grps=[], use_cam='top', use_mice=['m1','
         print(e)
         return []
 
+def extract_features(project, progress_bar_sig=''):
+    config_fid = os.path.join(project, 'project_config.yaml')
+    with open(config_fid) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+    for key in ['train', 'test', 'val']:
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
+            data = json.load(f)
+
+        feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
+        keylist = list(data['sequences'][cfg['project_name']].keys())
+        for i, k in enumerate(keylist):
+            for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+                print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
+                feat_dict = run_feature_extraction(entry, cfg)
+                if not feat_dict:
+                    print('skipping for no feats, something went wrong')
+                else:
+                    feats['feature_names'] = feat_dict['features']
+                    feats['vocabulary'] = data['vocabulary']
+                    feats['sequences'][cfg['project_name']][k] = {'features': feat_dict['data'].tolist(),
+                                                                  'annotations': entry['annotations']}
+
+        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
+            json.dump(feats, f)

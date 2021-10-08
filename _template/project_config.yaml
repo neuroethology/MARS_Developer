@@ -71,6 +71,17 @@ num_obj : 1
 # "white mouse nose","white mouse tail"]
 keypoints : ['nose','right ear','left ear','top of neck','right rear knee','left rear knee','base of tail']
 
+# tell the classifiers how to map your keypoint names to MARS points. If you provide more than one name,
+# MARS will interpolate between the listed points by averaging them.
+mars_name_matching:
+  nose: ['nose']
+  right_ear: ['right ear']
+  left_ear: ['left ear']
+  neck: ['top of neck']
+  right_side: ['right rear knee']
+  left_side: ['left rear knee']
+  tail: ['base of tail']
+
 # list of all keypoints pairs that have right/left assignments, or otherwise
 # could get flipped by workers. MARS will screen these during post-processing
 # and correct any flips that occurred. We assume people flip part identities
