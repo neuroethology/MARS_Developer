@@ -7,13 +7,13 @@ def list_supported_formats():
     return ['annot', 'txt']
 
 
-def parse_annotations(fid, use_channels=[], timestamps=[]):
+def parse_annotations(fid, use_channels=[], timestamps=[], omit_channels=[]):
     # use this function to load annotations of either file type!
     if fid.endswith('.txt'):
         ann_dict = parse_txt(fid)
         return ann_dict
     elif fid.endswith('.annot'):
-        ann_dict = parse_annot(fid, use_channels, timestamps)
+        ann_dict = parse_annot(fid, use_channels, timestamps, omit_channels)
         return ann_dict
 
 
@@ -134,7 +134,7 @@ def parse_txt(f_ann):
     return ann_dict
 
 
-def parse_annot(filename, use_channels = [], timestamps = []):
+def parse_annot(filename, use_channels = [], timestamps = [], omit_channels = []):
     """ Takes as input a path to a .annot file and returns the frame-wise behavioral labels. Optional input use_channels
     only returns annotations in the specified channel(s); default behavior is to merge all channels. Passing timestamps
     from a seq movie will make sure that annotated times are converted to frame numbers correctly in the instance where
@@ -219,7 +219,8 @@ def parse_annot(filename, use_channels = [], timestamps = []):
 
             assert ('----------' in line)
             channel_name = line.rstrip('-')
-            channel_name = channel_name[:3] # sloppy fix for now, to get simplified channel name-----------------------
+            if 'Ch1' in channel_name or 'Ch2' in channel_name:
+                channel_name = channel_name[:3]  # sloppy fix for now, to get simplified channel name-------------------
             channel_names.append(channel_name)
 
             behaviors_framewise = [''] * end_frame
@@ -277,7 +278,7 @@ def parse_annot(filename, use_channels = [], timestamps = []):
             channel_dict[channel_name] = behaviors_framewise
             bouts_dict[channel_name] = behaviors_boutwise
         
-        changed_behavior_list = merge_channels(bouts_dict, use_channels, end_frame)
+        changed_behavior_list = merge_channels(bouts_dict, use_channels, omit_channels, end_frame)
 
         ann_dict = {
             'keys': keys,
@@ -314,7 +315,7 @@ def bouts_to_rast(channel, n_frames, names):
 
 
 
-def merge_channels(channel_dict, use_channels, end_frame, target_behaviors = []):
+def merge_channels(channel_dict, use_channels, omit_channels, end_frame, target_behaviors = []):
     # for now, we'll just merge kept channels together, in order listed. this can cause behaviors happening in
     # earlier channels to be masked by other behaviors in later channels. Specify behaviors to keep in
     # target_behaviors if desired, otherwise it merges everything.
@@ -322,6 +323,8 @@ def merge_channels(channel_dict, use_channels, end_frame, target_behaviors = [])
     changed_behavior_list = ['other'] * end_frame
     if not use_channels:
         use_channels = channel_dict.keys()
+    if omit_channels != []:
+        use_channels = [ch for ch in use_channels if ch not in omit_channels]
     for ch in use_channels:
         if (ch in channel_dict):
             keep_behaviors = target_behaviors if not target_behaviors == [] else set(channel_dict[ch].keys())
