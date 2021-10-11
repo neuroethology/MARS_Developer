@@ -110,9 +110,9 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             return
         for label in train_behaviors:
             if label not in data['vocabulary']:
-                print('Error: target behavior ' + label + ' not found in this dataset.\nAvailable labels:')
+                print('Error: target behavior "' + label + '" not found in this dataset.\nAvailable labels:')
                 print(list(data['vocabulary'].keys()))
-                return [], [], []
+                return np.array([]), [], []
 
         keylist = list(data['sequences'][cfg['project_name']].keys())
         data_stack = []
@@ -475,6 +475,8 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
                                   drop_empty_trials=drop_empty_trials,
                                   drop_movies=drop_movies,
                                   do_quicksave=do_quicksave)
+    if X_tr.size == 0:
+        return []
     print('loading validation data...')
     X_ev, y_ev, _ = load_data(project, 'val', train_behaviors,
                               drop_behaviors=drop_behaviors,
