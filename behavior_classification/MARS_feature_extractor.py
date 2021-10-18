@@ -460,6 +460,7 @@ def extract_features(project, progress_bar_sig=''):
         feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
         keylist = list(data['sequences'][cfg['project_name']].keys())
         for i, k in enumerate(keylist):
+            feats['sequences'][cfg['project_name']][k] = []
             for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
                 print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
                 feat_dict = run_feature_extraction(entry, cfg)
@@ -468,8 +469,8 @@ def extract_features(project, progress_bar_sig=''):
                 else:
                     feats['feature_names'] = feat_dict['features']
                     feats['vocabulary'] = data['vocabulary']
-                    feats['sequences'][cfg['project_name']][k] = {'features': feat_dict['data'].tolist(),
-                                                                  'annotations': entry['annotations']}
+                    feats['sequences'][cfg['project_name']][k].append({'features': feat_dict['data'].tolist(),
+                                                                       'annotations': entry['annotations']})
 
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
             json.dump(feats, f)

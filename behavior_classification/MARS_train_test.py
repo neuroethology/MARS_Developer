@@ -130,55 +130,56 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         for i, k in enumerate(keylist):
             if k in drop_movies:
                 continue
-            feats = np.array(data['sequences'][cfg['project_name']][k]['features'])
-            feats = np.swapaxes(feats, 0, 1)
-            feats = mts.clean_data(feats)
-            annots = data['sequences'][cfg['project_name']][k]['annotations']
-            dropflag = False
-            for label_name in train_behaviors:
-                if label_name in equivalences.keys():
-                    hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
-                else:
-                    hit_list = [data['vocabulary'][label_name]]
-                if drop_empty_trials and not any([i in hit_list for i in annots]):
-                    dropflag = True
-            if dropflag:
-                continue
-            if len(annots) != feats.shape[0]:
-                print('Length mismatch: %s %d %d' % (k, len(annots), feats.shape[0]))
-                print('Extra frames will be trimmed from the end of the sequence.')
-                if len(annots) > feats.shape[0]:
-                    annots = annots[:feats.shape[0]]
-                else:
-                    feats = feats[:len(annots), :, :]
-
-            if np.shape(feats)[1] == 1:
-                feats = feats[:, 0, :]
-            else:  # TODO: make >2 mouse case
-                feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
-
-            if clf_params['do_wnd']:
-                windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
-                feats = mts.apply_windowing(feats, windows)
-            elif clf_params['do_cwt']:
-                scales = [int(np.ceil(w * cfg['framerate'])) for w in clf_params['wavelets']]
-                feats = mts.apply_wavelet_transform(feats, scales)
-
-            if drop_behaviors:
-                if not isinstance(drop_behaviors, list):
-                    drop_behaviors = [drop_behaviors]
-                drop_list = []
-                for d in drop_behaviors:
-                    if d in equivalences.keys():
-                        drop_list += [data['vocabulary'][i] for i in equivalences[d]]
+            for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+                feats = np.array(entry['features'])
+                feats = np.swapaxes(feats, 0, 1)
+                feats = mts.clean_data(feats)
+                annots = entry['annotations']
+                dropflag = False
+                for label_name in train_behaviors:
+                    if label_name in equivalences.keys():
+                        hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
                     else:
-                        drop_list.append(data['vocabulary'][d])
-                keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
-                annots = annots[keep_inds]
-                feats = feats[keep_inds, :]
-            annot_raw.append(annots)
-            data_stack.append(feats)
-            bump += len(annots)
+                        hit_list = [data['vocabulary'][label_name]]
+                    if drop_empty_trials and not any([i in hit_list for i in annots]):
+                        dropflag = True
+                if dropflag:
+                    continue
+                if len(annots) != feats.shape[0]:
+                    print('Length mismatch: %s %d %d' % (k, len(annots), feats.shape[0]))
+                    print('Extra frames will be trimmed from the end of the sequence.')
+                    if len(annots) > feats.shape[0]:
+                        annots = annots[:feats.shape[0]]
+                    else:
+                        feats = feats[:len(annots), :, :]
+
+                if np.shape(feats)[1] == 1:
+                    feats = feats[:, 0, :]
+                else:  # TODO: make >2 mouse case
+                    feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
+
+                if clf_params['do_wnd']:
+                    windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
+                    feats = mts.apply_windowing(feats, windows)
+                elif clf_params['do_cwt']:
+                    scales = [int(np.ceil(w * cfg['framerate'])) for w in clf_params['wavelets']]
+                    feats = mts.apply_wavelet_transform(feats, scales)
+
+                if drop_behaviors:
+                    if not isinstance(drop_behaviors, list):
+                        drop_behaviors = [drop_behaviors]
+                    drop_list = []
+                    for d in drop_behaviors:
+                        if d in equivalences.keys():
+                            drop_list += [data['vocabulary'][i] for i in equivalences[d]]
+                        else:
+                            drop_list.append(data['vocabulary'][d])
+                    keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
+                    annots = annots[keep_inds]
+                    feats = feats[keep_inds, :]
+                annot_raw.append(annots)
+                data_stack.append(feats)
+                bump += len(annots)
             # print('%s   %d' % (k, bump))
             if clf_params['do_wnd'] or clf_params['do_cwt']:
                 bar.update(i)
