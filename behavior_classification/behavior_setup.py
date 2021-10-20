@@ -26,6 +26,7 @@ def find_videos(video_path, video_formats, must_contain=''):
     for v in video_names:
         # split our video filename by '_''s, search for perfect-match annotations until we run out of components:
         anno_parts = v.stem.split('_')
+        anno_depth = -2
         for i in range(len(anno_parts) - 1):
             match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i + 1]))
             if len(match_anno) == 1:
@@ -35,8 +36,21 @@ def find_videos(video_path, video_formats, must_contain=''):
                 match_anno = get_files(v.parent, map.list_supported_formats(), '_'.join(anno_parts[:i]))
                 anno_depth = i - 1
                 break
+        if anno_depth == -2: # we found more than one annot file containing movie full name. Take the first one that's a perfect match.
+            diffchar = []
+            for a in match_anno:
+                if v.stem == a.stem:
+                    match_anno = [a]
+                    anno_depth = len(anno_parts)
+                    break
+                else:
+                    diffchar.append(len(a.stem.replace(v.stem, '')))
+        if anno_depth == -2:  # seriously, we still don't have a match? okay, take the one that's least different.
+            match_anno = [match_anno[diffchar.index(min(diffchar))]]
+            anno_depth = len(anno_parts)
 
         pose_parts = v.stem.split('_')
+        pose_depth = -2
         for i in range(len(pose_parts) - 1):
             match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i + 1]))
             if len(match_pose) == 1:
@@ -46,6 +60,18 @@ def find_videos(video_path, video_formats, must_contain=''):
                 match_pose = get_files(v.parent, ['json'], '_'.join(pose_parts[:i]))
                 pose_depth = i - 1
                 break
+        if pose_depth == -2:
+            diffchar = []
+            for a in match_pose:
+                if v.stem == a.stem:
+                    match_pose = [a]
+                    pose_depth = len(pose_parts)
+                    break
+                else:
+                    diffchar.append(len(a.stem.replace(v.stem, '')))
+        if pose_depth == -2:  # seriously, we still don't have a match? okay, take the one that's least different.
+            match_pose = [match_pose[diffchar.index(min(diffchar))]]
+            pose_depth = len(pose_parts)
 
         if match_anno and match_pose:  # greedy matching of annotation and pose files to a behavior movie:
             if len(match_anno) == 1 and len(match_pose) == 1:  # single match, keep it for now
