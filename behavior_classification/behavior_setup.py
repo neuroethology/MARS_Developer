@@ -12,7 +12,7 @@ def get_files(root, extensions, must_contain=''):
     all_files = []
     for ext in extensions:
         all_files.extend(Path(root).rglob('*.' + ext))
-    kept_files = [i for i in all_files if must_contain in str(i.parent)]
+    kept_files = [i for i in all_files if must_contain in str(i.stem)]
     return kept_files
 
 
