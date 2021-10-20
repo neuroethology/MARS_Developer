@@ -68,16 +68,20 @@ def list_features(project):
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     feats = generate_valid_feature_list(cfg)
-    print('All available feature categories:')
+    print('The following feature categories are available:')
     for cam in feats.keys():
         for mouse in feats[cam].keys():
-            print("feats[" + cam + "][" + mouse + "] = ['" + "', '".join(list(feats[cam][mouse].keys())) + "']")
-    print('\nFeatures included in each category:')
+            print("in feats[" + cam + "][" + mouse + "]:")
+            for k in feats[cam][mouse].keys():
+                print("    '" + k + "'")
+            print(' ')
+    print('\nFeatures included in each category are:')
     for cam in feats.keys():
         for mouse in feats[cam].keys():
             for feat in feats[cam][mouse].keys():
                 print(cam + '|' + mouse + '|' + feat + ':')
                 print("   {'" + "', '".join(feats[cam][mouse][feat]) + "'}")
+        print(' ')
 
 
 def generate_lambdas():
@@ -448,7 +452,8 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
         print(e)
         return []
 
-def extract_features(project, progress_bar_sig=''):
+
+def extract_features(project, feature_groups=[], progress_bar_sig=''):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -463,7 +468,7 @@ def extract_features(project, progress_bar_sig=''):
             feats['sequences'][cfg['project_name']][k] = []
             for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
                 print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
-                feat_dict = run_feature_extraction(entry, cfg)
+                feat_dict = run_feature_extraction(entry, cfg, use_grps=feature_groups)
                 if not feat_dict:
                     print('skipping for no feats, something went wrong')
                 else:
