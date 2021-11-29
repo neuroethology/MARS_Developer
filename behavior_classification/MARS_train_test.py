@@ -469,6 +469,8 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
     if not (clf_params['downsample_rate'] == int(clf_params['downsample_rate'])):
         print('Training set downsampling rate must be an integer; reverting to default value of 1.')
         clf_params['downsample_rate'] = 1
+
+    # add the project_config to this classifier so we can access it at runtime
     clf_params['project_config'] = cfg
 
     print('loading training data...')
