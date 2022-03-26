@@ -1,6 +1,7 @@
 
 clf_type: 'xgb'
 feat_type: 'top'
+feat_list: []
 downsample_rate: 1  # temporal downsampling applied to training data
 smk_kn: [0.5, 0.25, 0.5]
 blur: 4

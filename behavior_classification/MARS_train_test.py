@@ -284,6 +284,7 @@ def do_train(beh_classifier, X_tr, y_tr_beh, X_ev, y_ev_beh, savedir, verbose=0)
     if not X_ev == []:
         X_ev = X_ev[::clf_params['downsample_rate'], :]
         y_ev_beh = y_ev_beh[::clf_params['downsample_rate']]
+    pdb.set_trace()
 
     # scale the data
     gc.collect()

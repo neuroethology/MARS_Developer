@@ -1,5 +1,5 @@
 from __future__ import division
-import os,sys
+import os, sys
 import numpy as np
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import precision_recall_fscore_support as score
@@ -19,7 +19,7 @@ flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple
 def clean_data(data):
     """Eliminate the NaN and Inf values by taking the last value that was neither."""
     idx = np.where(np.isnan(data) | np.isinf(data))
-    if idx[0].size>0:
+    if idx[0].size > 0:
         for j in range(len(idx[0])):
             if idx[0][j] == 0:
                 data[idx[0][j], idx[1][j], idx[2][j]] = 0.
@@ -34,11 +34,11 @@ def apply_wavelet_transform(starter_features, scales=[1, 3, 5, 10, 30, 90, 270])
     dims = np.shape(starter_features)
     nfeat = dims[1]
 
-    transformed_features = np.zeros((dims[0], nfeat + nfeat * len(scales)))#*2))
+    transformed_features = np.zeros((dims[0], nfeat + nfeat * len(scales)))  #*2))
     transformed_features[:, range(0, nfeat)] = starter_features
 
     for f, feat in enumerate(starter_features.swapaxes(0, 1)):
-        for w, wavelet in enumerate([wave1]): #, wave2]):
+        for w, wavelet in enumerate([wave1]):  #, wave2]):
             for i, s in enumerate(scales):
                 a, _ = pywt.cwt(medfilt(feat), s, wavelet)
                 a[0][:s] = 0
