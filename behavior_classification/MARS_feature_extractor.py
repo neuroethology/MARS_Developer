@@ -241,8 +241,7 @@ def get_mars_keypoints(keypoints, num_mice, partorder):
     return xm, ym
 
 
-def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list=[],
-                     smooth_keypoints=False, center_mouse=False):
+def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list=[], smooth_keypoints=False, center_mouse=False):
 
     keypoints = [f for f in sequence['keypoints']]
 
@@ -280,6 +279,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
             if grp not in feats[use_cam][mouse_list[0]].keys():
                 raise Exception(grp+' is not a valid feature group name.')
     features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=mouse_list)
+    features_ordered = []
     num_features = len(features)
 
     try:
@@ -351,10 +351,10 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     for mouse2 in range(num_mice):
                         if mouse2 == mouse1:
                             continue
-                        mouse_vals.append((xm[mouse1], ym[mouse1], xm[mouse2], ym[mouse2], xm0[mouse1], ym0[mouse1], xm00[mouse1], ym00[mouse1], bboxes[mouse1], bboxes[mouse2]))
+                        mouse_vals.append(('m'+str(mouse1), 'm'+str(mouse2), xm[mouse1], ym[mouse1], xm[mouse2], ym[mouse2], xm0[mouse1], ym0[mouse1], xm00[mouse1], ym00[mouse1], bboxes[mouse1], bboxes[mouse2]))
             else:
-                mouse_vals.append((xm[0], ym[0], xm[0], ym[0], xm0[0], ym0[0], xm00[0], ym00[0], bboxes[0], bboxes[0]))
-            for m, (xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb) in enumerate(mouse_vals):
+                mouse_vals.append(('m0', '', xm[0], ym[0], xm[0], ym[0], xm0[0], ym0[0], xm00[0], ym00[0], bboxes[0], bboxes[0]))
+            for m, (maStr, mbStr, xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb) in enumerate(mouse_vals):
                 if center_mouse:
                     (xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb, xlims, ylims) = \
                         center_on_mouse(xa, ya, xb, yb, xa0, ya0, xa00, ya00, boxa, boxb, xlims_0, ylims_0)
@@ -367,12 +367,16 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xy'][feat](xa, ya) / dscale
+                        if m==0:  # only do this for the first mouse
+                            features_ordered.append('_'.join((use_cam,maStr,featname)))
 
                 # single-mouse angle or ratio features. No unit conversion needed.
                 for feat in lam['xy_ang'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xy_ang'][feat](xa, ya)
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam,maStr,featname)))
 
                 # ellipse-based features. Lambda returns pixels, convert to cm.
                 ell = fit_ellipse(xa, ya)
@@ -380,24 +384,32 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['ell'][feat](ell) / dscale
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # ellipse-based angle or ratio features. No unit conversion needed.
                 for feat in lam['ell_ang'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['ell_ang'][feat](ell)
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # ellipse-based area features. Lambda returns pixels^2, convert to cm^2.
                 for feat in lam['ell_area'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['ell_area'][feat](ell) / (dscale ** 2)
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # velocity features. Lambda returns pix/frame, convert to cm/second.
                 for feat in lam['dt'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['dt'][feat](xa, ya, xa0, ya0) * fps / dscale
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # acceleration features. Lambda returns pix/frame^2, convert to cm/second^2.
                 for feat in lam['d2t'].keys():
@@ -405,6 +417,8 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = \
                             lam['d2t'][feat](xa, ya, xa0, ya0, xa00, ya00) * fps * fps / dscale
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 if num_mice > 1:
                     # two-mouse features. Lambda returns pixels, convert to cm.
@@ -412,12 +426,16 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                         featname = "_".join((use_cam, mouse_list[m], feat))
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = lam['xyxy'][feat](xa, ya, xb, yb) / dscale
+                            if m == 0:
+                                features_ordered.append('_'.join((use_cam, maStr+mbStr, featname)))
 
                     # two-mouse angle or ratio features. No unit conversion needed.
                     for feat in lam['xyxy_ang'].keys():
                         featname = "_".join((use_cam, mouse_list[m], feat))
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = lam['xyxy_ang'][feat](xa, ya, xb, yb)
+                            if m == 0:
+                                features_ordered.append('_'.join((use_cam, maStr + mbStr, featname)))
 
                     # two-mouse velocity features. Lambda returns pix/frame, convert to cm/second.
                     for feat in lam['2mdt'].keys():
@@ -425,20 +443,27 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = \
                                 lam['2mdt'][feat](xa, ya, xa0, ya0, xb, yb) * fps / dscale
+                            if m == 0:
+                                features_ordered.append('_'.join((use_cam, maStr + mbStr, featname)))
 
                 # Bounding box features. No unit conversion needed so far.
                 for feat in lam['bb'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['bb'][feat](boxa, boxb)
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # environment-based features. Lambda returns pixels, convert to cm.
                 for feat in lam['xybd'].keys():
                     featname = "_".join((use_cam, mouse_list[m], feat))
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xybd'][feat](xa, ya, xlims, ylims) / dscale
+                        if m == 0:
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
         # bar.finish()
+        track['features'] = features_ordered
         return track
 
     except Exception as e:
