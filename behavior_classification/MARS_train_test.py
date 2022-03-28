@@ -69,6 +69,17 @@ def unpack_params(clf_params, clf_type):
     return params
 
 
+def apply_feature_order(feats, target_order, current_order):
+    if any(x not in current_order for x in target_order):
+        fail_list = [x for x in target_order if x not in current_order]
+        raise KeyError('One or more features required by the classifier were not found: ' + ', '.join(fail_list))
+    feat_order = []
+    for t in target_order:
+        feat_order.append(current_order.index(t))
+    feats_sorted = np.take(feats, feat_order, axis=2)
+    return feats_sorted
+
+
 def choose_classifier(clf_params):
     if clf_params['clf_type'].lower() == 'mlp':
         params = unpack_params(clf_params, 'mlp_defaults')
@@ -86,7 +97,7 @@ def choose_classifier(clf_params):
     return clf
 
 
-def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False):
+def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False, target_feature_order=[]):
     with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
@@ -118,7 +129,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         data_stack = []
         annot_raw = []
         if clf_params['verbose']:
-            print('applying filters...')
+            print('sorting features and applying filters...')
         if clf_params['do_wnd'] or clf_params['do_cwt']:
             bar = progressbar.ProgressBar(widgets=
                                           [progressbar.FormatLabel('Filtering sequence %(value)d'), '/',
@@ -132,6 +143,8 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                 continue
             for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
                 feats = np.array(entry['features'])
+                if target_feature_order:  # if we're asked to sort the features in a particular order, do that here
+                    feats = apply_feature_order(feats, target_feature_order, data['features'])
                 feats = np.swapaxes(feats, 0, 1)
                 feats = mts.clean_data(feats)
                 annots = entry['annotations']
@@ -187,7 +200,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             bar.finish()
         data_stack = np.concatenate(data_stack, axis=0)
         if do_quicksave:
-            savedata = {'data_stack': data_stack.tolist(), 'annot_raw': annot_raw, 'vocabulary': data['vocabulary']}
+            savedata = {'data_stack': data_stack.tolist(), 'annot_raw': annot_raw, 'vocabulary': data['vocabulary'], 'features': data['features']}
             with open(savestr, 'w') as f:
                 json.dump(savedata, f)
     else:
@@ -211,7 +224,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             else:
                 annot_clean[label_name] += [-1]*len(a_clean)
     print('done!\n')
-    return data_stack, annot_clean, data['vocabulary']
+    return data_stack, annot_clean, data['vocabulary'], data['features']
 
 
 def assign_labels(all_predicted_probabilities, vocabulary):
@@ -475,20 +488,24 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
     clf_params['project_config'] = cfg
 
     print('loading training data...')
-    X_tr, y_tr, vocab = load_data(project, 'train', train_behaviors,
-                                  drop_behaviors=drop_behaviors,
-                                  drop_empty_trials=drop_empty_trials,
-                                  drop_movies=drop_movies,
-                                  do_quicksave=do_quicksave)
+    X_tr, y_tr, vocab, feat_order = load_data(project, 'train', train_behaviors,
+                                              drop_behaviors=drop_behaviors,
+                                              drop_empty_trials=drop_empty_trials,
+                                              drop_movies=drop_movies,
+                                              do_quicksave=do_quicksave)
     if X_tr.size == 0:
         return []
     print('loading validation data...')
-    X_ev, y_ev, _ = load_data(project, 'val', train_behaviors,
-                              drop_behaviors=drop_behaviors,
-                              drop_empty_trials=drop_empty_trials,
-                              drop_movies=drop_movies,
-                              do_quicksave=do_quicksave)
+    X_ev, y_ev, _, _ = load_data(project, 'val', train_behaviors,
+                                 drop_behaviors=drop_behaviors,
+                                 drop_empty_trials=drop_empty_trials,
+                                 drop_movies=drop_movies,
+                                 do_quicksave=do_quicksave,
+                                 target_feature_order=feat_order)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
+
+    # preserve the feature order used during training so we make sure to use it in testing/deployment
+    clf_params['feature_order'] = feat_order
 
     # now create the classifier and give it an informative name:
     classifier = choose_classifier(clf_params)
@@ -549,16 +566,19 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
+
     # unpack user-provided classification parameters, and use default values for those not provided.
     config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
     with open(config_fid) as f:
         clf_params = yaml.load(f, Loader=yaml.FullLoader)
         if 'smk_kn' in clf_params.keys():
             clf_params['smk_kn'] = np.array(clf_params['smk_kn'])
+    feat_order = clf_params['feature_order'] if 'feature_order' in clf_params.keys() else []
 
     print('loading test data...')
-    X_te, y_te, vocab = load_data(project, 'test', test_behaviors,
-                                    drop_behaviors=drop_behaviors, do_quicksave=do_quicksave)
+    X_te, y_te, vocab, feat_order = load_data(project, 'test', test_behaviors,
+                                              drop_behaviors=drop_behaviors,
+                                              do_quicksave=do_quicksave)
     print('loaded test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
     X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
@@ -571,10 +591,22 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     preds = np.zeros((T, n_classes)).astype(int)
     preds_fbs_hmm = np.zeros((T, n_classes)).astype(int)
     proba_fbs_hmm = np.zeros((T, n_classes, 2))
+
     print('loading classifiers from %s' % savedir)
     for b, beh_name in enumerate(test_behaviors):
         print('predicting %s...' % beh_name)
         name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
+
+        # make sure features are in the right order
+        clf = joblib.load(name_classifier)
+        if feat_order != clf['params']['feature_order']:
+            print('reorganizing test data...')
+            X_te, y_te, vocab, feat_order = load_data(project, 'test', test_behaviors,
+                                                      drop_behaviors=drop_behaviors,
+                                                      do_quicksave=do_quicksave,
+                                                      target_feature_order=clf['params']['feature_order'])
+            print('reorganized test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
+            X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
         gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
         preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
