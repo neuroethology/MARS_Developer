@@ -601,10 +601,10 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
         clf = joblib.load(name_classifier)
         if feat_order != clf['params']['feature_order']:
             print('reorganizing test data...')
-            X_te, y_te, vocab, feat_order = load_data(project, 'test', test_behaviors,
-                                                      drop_behaviors=drop_behaviors,
-                                                      do_quicksave=do_quicksave,
-                                                      target_feature_order=clf['params']['feature_order'])
+            X_te, y_te, _, _ = load_data(project, 'test', test_behaviors,
+                                         drop_behaviors=drop_behaviors,
+                                         do_quicksave=do_quicksave,
+                                         target_feature_order=clf['params']['feature_order'])
             print('reorganized test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
             X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
