@@ -144,7 +144,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
                 feats = np.array(entry['features'])
                 if target_feature_order:  # if we're asked to sort the features in a particular order, do that here
-                    feats = apply_feature_order(feats, target_feature_order, data['features'])
+                    feats = apply_feature_order(feats, target_feature_order, data['feature_names'])
                 feats = np.swapaxes(feats, 0, 1)
                 feats = mts.clean_data(feats)
                 annots = entry['annotations']
@@ -227,7 +227,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             else:
                 annot_clean[label_name] += [-1]*len(a_clean)
     print('done!\n')
-    return data_stack, annot_clean, data['vocabulary'], data['features']
+    return data_stack, annot_clean, data['vocabulary'], data['feature_names']
 
 
 def assign_labels(all_predicted_probabilities, vocabulary):
@@ -300,7 +300,6 @@ def do_train(beh_classifier, X_tr, y_tr_beh, X_ev, y_ev_beh, savedir, verbose=0)
     if not X_ev == []:
         X_ev = X_ev[::clf_params['downsample_rate'], :]
         y_ev_beh = y_ev_beh[::clf_params['downsample_rate']]
-    pdb.set_trace()
 
     # scale the data
     gc.collect()
