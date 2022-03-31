@@ -410,6 +410,14 @@ def do_train_smooth(beh_classifier, X_tr, y_tr_beh, savedir, verbose=False):
                            'hmm_bin': hmm_bin,
                            'hmm_fbs': hmm_fbs})
     dill.dump(beh_classifier, open(os.path.join(savedir, 'classifier_' + beh_name), 'wb'))
+    P = {
+        # 'f0_G': y_tr_beh,
+        #  'f1_pd': y_pred_class,
+        #  'f2_pd_fbs_hmm': y_pred_fbs_hmm,
+         'f3_proba_pd': y_pred_proba,
+         # 'f4_proba_pd_hmm_fbs': y_proba_fbs_hmm
+         }
+    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', 'train_results.mat'), P)
 
 
 def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
@@ -575,7 +583,6 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
         clf_params = yaml.load(f, Loader=yaml.FullLoader)
         if 'smk_kn' in clf_params.keys():
             clf_params['smk_kn'] = np.array(clf_params['smk_kn'])
-    feat_order = clf_params['feature_order'] if 'feature_order' in clf_params.keys() else []
 
     print('loading test data...')
     X_te, y_te, vocab, feat_order = load_data(project, 'test', test_behaviors,
@@ -595,6 +602,8 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     proba_fbs_hmm = np.zeros((T, n_classes, 2))
 
     print('loading classifiers from %s' % savedir)
+    print('n_classes = ' +str(n_classes))
+    print(vocab)
     for b, beh_name in enumerate(test_behaviors):
         print('predicting %s...' % beh_name)
         name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
@@ -612,8 +621,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
 
         gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
         preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
-            do_test(name_classifier, X_te, y_te[beh_name],
-                    verbose=clf_params['verbose'], doPRC=True)
+                            do_test(name_classifier, X_te, y_te[beh_name], verbose=clf_params['verbose'], doPRC=True)
     all_pred = assign_labels(proba, vocab)
     all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
     gt = np.argmax(gt, axis=1)
@@ -621,17 +629,19 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     print(' ')
     print('Classifier performance:')
     score_info(gt, all_pred_fbs_hmm, vocab)
-    P = {'0_G': gt,
-         '0_Gc': y_te,
-         '1_pd': preds,
-         '2_pd_fbs_hmm': preds_fbs_hmm,
-         '3_proba_pd': proba,
-         '4_proba_pd_hmm_fbs': proba_fbs_hmm,
-         '5_pred_ass': all_pred,
-         '6_pred_fbs_hmm_ass': all_pred_fbs_hmm
+    P = {'f0_G': gt,
+         'f0_Gc': y_te,
+         'f1_pd': preds,
+         'f2_pd_fbs_hmm': preds_fbs_hmm,
+         'f3_proba_pd': proba,
+         'f4_proba_pd_hmm_fbs': proba_fbs_hmm,
+         'f5_pred_ass': all_pred,
+         'f6_pred_fbs_hmm_ass': all_pred_fbs_hmm
          }
+    P2 = {'pred_proba': proba[:, :, 0]}
     dill.dump(P, open(savedir + 'results.dill', 'wb'))
     sio.savemat(savedir + 'results.mat', P)
+    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', 'test_results.mat'), P2)
 
 
 # def run_classifier(project, test_behaviors):
