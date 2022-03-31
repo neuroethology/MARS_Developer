@@ -200,7 +200,10 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             bar.finish()
         data_stack = np.concatenate(data_stack, axis=0)
         if do_quicksave:
-            savedata = {'data_stack': data_stack.tolist(), 'annot_raw': annot_raw, 'vocabulary': data['vocabulary'], 'features': data['features']}
+            savedata = {'data_stack': data_stack.tolist(),
+                        'annot_raw': annot_raw,
+                        'vocabulary': data['vocabulary'],
+                        'features': data['features']}
             with open(savestr, 'w') as f:
                 json.dump(savedata, f)
     else:
@@ -210,7 +213,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         data_stack = data['data_stack']
 
     annot_clean = {}
-    # print(data['vocabulary'])
+    # print(data['features'])
     for label_name in train_behaviors:
         annot_clean[label_name] = []
         if label_name in equivalences.keys():

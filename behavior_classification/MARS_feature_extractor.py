@@ -368,7 +368,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xy'][feat](xa, ya) / dscale
                         if m==0:  # only do this for the first mouse
-                            features_ordered.append('_'.join((use_cam,maStr,featname)))
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # single-mouse angle or ratio features. No unit conversion needed.
                 for feat in lam['xy_ang'].keys():
@@ -376,7 +376,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xy_ang'][feat](xa, ya)
                         if m == 0:
-                            features_ordered.append('_'.join((use_cam,maStr,featname)))
+                            features_ordered.append('_'.join((use_cam, maStr, featname)))
 
                 # ellipse-based features. Lambda returns pixels, convert to cm.
                 ell = fit_ellipse(xa, ya)
@@ -494,8 +494,8 @@ def extract_features(project, progress_bar_sig=''):
         mouse_list = list(feats[use_cam].keys())
         for mouse in mouse_list:
             clf_params['feat_list'] = clf_params['feat_list'] + list(feats[use_cam][mouse].keys())
-        with open(config_fid) as f:
-            yaml.dump(clf_params, f, default_flow_style=False)
+        with open(config_fid,'w') as f:
+            yaml.dump(clf_params, f)
 
     for key in ['train', 'test', 'val']:
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
