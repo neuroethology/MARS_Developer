@@ -6,10 +6,11 @@ import pdb
 
 def score_info(y, y_pred, vocab):
     precision, recall, fscore, _ = score(y, y_pred)
+    all_labels = np.unique([np.unique(y), np.unique(y_pred)])
     beh_names = list(vocab.keys())
     beh_list = [vocab[b] for b in beh_names]
     print(f"{' ' : >12}", end=" ")
-    for i in list(np.unique(y)):
+    for i in list(all_labels):
         ind = beh_list.index(i)
         print(f"{beh_names[ind] : ^9}", end=" ")
     print(" ")

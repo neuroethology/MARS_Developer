@@ -123,7 +123,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             if label not in data['vocabulary']:
                 print('Error: target behavior "' + label + '" not found in this dataset.\nAvailable labels:')
                 print(list(data['vocabulary'].keys()))
-                return np.array([]), [], []
+                return np.array([]), [], [], []
 
         keylist = list(data['sequences'][cfg['project_name']].keys())
         data_stack = []
@@ -410,14 +410,8 @@ def do_train_smooth(beh_classifier, X_tr, y_tr_beh, savedir, verbose=False):
                            'hmm_bin': hmm_bin,
                            'hmm_fbs': hmm_fbs})
     dill.dump(beh_classifier, open(os.path.join(savedir, 'classifier_' + beh_name), 'wb'))
-    P = {
-        # 'f0_G': y_tr_beh,
-        #  'f1_pd': y_pred_class,
-        #  'f2_pd_fbs_hmm': y_pred_fbs_hmm,
-         'f3_proba_pd': y_pred_proba,
-         # 'f4_proba_pd_hmm_fbs': y_proba_fbs_hmm
-         }
-    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', 'train_results.mat'), P)
+    P = {'proba_pd': y_pred_proba}
+    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', beh_name + 'train_results.mat'), P)
 
 
 def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
