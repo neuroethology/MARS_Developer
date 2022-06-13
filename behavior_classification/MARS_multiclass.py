@@ -181,6 +181,6 @@ def train_multiclass(project, classifier_directory, drop_behaviors=[], redo_feat
     results = clf.predict(proba_test)
     score_info(gt_test, results, vocab)  # this should output precision/recall info for your classifier, or you can look at results manually
 
-    classifier = {'clf': clf, 'vocab': vocab}
+    classifier = {'clf': clf, 'vocab': vocab, 'merged_behaviors': trained_behaviors}
     dill.dump(classifier, open(os.path.join(savedir, 'class_merger'), 'wb'))
     return gt_test, results
