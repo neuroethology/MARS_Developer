@@ -229,4 +229,3 @@ dependencies:
     - ruamel-yaml-clib==0.2.2
     - setuptools==57.4.0
     - six==1.16.0
-prefix: /home/annremote/miniconda3/envs/mars_dev
