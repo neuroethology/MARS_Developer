@@ -413,6 +413,7 @@ def apply_clf_splits(project):
                 posedata = json.load(f)
             for entry in assignments[key][k]:
                 indices = entry['keep_frames']
+                indices = [i for i in indices if i < len(posedata['keypoints'])]
                 saveentry = {'keypoints': [posedata['keypoints'][i] for i in indices],
                          'bbox': [posedata['bbox'][i] for i in indices],
                          'scores': [posedata['scores'][i] for i in indices],
