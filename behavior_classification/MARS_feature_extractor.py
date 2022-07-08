@@ -277,7 +277,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
             use_grps = use_grps + list(feats[use_cam][mouse].keys())
     else:
         for grp in use_grps:
-            if grp not in feats[use_cam][mouse_list[0]].keys():
+            if grp not in feats[use_cam][mouse_list[0]].keys() and grp not in feats[use_cam][mouse_list[1]+mouse_list[0]].keys():
                 raise Exception(grp+' is not a valid feature group name.')
     features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=mouse_list)
     features_ordered = []
@@ -336,7 +336,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
 
             bboxes = []
             for m in range(num_mice):
-                bboxes.append(np.asarray(sequence['bbox'][f])[0, :])
+                bboxes.append(np.asarray(sequence['bbox'])[m, :, f])
             if f == 0:
                 for m in range(num_mice):
                     xm0[m] = xm[m]
