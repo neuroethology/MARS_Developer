@@ -514,7 +514,11 @@ def extract_features(project, progress_bar_sig=''):
                 else:
                     feats['feature_names'] = feat_dict['features']
                     feats['vocabulary'] = data['vocabulary']
-                    feats['sequences'][cfg['project_name']][k].append({'features': feat_dict['data'].tolist(), 'annotations': entry['annotations']})
+                    if 'annotations' in entry.keys():
+                        insert_dict = {'features': feat_dict['data'].tolist(), 'annotations': entry['annotations']}
+                    else:
+                        insert_dict = {'features': feat_dict['data'].tolist()}
+                    feats['sequences'][cfg['project_name']][k].append(insert_dict)
 
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
             json.dump(feats, f)
