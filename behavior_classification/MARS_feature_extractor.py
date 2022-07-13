@@ -479,7 +479,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
         return []
 
 
-def extract_features(project, progress_bar_sig=''):
+def extract_features(project, progress_bar_sig='', sets_to_process = ['train', 'test', 'val']):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -498,7 +498,7 @@ def extract_features(project, progress_bar_sig=''):
         with open(config_fid,'w') as f:
             yaml.dump(clf_params, f)
 
-    for key in ['train', 'test', 'val']:
+    for key in sets_to_process:
         with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
             data = json.load(f)
 
