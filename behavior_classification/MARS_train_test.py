@@ -23,6 +23,7 @@ import scipy.io as sio
 import progressbar
 import random
 import pdb
+from catboost import CatBoostClassifier
 
 
 # warnings.filterwarnings("ignore")
@@ -89,6 +90,10 @@ def choose_classifier(clf_params):
     elif clf_params['clf_type'].lower() == 'xgb':
         params = unpack_params(clf_params, 'xgb_defaults')
         clf = XGBClassifier(**params)
+
+    elif clf_params['clf_type'].lower() == 'cat':
+        params = unpack_params(clf_params, 'cat_defaults')
+        clf = CatBoostClassifier(**params)
 
     else:
         print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_params['clf_type'])

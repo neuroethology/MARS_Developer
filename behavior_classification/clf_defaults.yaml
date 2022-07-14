@@ -21,3 +21,7 @@ xgb_defaults:
   tree_method': 'hist'
   silent': 1
   seed': 33
+
+cat_defaults:
+  n_estimators: 1000
+  random_state: 34
