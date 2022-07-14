@@ -280,6 +280,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
             if grp not in feats[use_cam][mouse_list[0]].keys() and grp not in feats[use_cam][mouse_list[1]+mouse_list[0]].keys():
                 raise Exception(grp+' is not a valid feature group name.')
     features = flatten_feats(feats, use_grps=use_grps, use_cams=[use_cam], use_mice=mouse_list)
+    print(features)
     features_ordered = []
     num_features = len(features)
 
@@ -424,7 +425,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                 if num_mice > 1:
                     # two-mouse features. Lambda returns pixels, convert to cm.
                     for feat in lam['xyxy'].keys():
-                        featname = "_".join((use_cam, mouse_list[m], feat))
+                        featname = "_".join((use_cam, maStr+mbStr, feat)) # change m to str
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = lam['xyxy'][feat](xa, ya, xb, yb) / dscale
                             if m == 0 and f == 0:
@@ -432,7 +433,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
 
                     # two-mouse angle or ratio features. No unit conversion needed.
                     for feat in lam['xyxy_ang'].keys():
-                        featname = "_".join((use_cam, mouse_list[m], feat))
+                        featname = "_".join((use_cam, maStr+mbStr, feat))
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = lam['xyxy_ang'][feat](xa, ya, xb, yb)
                             if m == 0 and f == 0:
@@ -440,7 +441,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
 
                     # two-mouse velocity features. Lambda returns pix/frame, convert to cm/second.
                     for feat in lam['2mdt'].keys():
-                        featname = "_".join((use_cam, mouse_list[m], feat))
+                        featname = "_".join((use_cam, maStr+mbStr, feat))
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = \
                                 lam['2mdt'][feat](xa, ya, xa0, ya0, xb, yb) * fps / dscale

@@ -118,11 +118,11 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
     elif clf_params['do_cwt']:
         savestr += '_cwt.json'
     if not do_quicksave or not os.path.isfile(savestr):
-        if dataset in ['train', 'test', 'val']:
+        if(os.path.isfile(os.path.join(project, 'behavior', 'behavior_jsons', dataset + '_features.json'))): # modified for flexibility
             with open(os.path.join(project, 'behavior', 'behavior_jsons', dataset + '_features.json')) as f:
                 data = json.load(f)
         else:
-            print('dataset must be train, test, or val.')
+            print('dataset not found.')
             return
         for label in train_behaviors:
             if label not in data['vocabulary']:
@@ -152,7 +152,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                     feats = apply_feature_order(feats, target_feature_order, data['feature_names'])
                 feats = np.swapaxes(feats, 0, 1)
                 feats = mts.clean_data(feats)
-                annots = entry['annotations']
+                annots = entry['annotations'] # what if no annotations, example a test set?
                 dropflag = False
                 for label_name in train_behaviors:
                     if label_name in equivalences.keys():
