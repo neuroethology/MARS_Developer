@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 from behavior_classification.MARS_feature_machinery import *
 import pdb
 import linecache
-
+import joblib
 
 flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
 
@@ -451,7 +451,7 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                             if f == 0:
                                 features_ordered.append('_'.join((use_cam, maStr + mbStr, feat)))
 
-                    # two-mouse velocity features. Lambda returns pix/frame, convert to cm/second.
+                    # two-mouse velocity features. Lambda returns projectpix/frame, convert to cm/second.
                     for feat in lam['2mdt'].keys():
                         featname = "_".join((use_cam, maStr+mbStr, feat))
                         if featname in features:
@@ -495,8 +495,33 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
         print(e)
         return []
 
+def extract_features_single_set(project, cfg, clf_params, key):
+    with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
+        data = json.load(f)
 
-def extract_features(project, progress_bar_sig='', sets_to_process = ['train', 'test', 'val']):
+    feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
+    keylist = list(data['sequences'][cfg['project_name']].keys())
+
+    for i, k in enumerate(keylist):
+        feats['sequences'][cfg['project_name']][k] = []
+        for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+            print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
+            feat_dict = run_feature_extraction(entry, cfg, use_grps=clf_params['feat_list'])
+            if not feat_dict:
+                print('skipping for no feats, something went wrong')
+            else:
+                feats['feature_names'] = feat_dict['features']
+                feats['vocabulary'] = data['vocabulary']
+                if 'annotations' in entry.keys():
+                    insert_dict = {'features': feat_dict['data'].tolist(), 'annotations': entry['annotations']}
+                else:
+                    insert_dict = {'features': feat_dict['data'].tolist()}
+                feats['sequences'][cfg['project_name']][k].append(insert_dict)
+
+    with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
+        json.dump(feats, f)
+
+def extract_features(project, progress_bar_sig='', sets_to_process = ['train', 'test', 'val'], n_jobs=1, verbosity=0, test=True):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -515,27 +540,31 @@ def extract_features(project, progress_bar_sig='', sets_to_process = ['train', '
         with open(config_fid,'w') as f:
             yaml.dump(clf_params, f)
 
-    for key in sets_to_process:
-        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
-            data = json.load(f)
+    if test is True:
+        joblib.Parallel(n_jobs=n_jobs, verbose=verbosity)(joblib.delayed(extract_features_single_set)(project, cfg, clf_params, key) for key in sets_to_process)
+    else:
+        for key in sets_to_process:
+            with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_data.json')) as f:
+                data = json.load(f)
 
-        feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
-        keylist = list(data['sequences'][cfg['project_name']].keys())
-        for i, k in enumerate(keylist):
-            feats['sequences'][cfg['project_name']][k] = []
-            for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
-                print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
-                feat_dict = run_feature_extraction(entry, cfg, use_grps=clf_params['feat_list'])
-                if not feat_dict:
-                    print('skipping for no feats, something went wrong')
-                else:
-                    feats['feature_names'] = feat_dict['features']
-                    feats['vocabulary'] = data['vocabulary']
-                    if 'annotations' in entry.keys():
-                        insert_dict = {'features': feat_dict['data'].tolist(), 'annotations': entry['annotations']}
+            feats = {'feature_names': [], 'sequences': {cfg['project_name']: {}}}
+            keylist = list(data['sequences'][cfg['project_name']].keys())
+
+            for i, k in enumerate(keylist):
+                feats['sequences'][cfg['project_name']][k] = []
+                for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+                    print('%s video %i/%i: %s clip %i/%i' % (key, i+1, len(keylist), k, j+1, len(data['sequences'][cfg['project_name']][k])))
+                    feat_dict = run_feature_extraction(entry, cfg, use_grps=clf_params['feat_list'])
+                    if not feat_dict:
+                        print('skipping for no feats, something went wrong')
                     else:
-                        insert_dict = {'features': feat_dict['data'].tolist()}
-                    feats['sequences'][cfg['project_name']][k].append(insert_dict)
+                        feats['feature_names'] = feat_dict['features']
+                        feats['vocabulary'] = data['vocabulary']
+                        if 'annotations' in entry.keys():
+                            insert_dict = {'features': feat_dict['data'].tolist(), 'annotations': entry['annotations']}
+                        else:
+                            insert_dict = {'features': feat_dict['data'].tolist()}
+                        feats['sequences'][cfg['project_name']][k].append(insert_dict)
 
-        with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
-            json.dump(feats, f)
+            with open(os.path.join(project, 'behavior', 'behavior_jsons', key + '_features.json'), 'w') as f:
+                json.dump(feats, f)
