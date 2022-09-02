@@ -507,6 +507,8 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
                                  do_quicksave=do_quicksave,
                                  target_feature_order=feat_order)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
+    print(vocab)
+    print(feat_order)
 
     # preserve the feature order used during training so we make sure to use it in testing/deployment
     clf_params['feature_order'] = feat_order
@@ -583,6 +585,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
                                               drop_behaviors=drop_behaviors,
                                               do_quicksave=do_quicksave)
     print('loaded test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
+    # pdb.set_trace()
     X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
 
     classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
@@ -606,7 +609,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
         clf = joblib.load(name_classifier)
         if feat_order != clf['params']['feature_order']:
             print('reorganizing test data...')
-            X_te, y_te, _, _ = load_data(project, 'test', test_behaviors,
+            X_te, y_te, _, feat_order = load_data(project, 'test', test_behaviors,
                                          drop_behaviors=drop_behaviors,
                                          do_quicksave=do_quicksave,
                                          target_feature_order=clf['params']['feature_order'])
@@ -616,6 +619,8 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
         gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
         preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
                             do_test(name_classifier, X_te, y_te[beh_name], verbose=clf_params['verbose'], doPRC=True)
+    # pdb.set_trace()
+    print(feat_order)
     all_pred = assign_labels(proba, vocab)
     all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
     gt = np.argmax(gt, axis=1)
