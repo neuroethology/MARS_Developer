@@ -263,6 +263,12 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xy_ang'][feat](xa, ya)
 
+                # sin/cos of single-mouse angle or ratio features. Unitless.
+                for feat in lam['xy_ang_trig'].keys():
+                    featname = "_".join((use_cam, mouse_list[m], feat))
+                    if featname in features:
+                        track['data'][m, f, features.index(featname)] = lam['xy_ang_trig'][feat](xa, ya)
+
                 # ellipse-based features. Lambda returns pixels, convert to cm.
                 ell = fit_ellipse(xa, ya)
                 for feat in lam['ell'].keys():
@@ -307,6 +313,12 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                         featname = "_".join((use_cam, mouse_list[m], feat))
                         if featname in features:
                             track['data'][m, f, features.index(featname)] = lam['xyxy_ang'][feat](xa, ya, xb, yb)
+
+                    # two-mouse angle or ratio features. No unit conversion needed.
+                    for feat in lam['xyxy_ang_trig'].keys():
+                        featname = "_".join((use_cam, mouse_list[m], feat))
+                        if featname in features:
+                            track['data'][m, f, features.index(featname)] = lam['xyxy_ang_trig'][feat](xa, ya, xb, yb)
 
                     # two-mouse velocity features. Lambda returns pix/frame, convert to cm/second.
                     for feat in lam['2mdt'].keys():
