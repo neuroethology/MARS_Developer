@@ -103,6 +103,33 @@ def get_mars_keypoints(keypoints, num_mice, partorder):
     return xm, ym
 
 
+def fit_ellipse(X, Y):
+    data = [X.tolist(), Y.tolist()]
+    mu = np.mean(data, axis=1)
+    covariance = np.cov(data)
+    rad = (-2 * np.log(1 - .75)) ** .5
+    _, D, R = np.linalg.svd(covariance)
+    normstd = np.sqrt(D)
+
+    a = rad * normstd[0]
+    b = rad * normstd[1]
+    cx = mu[0]
+    cy = mu[1]
+
+    phi = (mh.atan2(np.mean(X[4:7]) - np.mean(X[:3]), np.mean(Y[4:7]) - np.mean(Y[:3])) + mh.pi / 2.) % (mh.pi * 2)
+    theta_grid = np.linspace(-mh.pi, mh.pi, 200)
+    xs = cx + a * np.cos(theta_grid) * np.cos(phi) + b * np.sin(theta_grid) * np.sin(phi)
+    ys = cy - a * np.cos(theta_grid) * np.sin(phi) + b * np.sin(theta_grid) * np.cos(phi)
+
+    # draw ori
+    ori_vec_v = np.array([mh.cos(phi), -mh.sin(phi)]) * a
+    ori_vec_h = np.array([mh.sin(phi), mh.cos(phi)]) * b
+    ell = {'cx': cx, 'cy': cy, 'ra': a, 'rb': b, 'phi': phi,
+           'xs': xs, 'ys': ys, 'ori_vec_v': ori_vec_v, 'ori_vec_h': ori_vec_h}
+
+    return ell
+
+
 def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list=[], smooth_keypoints=False, center_mouse=False):
 
     keypoints = [f for f in sequence['keypoints']]
