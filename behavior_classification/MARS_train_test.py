@@ -98,6 +98,24 @@ def choose_classifier(clf_params):
 
 
 def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False, target_feature_order=[]):
+    '''
+
+    Args:
+        project: path to the project file
+        dataset: string indicating train/test/val
+        train_behaviors: list of behaviors we're classifying
+        drop_behaviors: list of annotations indicating frames to exclude from training (eg 'omit')
+        drop_empty_trials: whether to omit trials where the behavior never occurs
+        drop_movies: names of movies to omit from loading
+        do_quicksave: whether to save the loaded dataset in a numpy file (if we're going to be using it a lot and want to save time)
+        target_feature_order: order in which features should be sorted, used for testing classifiers
+
+    Returns:
+        data_stack: a (frames x features) numpy array of feature values, concatenated across videos
+        annot_clean: a list of vectors (one per entry in train_behaviors), with entries = 1 when behavior occurs, 0 when it doesn't, and -1 if it's missing from a video
+        data['vocabulary']: list of behaviors, inherited from the behavior_jsons/train_features.json (or val or test) file
+        data['feature_names']: list of feature names, inherited from the behavior_jsons/train_features.json file
+    '''
     with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
@@ -216,16 +234,20 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
     # print(data['features'])
     for label_name in train_behaviors:
         annot_clean[label_name] = []
+        # we want to create a binary vector that is 1 for all frames where our target behavior appears.
+
+        # First, create a list of all strings that correspond to our target behavior:
         if label_name in equivalences.keys():
             hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
         else:
             hit_list = [data['vocabulary'][label_name]]
-        for a in annot_raw:
+        for a in annot_raw:  # loop over videos in the dataset
+            # for each video, make a vector that's 1 on frames where the behavior occurs, and 0 otherwise
             a_clean = [1 if i in hit_list else 0 for i in a]
             if 1 in a_clean:
                 annot_clean[label_name] += a_clean
             else:
-                annot_clean[label_name] += [-1]*len(a_clean)
+                annot_clean[label_name] += [-1]*len(a_clean)  # if a behavior was not annotated in a video, flag that video as possibly not annotated for that behavior
     print('done!\n')
     return data_stack, annot_clean, data['vocabulary'], data['feature_names']
 

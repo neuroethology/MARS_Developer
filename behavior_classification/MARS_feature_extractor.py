@@ -339,6 +339,12 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
                     if featname in features:
                         track['data'][m, f, features.index(featname)] = lam['xybd'][feat](xa, ya, xlims, ylims) / dscale
 
+                # environment-based angle or ratio features. No unit conversion needed.
+                for feat in lam['xybd_ang'].keys():
+                    featname = "_".join((use_cam, mouse_list[m], feat))
+                    if featname in features:
+                        track['data'][m, f, features.index(featname)] = lam['xybd_ang'][feat](xa, ya, xlims, ylims)
+
         # bar.finish()
         return track
 
