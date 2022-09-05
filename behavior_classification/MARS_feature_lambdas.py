@@ -1,15 +1,13 @@
-from __future__ import division, print_function
 import numpy as np
 import math as mh
 import copy
-
 
 def generate_valid_feature_list(cfg):
     num_mice = len(cfg['animal_names']) * cfg['num_obj']
     mice = ['m'+str(i) for i in range(num_mice)]
     # TODO: multi-camera support
     # TODO: replace hard-coded feature names with keypoints from the project config file.
-    cameras = {'top': ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base'],
+    cameras = {'top':   ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base'],
                'front': ['nose', 'right_ear', 'left_ear', 'neck', 'right_side', 'left_side', 'tail_base',
                          'left_front_paw', 'right_front_paw', 'left_rear_paw', 'right_rear_paw']}
     inferred_parts = ['centroid', 'centroid_head', 'centroid_body']
@@ -35,15 +33,12 @@ def generate_valid_feature_list(cfg):
 
         pairmice.remove(mouse)
         for mouse2 in pairmice:
-            feats[cam][mouse + mouse2] = {}
-            feats[cam][mouse + mouse2]['social_angle'] = ['angle_between', 'facing_angle', 'angle_social']
-            feats[cam][mouse + mouse2]['social_angle_trig'] = ['sin_angle_between', 'cos_angle_between',
-                                                               'sin_facing_angle', 'cos_facing_angle',
-                                                               'sin_angle_social', 'cos_angle_social']
-            feats[cam][mouse + mouse2]['relative_size'] = ['area_ellipse_ratio']
-            feats[cam][mouse + mouse2]['social_distance'] = ['dist_centroid', 'dist_nose', 'dist_head', 'dist_body',
-                                                             'dist_head_body', 'dist_gap', 'dist_scaled',
-                                                             'overlap_bboxes']
+            feats[cam][mouse+mouse2] = {}
+            feats[cam][mouse+mouse2]['social_angle'] = ['angle_between', 'facing_angle', 'angle_social']
+            feats[cam][mouse + mouse2]['social_angle_trig'] = ['sin_angle_between', 'cos_angle_between', 'sin_facing_angle', 'cos_facing_angle', 'sin_angle_social', 'cos_angle_social']
+            feats[cam][mouse+mouse2]['relative_size'] = ['area_ellipse_ratio']
+            feats[cam][mouse+mouse2]['social_distance'] = ['dist_centroid', 'dist_nose', 'dist_head', 'dist_body',
+                                                   'dist_head_body', 'dist_gap', 'dist_scaled', 'overlap_bboxes']
 
     for cam, parts in zip(cameras.keys(), [cameras[i] for i in cameras.keys()]):
         for mouse in mice:
@@ -51,8 +46,7 @@ def generate_valid_feature_list(cfg):
             [feats[cam][mouse]['raw_coordinates'].append(p + c) for p in inferred_parts for c in ['_x', '_y']]
             feats[cam][mouse]['intramouse_distance'] = [('dist_' + p + '_' + q) for p in parts for q in parts if q != p]
         for mouse2 in pairmice:
-            feats[cam][mouse + mouse2]['intermouse_distance'] = [('dist_m1' + p + '_m2' + q) for p in parts for q in
-                                                                 parts]
+            feats[cam][mouse+mouse2]['intermouse_distance'] = [('dist_m1' + p + '_m2' + q) for p in parts for q in parts]
 
     # make sure we have a lambda for each named feature
     for cam in cameras:
@@ -61,7 +55,6 @@ def generate_valid_feature_list(cfg):
                 feats[cam][mouse][grp] = [f for f in feats[cam][mouse][grp] if f in have_lambdas]
 
     return feats
-
 
 def generate_lambdas():
     # define the lambdas for all the features, grouped by their required inputs.
@@ -94,9 +87,20 @@ def generate_lambdas():
     lam['xy_ang']['angle_nose_neck_tail'] = lambda x, y: interior_angle_orth([x[0], y[0]], [x[3], y[3]], [x[6], y[6]])
 
     # add sines and cosines of angle features
-    for k in list(lam['xy_ang'].keys()):
-        lam['xy_ang_trig']['sin_' + k] = lambda x, y: np.sin(lam['xy_ang'][k](x, y))
-        lam['xy_ang_trig']['cos_' + k] = lambda x, y: np.cos(lam['xy_ang'][k](x, y))
+    # for k in list(lam['xy_ang'].keys()):
+    #     lam['xy_ang_trig']['sin_' + k] = lambda x, y: np.sin(lam['xy_ang'][k](x, y))
+    #     lam['xy_ang_trig']['cos_' + k] = lambda x, y: np.cos(lam['xy_ang'][k](x, y))
+    lam['xy_ang']['sin_ori_head'] = lambda x, y: np.sin(lam['xy_ang']['ori_head'](x, y))
+    lam['xy_ang']['cos_ori_head'] = lambda x, y: np.cos(lam['xy_ang']['ori_head'](x, y))
+    lam['xy_ang']['sin_ori_body'] = lambda x, y: np.sin(lam['xy_ang']['ori_body'](x, y))
+    lam['xy_ang']['cos_ori_body'] = lambda x, y: np.cos(lam['xy_ang']['ori_body'](x, y))
+    lam['xy_ang']['sin_angle_head_body_l'] = lambda x, y: np.sin(lam['xy_ang']['angle_head_body_l'](x, y))
+    lam['xy_ang']['cos_angle_head_body_l'] = lambda x, y: np.cos(lam['xy_ang']['angle_head_body_l'](x, y))
+    lam['xy_ang']['sin_angle_head_body_r'] = lambda x, y: np.sin(lam['xy_ang']['angle_head_body_r'](x, y))
+    lam['xy_ang']['cos_angle_head_body_r'] = lambda x, y: np.cos(lam['xy_ang']['angle_head_body_r'](x, y))
+    lam['xy_ang']['sin_angle_nose_neck_tail'] = lambda x, y: np.sin(lam['xy_ang']['angle_nose_neck_tail'](x, y))
+    lam['xy_ang']['cos_angle_nose_neck_tail'] = lambda x, y: np.cos(lam['xy_ang']['angle_nose_neck_tail'](x, y))
+
 
     lam['xy']['centroid_x'] = lambda x, y: np.mean(x)
     lam['xy']['centroid_y'] = lambda x, y: np.mean(y)
@@ -146,9 +150,15 @@ def generate_lambdas():
     lam['xyxy_ang']['angle_between'] = lambda x1, y1, x2, y2: angle_between(lam, x1, y1, x2, y2)
     lam['xyxy_ang']['angle_social'] = lambda x1, y1, x2, y2: soc_angle(lam, x1, y1, x2, y2)
 
-    for k in list(lam['xyxy_ang'].keys()):
-        lam['xyxy_ang_trig']['sin_' + k] = lambda x1, y1, x2, y2: np.sin(lam['xyxy_ang'][k](x1, y1, x2, y2))
-        lam['xyxy_ang_trig']['cos_' + k] = lambda x1, y1, x2, y2: np.cos(lam['xyxy_ang'][k](x1, y1, x2, y2))
+    # for k in list(lam['xyxy_ang'].keys()):
+    #     lam['xyxy_ang_trig']['sin_' + k] = lambda x1, y1, x2, y2: np.sin(lam['xyxy_ang'][k](x1, y1, x2, y2))
+    #     lam['xyxy_ang_trig']['cos_' + k] = lambda x1, y1, x2, y2: np.cos(lam['xyxy_ang'][k](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['sin_facing_angle'] = lambda x1, y1, x2, y2: np.sin(lam['xyxy_ang']['facing_angle'](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['cos_facing_angle'] = lambda x1, y1, x2, y2: np.cos(lam['xyxy_ang']['facing_angle'](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['sin_angle_between'] = lambda x1, y1, x2, y2: np.sin(lam['xyxy_ang']['angle_between'](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['cos_angle_between'] = lambda x1, y1, x2, y2: np.cos(lam['xyxy_ang']['angle_between'](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['sin_angle_social'] = lambda x1, y1, x2, y2: np.sin(lam['xyxy_ang']['angle_social'](x1, y1, x2, y2))
+    lam['xyxy_ang_trig']['cos_angle_social'] = lambda x1, y1, x2, y2: np.cos(lam['xyxy_ang']['angle_social'](x1, y1, x2, y2))
 
     lam['xyxy']['dist_nose'] = lambda x1, y1, x2, y2: dist_nose(lam, x1, y1, x2, y2)
     lam['xyxy']['dist_body'] = lambda x1, y1, x2, y2: dist_body(lam, x1, y1, x2, y2)
@@ -179,17 +189,17 @@ def generate_lambdas():
 def get_angle(Ax, Ay, Bx, By):
     # adjusted with rotation 90
     # start and end point inversed, tail as origin A
-    angle = (mh.atan2(Ax - Bx, Ay - By) + mh.pi / 2.) % (mh.pi * 2)
+    angle = (mh.atan2(Ax - Bx, Ay - By) + mh.pi/2.) % (mh.pi*2)
     return angle
 
 
-def fit_ellipse(X, Y):
-    data = [X.tolist(), Y.tolist()]
-    mu = np.mean(data, axis=1)
+def fit_ellipse(X,Y):
+    data = [X.tolist(),Y.tolist()]
+    mu = np.mean(data,axis=1)
     covariance = np.cov(data)
     rad = (-2 * np.log(1 - .75)) ** .5
-    _, D, R = np.linalg.svd(covariance)
-    normstd = np.sqrt(D)
+    _,D,R = np.linalg.svd(covariance)
+    normstd  = np.sqrt(D)
 
     # phi = mh.acos(R[0,0])
     # if phi < 0.:
@@ -204,14 +214,14 @@ def fit_ellipse(X, Y):
     cx = mu[0]
     cy = mu[1]
 
-    phi = (mh.atan2(np.mean(X[4:7]) - np.mean(X[:3]), np.mean(Y[4:7]) - np.mean(Y[:3])) + mh.pi / 2.) % (mh.pi * 2)
+    phi  = (mh.atan2(np.mean(X[4:7]) - np.mean(X[:3]), np.mean(Y[4:7]) - np.mean(Y[:3])) + mh.pi / 2.) % (mh.pi * 2)
 
-    theta_grid = np.linspace(-mh.pi, mh.pi, 200)
+    theta_grid = np.linspace(-mh.pi,mh.pi,200)
     xs = cx + a * np.cos(theta_grid) * np.cos(phi) + b * np.sin(theta_grid) * np.sin(phi)
     ys = cy - a * np.cos(theta_grid) * np.sin(phi) + b * np.sin(theta_grid) * np.cos(phi)
 
     # draw ori
-    ori_vec_v = np.array([mh.cos(phi), -mh.sin(phi)]) * a
+    ori_vec_v = np.array([mh.cos(phi),-mh.sin(phi)]) * a
     ori_vec_h = np.array([mh.sin(phi), mh.cos(phi)]) * b
 
     ell = {'cx': cx, 'cy': cy, 'ra': a, 'rb': b, 'phi': phi,
@@ -220,7 +230,7 @@ def fit_ellipse(X, Y):
     return ell
 
 
-def bb_intersection_over_union(boxA, boxB, im_w, im_h):
+def bb_intersection_over_union(boxA,boxB,im_w,im_h):
     # determine the (x, y)-coordinates of the intersection rectangle
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
@@ -245,20 +255,24 @@ def bb_intersection_over_union(boxA, boxB, im_w, im_h):
     # return the intersection over union value
     return iou
 
-
 def interior_angle(p0, p1, p2):
+    # def unit_vector(v):
+    #     return v/np.linalg.norm(v)
     v0 = np.array(p0) - np.array(p1)
     v1 = np.array(p2) - np.array(p1)
-    return mh.atan2(np.linalg.det([v0, v1]), np.dot(v0, v1))
+    ang = mh.atan2(np.linalg.det([v0, v1]), np.dot(v0, v1))
+    return ang
 
 
 def interior_angle_orth(p0, p1, p2):
+    # def unit_vector(v):
+    #     return v/np.linalg.norm(v)
     v0 = np.array(p0) - np.array(p1)
     v1 = np.array(p2) - np.array(p1)
     ang = -mh.atan2(np.dot(v0, v1), np.linalg.det([v0, v1])) # flip X/Y. use this if your angles are hovering around pi to reduce flippage
     ang = ang if ang>0 else 2*mh.pi+ang
     ang = -(ang - mh.pi/2) + mh.pi
-    ang = ang if ang <= 2*mh.pi else ang-(2*mh.pi)
+    ang = ang if ang<=2*mh.pi else ang-(2*mh.pi)
     return ang
 
 
@@ -404,7 +418,6 @@ def acceleration_ctr(lam, x2, y2, x1, y1, x0, y0):
     ax = lam['xy']['centroid_x'](x2, y2) - 2 * lam['xy']['centroid_x'](x1, y1) + lam['xy']['centroid_x'](x0, y0)
     ay = lam['xy']['centroid_y'](x2, y2) - 2 * lam['xy']['centroid_y'](x1, y1) + lam['xy']['centroid_y'](x0, y0)
     return np.linalg.norm([ax, ay], axis=0)
-
 
 def crop_image(img, x, y, radius):
     im_h = img.shape[0]
