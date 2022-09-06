@@ -24,6 +24,7 @@ import progressbar
 import random
 import pdb
 from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
 
 
 # warnings.filterwarnings("ignore")
@@ -77,7 +78,7 @@ def apply_feature_order(feats, target_order, current_order):
     feat_order = []
     for t in target_order:
         feat_order.append(current_order.index(t))
-    feats_sorted = np.take(feats, feat_order, axis=2)
+    feats_sorted = np.take(feats, feat_order, axis=1)
     return feats_sorted
 
 
@@ -94,6 +95,10 @@ def choose_classifier(clf_params):
     elif clf_params['clf_type'].lower() == 'cat':
         params = unpack_params(clf_params, 'cat_defaults')
         clf = CatBoostClassifier(**params)
+
+    elif clf_params['clf_type'].lower() == 'lgt':
+        params = unpack_params(clf_params, 'lgt_defaults')
+        clf = LGBMClassifier(**params)
 
     else:
         print('Unrecognized classifier type %s, defaulting to XGBoost!' % clf_params['clf_type'])
@@ -123,7 +128,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                 data = json.load(f)
         else:
             print('dataset not found.')
-            return
+            return np.array([]), [], [], []
         for label in train_behaviors:
             if label not in data['vocabulary']:
                 print('Error: target behavior "' + label + '" not found in this dataset.\nAvailable labels:')
@@ -150,7 +155,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                 feats = np.array(entry['features'])
                 if target_feature_order:  # if we're asked to sort the features in a particular order, do that here
                     feats = apply_feature_order(feats, target_feature_order, data['feature_names'])
-                feats = np.swapaxes(feats, 0, 1)
+                #feats = np.swapaxes(feats, 0, 1) # Why ?
                 feats = mts.clean_data(feats)
                 annots = entry['annotations'] # what if no annotations, example a test set?
                 dropflag = False
@@ -169,12 +174,12 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                     if len(annots) > feats.shape[0]:
                         annots = annots[:feats.shape[0]]
                     else:
-                        feats = feats[:len(annots), :, :]
+                        feats = feats[:len(annots), :]
 
-                if np.shape(feats)[1] == 1:
-                    feats = feats[:, 0, :]
-                else:  # TODO: make >2 mouse case
-                    feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
+                #if np.shape(feats)[1] == 1:
+                #    feats = feats[:, 0, :]
+                #else:  # TODO: make >2 mouse case
+                #    feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
 
                 if clf_params['do_wnd']:
                     windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
@@ -325,6 +330,9 @@ def do_train(beh_classifier, X_tr, y_tr_beh, X_ev, y_ev_beh, savedir, verbose=0)
         print('fitting clf for %s' % beh_name)
         print('    training set: %d positive / %d total (%d %%)' % (
             sum(y_tr_beh), len(y_tr_beh), 100*sum(y_tr_beh)/len(y_tr_beh)))
+
+    start_time = time.time()
+
     if not X_ev == []:
         eval_set = [(X_ev, y_ev_beh)]
         print('    eval set: %d positive / %d total (%d %%)' % (
@@ -336,7 +344,9 @@ def do_train(beh_classifier, X_tr, y_tr_beh, X_ev, y_ev_beh, savedir, verbose=0)
                     early_stopping_rounds=clf_params['early_stopping'], verbose=True)
         else:
             clf.fit(X_tr, y_tr_beh, eval_set=eval_set, eval_metric='aucpr', verbose=True)
-        results = clf.evals_result()
+        #results = clf.get_evals_result()
+        #results = clf.evals_result()
+        results = clf.evals_result_
     else:
         if verbose:
             print('  no validation set included')
@@ -403,7 +413,7 @@ def do_train_smooth(beh_classifier, X_tr, y_tr_beh, savedir, verbose=False):
 
     # print the results of training
     dt = (time.time() - t) / 60.
-    print('training took %.2f mins' % dt)
+    print('HMM label smoothing training took %.2f mins' % dt)
     print('performance on training set:')
     precision, recall, f_measure = prf_metrics(y_tr_beh, y_pred_fbs_hmm, beh_name)
 
@@ -523,6 +533,7 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
     if not os.path.exists(savedir):
         os.makedirs(savedir)
     print('Training classifier: ' + classifier_name.upper())
+    start_time = time.time()
     # train each classifier in a loop:
     for beh_name in train_behaviors:
         print('######################### %s #########################' % beh_name)
@@ -567,6 +578,8 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
                         savedir, verbose=clf_params['verbose'])
 
         print('done training!')
+    dt = (time.time() - start_time) / 60.
+    print('complete training took %.2f mins' % dt)
     return results
 
 
@@ -627,7 +640,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
 
     print(' ')
     print('Classifier performance:')
-    score_info(gt, all_pred_fbs_hmm, vocab)
+    precision, recall, fscore = score_info(gt, all_pred_fbs_hmm, vocab)
     P = {'f0_G': gt,
          'f0_Gc': y_te,
          'f1_pd': preds,
@@ -641,7 +654,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     dill.dump(P, open(savedir + 'results.dill', 'wb'))
     sio.savemat(savedir + 'results.mat', P)
     sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', 'test_results.mat'), P2)
-
+    return precision, recall, fscore
 
 # def run_classifier(project, test_behaviors):
 #     # this code actually saves *.annot files containing the raw predictions of the trained classifier,

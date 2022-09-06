@@ -25,3 +25,7 @@ xgb_defaults:
 cat_defaults:
   n_estimators: 1000
   random_state: 34
+
+lgt_defaults:
+  n_estimators: 1000
+  random_state: 35
