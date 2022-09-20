@@ -7,7 +7,7 @@ def create_manifest(bucket,manifest_name='file_list.manifest'):
     s3 = boto3.client('s3')
     filelist = []
     for i,key in enumerate(s3.list_objects(Bucket=bucket)['Contents']):
-        if key['Key'].endswith('jpg'):
+        if key['Key'].endswith('jpg') or key['Key'].endswith('png'):
             filelist.append('{"source-ref":"s3://' + bucket + '/' + key['Key'] + '"}')
 
     # next step, convert filelist to binary data and call put_object
