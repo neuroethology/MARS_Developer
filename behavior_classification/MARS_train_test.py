@@ -206,7 +206,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                         else:
                             drop_list.append(data['vocabulary'][d])
                     keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
-                    annots = annots[keep_inds]
+                    annots = [annots[i] for i in keep_inds]
                     feats = feats[keep_inds, :]
                 annot_raw.append(annots)
                 data_stack.append(feats)
