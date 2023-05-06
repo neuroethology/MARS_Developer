@@ -29,10 +29,100 @@ def apply_flip_correction(frame, meds, keypoints, pair):
             if (d1[0] > d1[1]) and (d2[1] > d2[0]):
                 frame[[i1, i2], :, w] = frame[[i2, i1], :, w]
 
-        # re-compute the medians:
-        meds = np.median(frame, axis=2)
+            # re-compute the medians:
+            meds = np.nanmedian(frame, axis=2)
 
     return frame, meds
+
+def create_mask_bad_wks(data, workers2del, nKpts, nWorkers):
+    null_mask_arr = np.ones((2, nWorkers))
+
+    workers_list = data['annotatedResult']['annotationsFromAllWorkers']
+    valid_idx = [i for i, x in enumerate([w['workerId'] for w in workers_list])
+            if x not in workers2del]
+   
+    for i in valid_idx:
+        null_mask_arr[:,i] = np.zeros((null_mask_arr.shape[0],1)).ravel()
+   
+    null_mask_arr = np.repeat(null_mask_arr[np.newaxis, :, :], nKpts, axis=0)
+   
+    return null_mask_arr
+
+def hold_one_out_dist(fr_df, frame_num):
+    cols = ['x', 'y']
+    all_wkrs_dist = pd.DataFrame()
+    for wk in fr_df['worker ID'].unique():
+        df_worker = fr_df[fr_df['worker ID'].eq(wk)] \
+                                 .loc[:,'x':'color'].set_index(['color']).sort_index()
+                                 
+        dist_df = fr_df[~fr_df['worker ID'].eq(wk)] \
+                                           .loc[:,'x':'color'] \
+                                           .groupby(['color']) \
+                                           .median().sort_index() \
+                                           .assign(
+                                                distance = lambda df_:
+                                                    np.linalg.norm(df_[cols] - df_worker[cols], axis=1)) \
+                                           .loc[:,'distance'].reset_index() \
+                                           .assign(
+                                                worker = [wk for i in range(2)],
+                                                frame = [frame_num for i in range(2)])
+        all_wkrs_dist = pd.concat([dist_df, all_wkrs_dist], ignore_index=True)
+   
+    return all_wkrs_dist
+
+def detect_bad_workers(project, manifest_file, thr_dist = 300, per_del = 0.15):
+    
+    f = open(os.path.join(project, 'annotation_data', manifest_file), 'r')
+    st = f.read()
+    st = "[\n" + st + "\n]"
+    st = st.replace("\\","").replace("\"{","{") \
+            .replace("}\"}","}}").replace("{\"source",",{\"source") \
+            .replace(',', '', 1)
+    while True:
+        try:
+            output_manifest = json.loads(st)
+            break
+        except Exception as e:
+            print(str(e))
+
+    f.close()
+    
+    frames_dist_df = pd.DataFrame()
+    for fr_id, data in enumerate(output_manifest):
+
+        frame = data['annotatedResult']['annotationsFromAllWorkers']
+        fr_df = pd.DataFrame()
+
+        for wk_id, worker_content in enumerate(frame):
+            worker = worker_content['annotationData']['content']['annotatedResult']
+            k_pts = worker['keypoints']
+            pos_blk_nose = [(k_pts[i]['x'],k_pts[i]['y']) for i, x in enumerate (k_pts) if x['label'] == 'black mouse nose']
+            pos_wht_nose = [(k_pts[i]['x'],k_pts[i]['y']) for i, x in enumerate (k_pts) if x['label'] == 'white mouse nose']
+
+            wht_info = pd.DataFrame([{'x':pos_wht_nose[0][0],
+                                      'y':pos_wht_nose[0][1],
+                                      'color':'white',
+                                      'worker ID': frame[wk_id]['workerId']}])
+            blk_info = pd.DataFrame([{'x':pos_blk_nose[0][0],
+                                      'y':pos_blk_nose[0][1],
+                                      'color':'black',
+                                      'worker ID': frame[wk_id]['workerId']}])
+
+            fr_df = pd.concat([fr_df, wht_info], ignore_index=True)
+            fr_df = pd.concat([fr_df, blk_info], ignore_index=True)
+
+        frames_dist_df = pd.concat([frames_dist_df, hold_one_out_dist(fr_df, fr_id)], ignore_index=True)
+
+    
+    workers_total_annotations = frames_dist_df.worker.value_counts()
+    bad_workers_list = frames_dist_df[frames_dist_df['distance']>thr_dist].groupby(['worker']) \
+                                                                .size() \
+                                                                .div(workers_total_annotations) \
+                                                                .loc[lambda df: df > per_del] \
+                                                                .index.tolist()
+    
+    return bad_workers_list
+                                                           
 
 
 def manifest_to_dict(project):
@@ -70,6 +160,10 @@ def manifest_to_dict(project):
     if verbose:
         print('Processing manifest file...')
     print(len(data))
+    
+    print('Detecting bad workers')
+    bad_workers_list = detect_bad_workers(project, manifest_file, thr_dist = 300, per_del = 0.15)
+    
     for f, sample in enumerate(data):
         if f and not f % 1000 and verbose:
             print('  frame '+str(f))
@@ -107,11 +201,13 @@ def manifest_to_dict(project):
 
                     rawPts[animal][part, 0, w] = pt['x']/im.shape[1]
                     rawPts[animal][part, 1, w] = pt['y']/im.shape[0]
-
+            
+            mask_bad_wks = create_mask_bad_wks(sample, bad_workers_list, nKpts, nWorkers[f])            
             for animal in animal_names:
-
+                rawPts[animal] = np.ma.array(rawPts[animal], mask = mask_bad_wks).filled(np.nan)
+                
                 if check_pairs:  # adjust L/R assignments to try to find better median estimates.
-                    meds = np.median(rawPts[animal], axis=2)
+                    meds = np.nanmedian(rawPts[animal], axis=2)
                     for pair in check_pairs:
                         rawPts[animal], meds = apply_flip_correction(rawPts[animal], meds, keypoint_names, pair)
 
@@ -220,14 +316,14 @@ def make_animal_dict(pts, im_shape):
     X = pts[:, 0, :].T
     Y = pts[:, 1, :].T
 
-    mX = np.median(X, axis=0)
-    mY = np.median(Y, axis=0)
+    mX = np.nanmedian(X, axis=0)
+    mY = np.nanmedian(Y, axis=0)
 
-    muX = np.mean(X, axis=0)
-    muY = np.mean(Y, axis=0)
+    muX = np.nanmean(X, axis=0)
+    muY = np.nanmean(Y, axis=0)
 
-    stdX = np.std(Y, axis=0)
-    stdY = np.std(Y, axis=0)
+    stdX = np.nanstd(Y, axis=0)
+    stdY = np.nanstd(Y, axis=0)
 
     # bounding box
     Bxmin = min(mX)
