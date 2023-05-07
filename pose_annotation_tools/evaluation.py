@@ -99,13 +99,13 @@ def compute_human_PCK(project, animal_names=None, xlim=None, pixel_units=False):
             Y = np.array(frame['ann_' + animal]['Y']) * D[0]['height']
             trial_dists = []
             for i, [pX, pY] in enumerate(zip(X, Y)):
-                mX = np.median(np.delete(X, i, axis=0), axis=0)
-                mY = np.median(np.delete(Y, i, axis=0), axis=0)
+                mX = np.nanmedian(np.delete(X, i, axis=0), axis=0)
+                mY = np.nanmedian(np.delete(Y, i, axis=0), axis=0)
                 trial_dists.append(np.sqrt(np.square(mX - pX) + np.square(mY - pY)))
             trial_dists = np.array(trial_dists)
 
-            dMean[:, fr] = np.mean(trial_dists, axis=0)
-            dMedian[:, fr] = np.median(trial_dists, axis=0)
+            dMean[:, fr] = np.nanmean(trial_dists, axis=0)
+            dMedian[:, fr] = np.nanmedian(trial_dists, axis=0)
             dMin[:, fr] = np.min(trial_dists, axis=0)
             dMax[:, fr] = np.max(trial_dists, axis=0)
 

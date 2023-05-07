@@ -47,7 +47,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
 
     if download_MARS_checkpoints:
         ckpts_name = 'MARS_v1_8_models'
-        ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op'
+        ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op&confirm=t&uuid=3e6e6742-0b74-4de4-9058-f2f94a8aa7e5&at=ALgDtszLJO_HlgzepoZYqu-Tfdc6:1674927765818'
         # names of the models we want to unpack:
         search_keys = ['detect*black*', 'detect*white*', 'detect*resnet*', 'pose*']
         # where we're unpacking them to:

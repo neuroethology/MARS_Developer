@@ -8,6 +8,8 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 def restore(tfrecords_filenames, output_path):
     # this is a script to extract images from tfrecord files, for sanity-checking.
+    if not isinstance(tfrecords_filenames, list):
+        tfrecords_filenames = [tfrecords_filenames]
     f = tfrecords_filenames
     totalFiles = 0
 
