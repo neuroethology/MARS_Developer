@@ -70,7 +70,7 @@ def hold_one_out_dist(fr_df, frame_num):
    
     return all_wkrs_dist
 
-def detect_bad_workers(project, manifest_file, thr_dist = 300, per_del = 0.15):
+def detect_bad_workers(project, manifest_file, perc_dist = 0.75, per_del = 0.15):
     
     f = open(os.path.join(project, 'annotation_data', manifest_file), 'r')
     st = f.read()
@@ -115,6 +115,7 @@ def detect_bad_workers(project, manifest_file, thr_dist = 300, per_del = 0.15):
 
     
     workers_total_annotations = frames_dist_df.worker.value_counts()
+    thr_dist = frames_dist_df['distance'].quantile(perc_dist)
     bad_workers_list = frames_dist_df[frames_dist_df['distance']>thr_dist].groupby(['worker']) \
                                                                 .size() \
                                                                 .div(workers_total_annotations) \
