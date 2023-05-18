@@ -12,7 +12,7 @@ git clone --recurse-submodules https://github.com/neuroethology/MARS_Developer
 
 Navigate into the MARS_Developer directory you just created, and install the conda environment:
 ```
-conda env create -f MARS_dev.yml
+conda env create -f mars_dev_<linux/windows>.yml
 ```
 and activate this environment by calling
 ```
@@ -49,7 +49,7 @@ To get started, please check out our two Tutorial notebooks:
 Training MARS to run on your own experiments includes the following steps, outlined in the Pose and Behavior tutorials above:
 
 #### 1) 📁 Create a new MARS Training Project.
-MARS uses a set file strcture to keep track of data and models associated with your project. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
+MARS uses a set file structure to keep track of data and models associated with your project. We'll assume you have already settled on a recording setup, and have a set of videos on hand to be analyzed.
 
 #### 2) ✍️ Collect a set of manually annotated animal poses.
 We provide code for crowdsourcing of pose annotation to a public workforce via Amazon SageMaker. Running this code requires an Amazon Web Services (AWS) account and some initial time investment in setting up the custom annotation job. A typical pose annotation job, at high annotation quality + high label confidence (5 repeat annotations/image) costs ~68 cents/image.
