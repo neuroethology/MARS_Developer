@@ -3,13 +3,20 @@ import boto3
 import sagemaker
 
 
-def create_manifest(bucket,manifest_name='file_list.manifest'):
-    s3 = boto3.client('s3')
+def create_manifest(bucket_name,manifest_name='file_list.manifest'):
     filelist = []
-    for i,key in enumerate(s3.list_objects(Bucket=bucket)['Contents']):
-        if key['Key'].endswith('jpg'):
-            filelist.append('{"source-ref":"s3://' + bucket + '/' + key['Key'] + '"}')
-
+    s3r = boto3.resource('s3')
+    s3 = boto3.client('s3')
+    
+    # Use s3 resource to pull and append all the file names in the bucket
+    bucket = s3r.Bucket(bucket_name)
+    files_in_bucket = list(bucket.objects.all())
+    
+    for i in range(len(files_in_bucket)):
+        file_name = files_in_bucket[i].key
+        if file_name.endswith('jpg') or file_name.endswith('png') or file_name.endswith('tiff'):
+            filelist.append('{"source-ref":"s3://' + bucket_name + '/' + file_name + '"}')
+            
     # next step, convert filelist to binary data and call put_object
     if not manifest_name.endswith('.manifest'):
         manifest_name = manifest_name + '.manifest'
@@ -17,9 +24,11 @@ def create_manifest(bucket,manifest_name='file_list.manifest'):
     with open('tmp_'+manifest_name,'w') as f:
         for item in filelist:
             f.write("%s\n" % item)
-
-    s3.put_object(Body=open('tmp_'+manifest_name, 'rb'), Bucket=bucket, Key=manifest_name)
-    print('created a manifest called "' + manifest_name + '" in ' + bucket)
+    
+    # Use s3 client to create the manifest file in s3
+    s3.put_object(Body=open('tmp_'+manifest_name, 'rb'), Bucket=bucket_name, Key=manifest_name)
+    print('created a manifest called "' + manifest_name + '" in ' + bucket_name)
+    
     return manifest_name.replace('.manifest','')
 
 
