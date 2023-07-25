@@ -12,6 +12,8 @@ def count_workers(data):
     for f,frame in enumerate(data):
         if 'annotatedResult' in frame.keys():  # check if this frame has at least one set of annotations
             nWorkers.append(len(frame['annotatedResult']['annotationsFromAllWorkers']))
+        else:
+            nWorkers.append(0)
     return nWorkers
 
 
@@ -99,7 +101,7 @@ def manifest_to_dict(project):
 
                 # now we can unpack this worker's annotations for each keypoint:
                 for pt in annot['annotatedResult']['keypoints']:
-                    animal = next((n for n in animal_names if n in pt['label']),species)
+                    animal = next((n for n in animal_names if n in pt['label']),animal_names[0])
                     kpt_clean = pt['label'].replace(animal, '').replace(species, '').strip()
                     if kpt_clean not in keypoint_names:
                         continue
