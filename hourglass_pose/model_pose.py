@@ -68,7 +68,7 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
         # Initial processing of the image
-        conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
+        conv = slim.conv2d(input, 64, [num_parts, num_parts], stride=2, padding='SAME')
         r1 = residual(conv, 64, 128)
         pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
         r2 = residual(pool, 128, 128)
@@ -106,10 +106,10 @@ def build(input, num_parts, num_features=256, num_stacks=8, num_res_modules=1, r
     return heatmaps
 
 
-def build_head(input, num_features=256, reuse=None, scope='HourGlass'):
+def build_head(input, num_parts, num_features=256, reuse=None, scope='HourGlass'):
     with tf.compat.v1.variable_scope(scope, 'StackedHourGlassNetwork', [input], reuse=reuse):
 
-        conv = slim.conv2d(input, 64, [7, 7], stride=2, padding='SAME')
+        conv = slim.conv2d(input, 64, [num_parts, num_parts], stride=2, padding='SAME')
         r1 = residual(conv, 64, 128)
         pool = slim.max_pool2d(r1, 2, stride=2, padding='VALID')
         r2 = residual(pool, 128, 128)

@@ -3,18 +3,91 @@ import os,sys
 import pandas as pd
 from PIL import Image
 import json
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, pdist, squareform
 import yaml
+import copy
+from scipy.spatial.distance import cdist, euclidean
+import pdb
+
+
+def geometric_median(X, eps=1e-5):
+    y = np.mean(X, 0)
+
+    while True:
+        D = cdist(X, [y])
+        nonzeros = (D != 0)[:, 0]
+
+        Dinv = 1 / D[nonzeros]
+        Dinvs = np.sum(Dinv)
+        W = Dinv / Dinvs
+        T = np.sum(W * X[nonzeros], 0)
+
+        num_zeros = len(X) - np.sum(nonzeros)
+        if num_zeros == 0:
+            y1 = T
+        elif num_zeros == len(X):
+            return y
+        else:
+            R = (T - y) * Dinvs
+            r = np.linalg.norm(R)
+            rinv = 0 if r == 0 else num_zeros/r
+            y1 = max(0, 1-rinv)*T + min(1, rinv)*y
+
+        if euclidean(y, y1) < eps:
+            return y1
+
+        y = y1
 
 
 def count_workers(data):
     nWorkers = []
     for f,frame in enumerate(data):
+#         pdb.set_trace()
         if 'annotatedResult' in frame.keys():  # check if this frame has at least one set of annotations
             nWorkers.append(len(frame['annotatedResult']['annotationsFromAllWorkers']))
         else:
             nWorkers.append(0)
     return nWorkers
+
+
+def swap_them(m1, m2):
+    temp = copy.deepcopy(m1)  # ann doesn't know how references work and she's too afraid to risk it
+    m1 = copy.deepcopy(m2)
+    m2 = copy.deepcopy(temp)
+    return m1, m2
+
+
+def apply_identity_correction(frame):  #swaps animal identities. So far just coded for n=2 animals.
+    animals = list(frame.keys())
+    nworkers = np.shape(frame[animals[0]])[2]
+    nparts = np.shape(frame[animals[0]])[0]
+
+    for rep in range(5):  # first try whole-animal flips
+        pos = np.zeros((nworkers*2, nparts*2))
+        for w, clicks in enumerate(zip(frame[animals[0]].swapaxes(0, 2).swapaxes(1, 2), frame[animals[1]].swapaxes(0, 2).swapaxes(1, 2))):
+            pos[w, :] = clicks[0].flatten()
+            pos[nworkers+w, :] = clicks[1].flatten()
+            dpos = squareform(pdist(pos))
+
+        # worker 1 gets first pick of which mouse is which
+        compare = [[i, i + nworkers] for i in range(nworkers) if i != 0]
+        better_vals = [np.argmin([a, b]) for a, b in zip(dpos[0, [c[0] for c in compare]], dpos[0, [c[1] for c in compare]])]  # is this worker's annotation closer to each other worker's mouse 0 or mouse 1?
+        for w in range(0, nworkers-1):
+            if better_vals[w]:
+                frame[animals[0]][:, :, compare[w][0]], frame[animals[1]][:, :, compare[w][0]] = swap_them(frame[animals[0]][:, :, compare[w][0]], frame[animals[1]][:, :, compare[w][0]])
+
+        # now flip individual body parts, because turkers are idiots
+        # for w, clicks in enumerate(zip(frame[animals[0]].swapaxes(0, 2).swapaxes(1, 2), frame[animals[1]].swapaxes(0, 2).swapaxes(1, 2))):
+        #     m0 = clicks[0]
+        #     m1 = clicks[1]
+        #
+        #     for part in range(nparts):
+        #         d1 = cdist(m0[:, :], [m1[part, :]])
+        #         d2 = cdist(m1[:, :], [m1[part, :]])
+        #         if np.median(d1) < np.median(d2):
+        #             frame[animals[0]][part, :, w], frame[animals[1]][part, :, w] = swap_them(frame[animals[0]][part, :, w], frame[animals[1]][part, :, w])
+
+    return frame
 
 
 def apply_flip_correction(frame, meds, keypoints, pair):
@@ -26,13 +99,15 @@ def apply_flip_correction(frame, meds, keypoints, pair):
 
     for rep in range(3):  # repeat 3 times for stability
         for w, worker in enumerate(frame.swapaxes(0, 2).swapaxes(1, 2)):
+            if rep!=2:
+                meds = np.median(frame[:, :, np.setdiff1d(range(frame.shape[2]), w)], axis=2)
+            else:
+                meds = np.median(frame, axis=2)
             d1 = cdist(worker[[i1, i2], :], [meds[i1, :]])
             d2 = cdist(worker[[i1, i2], :], [meds[i2, :]])
             if (d1[0] > d1[1]) and (d2[1] > d2[0]):
-                frame[[i1, i2], :, w] = frame[[i2, i1], :, w]
+                frame[[i1, i2], :, w] = copy.deepcopy(frame[[i2, i1], :, w])
 
-        # re-compute the medians:
-        meds = np.median(frame, axis=2)
 
     return frame, meds
 
@@ -53,6 +128,7 @@ def manifest_to_dict(project):
     check_pairs    = config['check_pairs']
     verbose        = config['verbose']
     nKpts          = len(keypoint_names)
+    nobj           = config['num_obj']
 
     fid = open(os.path.join(project, 'annotation_data', manifest_file), 'r')
     data = []
@@ -73,7 +149,7 @@ def manifest_to_dict(project):
         print('Processing manifest file...')
     print(len(data))
     for f, sample in enumerate(data):
-        if f and not f % 1000 and verbose:
+        if f and not f % 200 and verbose:
             print('  frame '+str(f))
         if 'annotatedResult' in sample.keys():  # check if this frame has at least one set of annotations
             hits[f] = True
@@ -93,25 +169,36 @@ def manifest_to_dict(project):
                 'ann': []
             }
 
-            rawPts = {n: np.zeros((nKpts, 2, nWorkers[f])) for n in animal_names}
+            if nWorkers[f] != 0:
+                rawPts = {n: np.zeros((nKpts, 2, nWorkers[f])) for n in animal_names}
+            else:
+                continue
             for w, worker in enumerate(sample['annotatedResult']['annotationsFromAllWorkers']):
                 # the json of annotations from each worker is stored as a string for security reasons.
                 # we'll use eval to convert it into a dict:
                 annot = eval(worker['annotationData']['content'])
 
                 # now we can unpack this worker's annotations for each keypoint:
+                counts = {k: 0 for k in keypoint_names}
                 for pt in annot['annotatedResult']['keypoints']:
-                    animal = next((n for n in animal_names if n in pt['label']),animal_names[0])
-                    kpt_clean = pt['label'].replace(animal, '').replace(species, '').strip()
+                    animal = next((n for n in animal_names if n in pt['label']), species)
+                    kpt_clean = pt['label'].replace(animal, '').replace(species, '').replace('1','').replace('2','').strip()
                     if kpt_clean not in keypoint_names:
                         continue
                     part = keypoint_names.index(kpt_clean)
+                    counts[kpt_clean] += 1
 
+                    if counts[kpt_clean] > 1:
+                        continue
+                    # rawPts[animal + str(counts[kpt_clean])][part, 0, w] = pt['x']/im.shape[1]
+                    # rawPts[animal + str(counts[kpt_clean])][part, 1, w] = pt['y']/im.shape[0]
                     rawPts[animal][part, 0, w] = pt['x']/im.shape[1]
                     rawPts[animal][part, 1, w] = pt['y']/im.shape[0]
 
-            for animal in animal_names:
+            if nobj > 1: # check for identity swaps of individual parts
+                rawPts = apply_identity_correction(rawPts)
 
+            for animal in animal_names:
                 if check_pairs:  # adjust L/R assignments to try to find better median estimates.
                     meds = np.median(rawPts[animal], axis=2)
                     for pair in check_pairs:
@@ -225,6 +312,13 @@ def make_animal_dict(pts, im_shape):
     mX = np.median(X, axis=0)
     mY = np.median(Y, axis=0)
 
+    gX = np.zeros((pts.shape[0]))
+    gY = np.zeros((pts.shape[0]))
+    for i, pt in enumerate(pts):
+        gm = geometric_median(pt.T)
+        gX[i] = gm[0]
+        gY[i] = gm[1]
+
     muX = np.mean(X, axis=0)
     muY = np.mean(Y, axis=0)
 
@@ -244,6 +338,7 @@ def make_animal_dict(pts, im_shape):
                    'Y': Y.tolist(),
                    'bbox': np.array([Bxmin, Bxmax, Bymin, Bymax]).tolist(),
                    'med': np.array([mY, mX]).tolist(),
+                   'geom_med': np.array([gY, gX]).tolist(),
                    'mu': np.array([muY, muX]).tolist(),
                    'std': np.array([stdY, stdX]).tolist(),
                    'area': Barea.tolist()

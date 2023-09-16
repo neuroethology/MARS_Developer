@@ -151,7 +151,7 @@ def export_pose(checkpoint_path, export_dir, model_name, num_parts, num_stacks):
         #we assume that we have already preprocessed the image bboxes and bboxes
         images_bboxes = tf.compat.v1.placeholder(tf.float32,[None, input_height, input_width, input_depth], name=input_node_name)
 
-        #build model detection
+        #build model pose
         batch_norm_params = {
             # Decay for the batch_norm moving averages.
             'decay': 0.9997,

@@ -69,6 +69,17 @@ def unpack_params(clf_params, clf_type):
     return params
 
 
+def apply_feature_order(feats, target_order, current_order):
+    if any(x not in current_order for x in target_order):
+        fail_list = [x for x in target_order if x not in current_order]
+        raise KeyError('One or more features required by the classifier were not found: ' + ', '.join(fail_list))
+    feat_order = []
+    for t in target_order:
+        feat_order.append(current_order.index(t))
+    feats_sorted = np.take(feats, feat_order, axis=2)
+    return feats_sorted
+
+
 def choose_classifier(clf_params):
     if clf_params['clf_type'].lower() == 'mlp':
         params = unpack_params(clf_params, 'mlp_defaults')
@@ -86,7 +97,25 @@ def choose_classifier(clf_params):
     return clf
 
 
-def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False):
+def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False, target_feature_order=[]):
+    '''
+
+    Args:
+        project: path to the project file
+        dataset: string indicating train/test/val
+        train_behaviors: list of behaviors we're classifying
+        drop_behaviors: list of annotations indicating frames to exclude from training (eg 'omit')
+        drop_empty_trials: whether to omit trials where the behavior never occurs
+        drop_movies: names of movies to omit from loading
+        do_quicksave: whether to save the loaded dataset in a numpy file (if we're going to be using it a lot and want to save time)
+        target_feature_order: order in which features should be sorted, used for testing classifiers
+
+    Returns:
+        data_stack: a (frames x features) numpy array of feature values, concatenated across videos
+        annot_clean: a list of vectors (one per entry in train_behaviors), with entries = 1 when behavior occurs, 0 when it doesn't, and -1 if it's missing from a video
+        data['vocabulary']: list of behaviors, inherited from the behavior_jsons/train_features.json (or val or test) file
+        data['feature_names']: list of feature names, inherited from the behavior_jsons/train_features.json file
+    '''
     with open(os.path.join(project, 'project_config.yaml')) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(project, 'behavior', 'config_classifiers.yaml')) as f:
@@ -110,15 +139,15 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             return
         for label in train_behaviors:
             if label not in data['vocabulary']:
-                print('Error: target behavior ' + label + ' not found in this dataset.\nAvailable labels:')
+                print('Error: target behavior "' + label + '" not found in this dataset.\nAvailable labels:')
                 print(list(data['vocabulary'].keys()))
-                return [], [], []
+                return np.array([]), [], [], []
 
         keylist = list(data['sequences'][cfg['project_name']].keys())
         data_stack = []
         annot_raw = []
         if clf_params['verbose']:
-            print('applying filters...')
+            print('sorting features and applying filters...')
         if clf_params['do_wnd'] or clf_params['do_cwt']:
             bar = progressbar.ProgressBar(widgets=
                                           [progressbar.FormatLabel('Filtering sequence %(value)d'), '/',
@@ -130,51 +159,59 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         for i, k in enumerate(keylist):
             if k in drop_movies:
                 continue
-            feats = np.array(data['sequences'][cfg['project_name']][k]['features'])
-            feats = np.swapaxes(feats, 0, 1)
-            feats = mts.clean_data(feats)
-            annots = data['sequences'][cfg['project_name']][k]['annotations']
-            dropflag = False
-            for label_name in train_behaviors:
-                if label_name in equivalences.keys():
-                    hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
-                else:
-                    hit_list = [data['vocabulary'][label_name]]
-                if drop_empty_trials and not any([i in hit_list for i in annots]):
-                    dropflag = True
-            if dropflag:
-                continue
-            if len(annots) != feats.shape[0]:
-                print('Length mismatch: %s %d %d' % (k, len(annots), feats.shape[0]))
-                print('Extra frames will be trimmed from the end of the sequence.')
-                if len(annots) > feats.shape[0]:
-                    annots = annots[:feats.shape[0]]
-                else:
-                    feats = feats[:len(annots), :, :]
-            feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
-
-            if clf_params['do_wnd']:
-                windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
-                feats = mts.apply_windowing(feats, windows)
-            elif clf_params['do_cwt']:
-                scales = [int(np.ceil(w * cfg['framerate'])) for w in clf_params['wavelets']]
-                feats = mts.apply_wavelet_transform(feats, scales)
-
-            if drop_behaviors:
-                if not isinstance(drop_behaviors, list):
-                    drop_behaviors = [drop_behaviors]
-                drop_list = []
-                for d in drop_behaviors:
-                    if d in equivalences.keys():
-                        drop_list += [data['vocabulary'][i] for i in equivalences[d]]
+            for j, entry in enumerate(data['sequences'][cfg['project_name']][k]):
+                feats = np.array(entry['features'])
+                if target_feature_order:  # if we're asked to sort the features in a particular order, do that here
+                    feats = apply_feature_order(feats, target_feature_order, data['feature_names'])
+                feats = np.swapaxes(feats, 0, 1)
+                feats = mts.clean_data(feats)
+                annots = entry['annotations']
+                dropflag = False
+                for label_name in train_behaviors:
+                    if label_name in equivalences.keys():
+                        hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
                     else:
-                        drop_list.append(data['vocabulary'][d])
-                keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
-                annots = annots[keep_inds]
-                feats = feats[keep_inds, :]
-            annot_raw.append(annots)
-            data_stack.append(feats)
-            bump += len(annots)
+                        hit_list = [data['vocabulary'][label_name]]
+                    if drop_empty_trials and not any([i in hit_list for i in annots]):
+                        dropflag = True
+                if dropflag:
+                    continue
+                if len(annots) != feats.shape[0]:
+                    print('Length mismatch: %s %d %d' % (k, len(annots), feats.shape[0]))
+                    print('Extra frames will be trimmed from the end of the sequence.')
+                    if len(annots) > feats.shape[0]:
+                        annots = annots[:feats.shape[0]]
+                    else:
+                        feats = feats[:len(annots), :, :]
+
+                if np.shape(feats)[1] == 1:
+                    feats = feats[:, 0, :]
+                else:  # TODO: make >2 mouse case
+                    feats = np.concatenate((feats[:, 0, :], feats[:, 1, :]), axis=1)
+
+                if clf_params['do_wnd']:
+                    windows = [int(np.ceil(w * cfg['framerate'])*2+1) for w in clf_params['windows']]
+                    feats = mts.apply_windowing(feats, windows)
+                elif clf_params['do_cwt']:
+                    scales = [int(np.ceil(w * cfg['framerate'])) for w in clf_params['wavelets']]
+                    feats = mts.apply_wavelet_transform(feats, scales)
+
+                if drop_behaviors:
+                    if not isinstance(drop_behaviors, list):
+                        drop_behaviors = [drop_behaviors]
+                    drop_list = []
+                    for d in drop_behaviors:
+                        if d in equivalences.keys():
+                            drop_list += [data['vocabulary'][i] for i in equivalences[d]]
+                        else:
+                            drop_list.append(data['vocabulary'][d])
+                    keep_inds = [i for i, _annots in enumerate(annots) if _annots not in drop_list]
+                    annots = [annots[i] for i in keep_inds]
+                    feats = feats[keep_inds, :]
+                annot_raw.append(annots)
+                data_stack.append(feats)
+                bump += len(annots)
+
             # print('%s   %d' % (k, bump))
             if clf_params['do_wnd'] or clf_params['do_cwt']:
                 bar.update(i)
@@ -182,7 +219,10 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
             bar.finish()
         data_stack = np.concatenate(data_stack, axis=0)
         if do_quicksave:
-            savedata = {'data_stack': data_stack.tolist(), 'annot_raw': annot_raw, 'vocabulary': data['vocabulary']}
+            savedata = {'data_stack': data_stack.tolist(),
+                        'annot_raw': annot_raw,
+                        'vocabulary': data['vocabulary'],
+                        'features': data['features']}
             with open(savestr, 'w') as f:
                 json.dump(savedata, f)
     else:
@@ -192,21 +232,25 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
         data_stack = data['data_stack']
 
     annot_clean = {}
-    # print(data['vocabulary'])
+    # print(data['features'])
     for label_name in train_behaviors:
         annot_clean[label_name] = []
+        # we want to create a binary vector that is 1 for all frames where our target behavior appears.
+
+        # First, create a list of all strings that correspond to our target behavior:
         if label_name in equivalences.keys():
             hit_list = [data['vocabulary'][i] for i in equivalences[label_name] if i in data['vocabulary']]
         else:
             hit_list = [data['vocabulary'][label_name]]
-        for a in annot_raw:
+        for a in annot_raw:  # loop over videos in the dataset
+            # for each video, make a vector that's 1 on frames where the behavior occurs, and 0 otherwise
             a_clean = [1 if i in hit_list else 0 for i in a]
             if 1 in a_clean:
                 annot_clean[label_name] += a_clean
             else:
-                annot_clean[label_name] += [-1]*len(a_clean)
+                annot_clean[label_name] += [-1]*len(a_clean)  # if a behavior was not annotated in a video, flag that video as possibly not annotated for that behavior
     print('done!\n')
-    return data_stack, annot_clean, data['vocabulary']
+    return data_stack, annot_clean, data['vocabulary'], data['feature_names']
 
 
 def assign_labels(all_predicted_probabilities, vocabulary):
@@ -389,6 +433,8 @@ def do_train_smooth(beh_classifier, X_tr, y_tr_beh, savedir, verbose=False):
                            'hmm_bin': hmm_bin,
                            'hmm_fbs': hmm_fbs})
     dill.dump(beh_classifier, open(os.path.join(savedir, 'classifier_' + beh_name), 'wb'))
+    P = {'proba_pd': y_pred_proba}
+    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', beh_name + 'train_results.mat'), P)
 
 
 def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
@@ -450,8 +496,7 @@ def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
     return gt, proba, preds, preds_fbs_hmm, proba_fbs_hmm
 
 
-def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False,
-                     max_positive=[0], drop_movies=[], do_quicksave=False):
+def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -465,19 +510,30 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
         print('Training set downsampling rate must be an integer; reverting to default value of 1.')
         clf_params['downsample_rate'] = 1
 
+    # add the project_config to this classifier so we can access it at runtime
+    clf_params['project_config'] = cfg
+
     print('loading training data...')
-    X_tr, y_tr, vocab = load_data(project, 'train', train_behaviors,
-                                  drop_behaviors=drop_behaviors,
-                                  drop_empty_trials=drop_empty_trials,
-                                  drop_movies=drop_movies,
-                                  do_quicksave=do_quicksave)
+    X_tr, y_tr, vocab, feat_order = load_data(project, 'train', train_behaviors,
+                                              drop_behaviors=drop_behaviors,
+                                              drop_empty_trials=drop_empty_trials,
+                                              drop_movies=drop_movies,
+                                              do_quicksave=do_quicksave)
+    if X_tr.size == 0:
+        return []
     print('loading validation data...')
-    X_ev, y_ev, _ = load_data(project, 'val', train_behaviors,
-                              drop_behaviors=drop_behaviors,
-                              drop_empty_trials=drop_empty_trials,
-                              drop_movies=drop_movies,
-                              do_quicksave=do_quicksave)
+    X_ev, y_ev, _, _ = load_data(project, 'val', train_behaviors,
+                                 drop_behaviors=drop_behaviors,
+                                 drop_empty_trials=drop_empty_trials,
+                                 drop_movies=drop_movies,
+                                 do_quicksave=do_quicksave,
+                                 target_feature_order=feat_order)
     print('loaded training data: %d X %d - %s ' % (X_tr.shape[0], X_tr.shape[1], list(y_tr.keys())))
+    print(vocab)
+    print(feat_order)
+
+    # preserve the feature order used during training so we make sure to use it in testing/deployment
+    clf_params['feature_order'] = feat_order
 
     # now create the classifier and give it an informative name:
     classifier = choose_classifier(clf_params)
@@ -513,6 +569,7 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
             X_ev_beh = np.array([X_ev_beh[i, :] for i in newinds_ev if i < len(y_ev_beh)])
             y_ev_beh = np.array([y_ev_beh[i] for i in newinds_ev if i < len(y_ev_beh)])
 
+        # cut to our target training set size
         bouts_tr = sum([(i != 0 and j == 0) for i, j in zip(y_tr_beh[:-1], y_tr_beh[1:])])
         print('training using %d positive frames (%s bouts)' % (sum(y_tr_beh!=0), bouts_tr))
 
@@ -526,7 +583,8 @@ def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_tri
                            savedir, verbose=clf_params['verbose'])
         do_train_smooth(beh_classifier,
                         X_tr_beh, y_tr_beh,
-                                savedir, verbose=clf_params['verbose'])
+                        savedir, verbose=clf_params['verbose'])
+
         print('done training!')
     return results
 
@@ -536,6 +594,8 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+
     # unpack user-provided classification parameters, and use default values for those not provided.
     config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')
     with open(config_fid) as f:
@@ -544,11 +604,12 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
             clf_params['smk_kn'] = np.array(clf_params['smk_kn'])
 
     print('loading test data...')
-    X_te, y_te, vocab = load_data(project, 'test', test_behaviors,
-                                    drop_behaviors=drop_behaviors, do_quicksave=do_quicksave)
+    X_te, y_te, vocab, feat_order = load_data(project, 'test', test_behaviors,
+                                              drop_behaviors=drop_behaviors,
+                                              do_quicksave=do_quicksave)
     print('loaded test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
+    # pdb.set_trace()
     X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
-
 
     classifier_name = cfg['project_name'] + '_' + clf_params['clf_type'] + clf_suffix(clf_params)
     savedir = os.path.join(project, 'behavior', 'trained_classifiers', classifier_name)
@@ -559,15 +620,30 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     preds = np.zeros((T, n_classes)).astype(int)
     preds_fbs_hmm = np.zeros((T, n_classes)).astype(int)
     proba_fbs_hmm = np.zeros((T, n_classes, 2))
+
     print('loading classifiers from %s' % savedir)
+    print('n_classes = ' +str(n_classes))
+    print(vocab)
     for b, beh_name in enumerate(test_behaviors):
         print('predicting %s...' % beh_name)
         name_classifier = os.path.join(savedir, 'classifier_' + beh_name)
 
+        # make sure features are in the right order
+        clf = joblib.load(name_classifier)
+        if feat_order != clf['params']['feature_order']:
+            print('reorganizing test data...')
+            X_te, y_te, _, feat_order = load_data(project, 'test', test_behaviors,
+                                         drop_behaviors=drop_behaviors,
+                                         do_quicksave=do_quicksave,
+                                         target_feature_order=clf['params']['feature_order'])
+            print('reorganized test data: %d X %d - %s ' % (X_te.shape[0], X_te.shape[1], list(set(y_te))))
+            X_te, y_te = handle_missing_trials(X_te, y_te, drop_empty_trials=drop_empty_trials)
+
         gt[:, vocab[beh_name]], proba[:, vocab[beh_name], :], preds[:, vocab[beh_name]],\
         preds_fbs_hmm[:, vocab[beh_name]], proba_fbs_hmm[:, vocab[beh_name], :] = \
-            do_test(name_classifier, X_te, y_te[beh_name],
-                    verbose=clf_params['verbose'], doPRC=True)
+                            do_test(name_classifier, X_te, y_te[beh_name], verbose=clf_params['verbose'], doPRC=True)
+    # pdb.set_trace()
+    print(feat_order)
     all_pred = assign_labels(proba, vocab)
     all_pred_fbs_hmm = assign_labels(proba_fbs_hmm, vocab)
     gt = np.argmax(gt, axis=1)
@@ -575,18 +651,19 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     print(' ')
     print('Classifier performance:')
     score_info(gt, all_pred_fbs_hmm, vocab)
-
-    P = {'0_G': gt,
-         '0_Gc': y_te,
-         '1_pd': preds,
-         '2_pd_fbs_hmm': preds_fbs_hmm,
-         '3_proba_pd': proba,
-         '4_proba_pd_hmm_fbs': proba_fbs_hmm,
-         '5_pred_ass': all_pred,
-         '6_pred_fbs_hmm_ass': all_pred_fbs_hmm
+    P = {'f0_G': gt,
+         'f0_Gc': y_te,
+         'f1_pd': preds,
+         'f2_pd_fbs_hmm': preds_fbs_hmm,
+         'f3_proba_pd': proba,
+         'f4_proba_pd_hmm_fbs': proba_fbs_hmm,
+         'f5_pred_ass': all_pred,
+         'f6_pred_fbs_hmm_ass': all_pred_fbs_hmm
          }
+    P2 = {'pred_proba': proba[:, :, 0]}
     dill.dump(P, open(savedir + 'results.dill', 'wb'))
     sio.savemat(savedir + 'results.mat', P)
+    sio.savemat(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(savedir))), 'behavior_data', 'test_results.mat'), P2)
 
 
 # def run_classifier(project, test_behaviors):

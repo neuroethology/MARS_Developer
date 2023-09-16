@@ -7,20 +7,19 @@ I've included the following scripts here:
 ## MARS_feature_extractor.py
 Scripts for extracting features from mouse poses, to experiment with feature engineering for improved classification.
 
-**How it works**: I've grouped MARS's pose-derived features into categories (position-based features, orientation-based features, etc). To get a list of these categories, and the features included in each category, call `list_features()`. Given a pose file at `pose_fullpath`, calling `extract_features(pose_fullpath, use_grps=['<category name>','<category name>',...])` returns a **dict** with just the features in those categories, organized in the same way as our `*.npz` feature files (details on **dict** structure below).
+**How it works**: I've grouped MARS's pose-derived features into categories (position-based features, orientation-based features, etc). To get a list of these categories, and the features included in each category, call `list_features()`. Define the feature categories you want to use in your classifier by editing `behavior/config_classifiers.yaml`, setting `feat_list=['<category name>','<category name>',...]`.
+
+Given a pose file at `pose_fullpath`, calling `extract_features(pose_fullpath)` returns a **dict** with just the features in those categories.
 
 If you wanted to make a new feature group not included in any of the above, you can add it to the code of `generate_feature_list()`. Eg, say you wanted to train a classifier using just the speed and distance to walls of mouse 1, you would add the following line to `generate_feature_list()`:
 
 `feats['top']['m1']['my_custom_group'] = ['speed_centroid','dist_edge']`
 
-Then you could generate just those features by calling `my_feats = extract_features(path_to_pose_json, use_grps=['my_custom_group'])`.
-
-### `extract_features(pose_fullpath, use_grps=[], smooth_keypoints=False, center_mouse=False)`
+### `extract_features(pose_fullpath, smooth_keypoints=False, center_mouse=False)`
 Given the path to a pose file (json), this function returns a requested set of extracted features.
 
 ##### Inputs:
 * `pose_fullpath` **(string)**: the absolute path to a `*.json` pose file.
-* `use_grps = []` **(string array)**: which feature categories to extract- if empty, extracts all of them. To get a list of available feature categories, call `list_features()`.
 * `smooth_keypoints = (False)|True`: if true, will try to denoise keypoint trajectories by calling `smooth_keypoint_trajectories()` before extracting features. **Smoothing not yet implemented** so this currently does nothing!
 * `center_mouse = (False)|True`: if true, will rotate+translate keypoints to an egocentric coordinate frame by calling `center_on_mouse()` before features are extracted. This puts the neck of the Resident mouse (mouse 1) at the origin, and rotates so the line between the ears is horizontal. Could help get rid of un-interesting sources of variance in the data, but is also sensitive to noise in neck/ear keypoint estimates (so smoothing first is probably important.)
 

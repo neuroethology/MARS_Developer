@@ -58,6 +58,7 @@ def build_model_finetuning(input_imgs, cfg, n_train, reuse=None):
         # build the trainable head
         feats = model.build_head(
             input=input_imgs,
+            num_parts=cfg.PARTS.NUM_PARTS,
             num_features=256,
             reuse=reuse
         )

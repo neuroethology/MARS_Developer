@@ -22,8 +22,8 @@ def plot_frame(project, frames, markersize=8, figsize=[15, 10], toFile=False):
         D = json.load(fp)
 
     plt.figure(figsize=figsize)
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
-    markers = 'vosd*p'
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan','tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:brown', 'tab:pink', 'tab:olive', 'tab:cyan']
+    markers = 'vosd*pvosd*p'
     
     if not isinstance(frames,list):
         frames = [frames]
@@ -41,10 +41,10 @@ def plot_frame(project, frames, markersize=8, figsize=[15, 10], toFile=False):
     
             for i, [px, py] in enumerate(zip(D[fr]['ann_' + mouse]['med'][1], D[fr]['ann_' + mouse]['med'][0])):
                 plt.plot(np.array(px) * D[fr]['width'], np.array(py) * D[fr]['height'],
-                         'k', marker='o', markeredgecolor='w', markeredgewidth=math.sqrt(markersize), markersize=markersize)
+                         'w', marker='o', markeredgecolor=colors[i % 9], markeredgewidth=math.sqrt(markersize*1.5), markersize=markersize*1.5)
         if toFile:
             if not os.path.exists(os.path.join(project, 'annotation_data', 'annotated_images')):
-    	        os.mkdir(os.path.join(project, 'annotation_data', 'annotated_images'))
+                os.mkdir(os.path.join(project, 'annotation_data', 'annotated_images'))
             plt.savefig(os.path.join(project, 'annotation_data', 'annotated_images', 'frame_' + f'{fr:05d}' + '.png'))
             plt.close()
         else:
