@@ -211,6 +211,7 @@ def load_data(project, dataset, train_behaviors, drop_behaviors=[], drop_empty_t
                 annot_raw.append(annots)
                 data_stack.append(feats)
                 bump += len(annots)
+
             # print('%s   %d' % (k, bump))
             if clf_params['do_wnd'] or clf_params['do_cwt']:
                 bar.update(i)
@@ -495,8 +496,7 @@ def do_test(name_classifier, X_te, y_te_beh, verbose=0, doPRC=0):
     return gt, proba, preds, preds_fbs_hmm, proba_fbs_hmm
 
 
-def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False,
-                     drop_movies=[], do_quicksave=False):
+def train_classifier(project, train_behaviors, drop_behaviors=[], drop_empty_trials=False, drop_movies=[], do_quicksave=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -594,6 +594,7 @@ def test_classifier(project, test_behaviors, drop_behaviors=[], drop_empty_trial
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
+
 
     # unpack user-provided classification parameters, and use default values for those not provided.
     config_fid = os.path.join(project, 'behavior', 'config_classifiers.yaml')

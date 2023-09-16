@@ -9,7 +9,7 @@ from behavior_classification.MARS_feature_machinery import *
 import behavior_classification.MARS_feature_lambdas as mars_lambdas
 import pdb
 
-flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
+flatten = lambda *n: (e for a in n for e in (flatten(*a) if isinstance(a, Iterable) else (a,)))
 
 
 def load_pose(pose_fullpath):
@@ -132,6 +132,7 @@ def fit_ellipse(X, Y):
 
 def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list=[], smooth_keypoints=False, center_mouse=False):
 
+    num_features = len(features)
     keypoints = [f for f in sequence['keypoints']]
 
     # currently not implemented smoothing:
@@ -187,6 +188,8 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
         allx = []
         ally = []
         for f in range(num_frames):
+            track['bbox'][:, :, f] = np.asarray(sequence['bbox'][f])
+            # track['bbox_front'][:,:,f] = np.asarray(frames_pose_front['bbox'][f])
             keypoints = sequence['keypoints'][f]
             xm, ym = get_mars_keypoints(keypoints, num_mice, partorder)
 
@@ -348,15 +351,20 @@ def run_feature_extraction(sequence, cfg, use_grps=[], use_cam='top', mouse_list
         # bar.finish()
         return track
 
+        reader.close()
+        return track
     except Exception as e:
         import linecache
-        print("Error when extracting features:")
+        print("Error when extracting features (extract_features_top):")
         exc_type, exc_obj, tb = sys.exc_info()
-        filename = tb.tb_frame.f_code.co_filename
+        f = tb.tb_frame
+        lineno = tb.tb_lineno
+        filename = f.f_code.co_filename
         linecache.checkcache(filename)
-        line = linecache.getline(filename, tb.tb_lineno, tb.tb_frame.f_globals)
-        print('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, tb.tb_lineno, line.strip(), exc_obj))
+        line = linecache.getline(filename, lineno, f.f_globals)
+        print('EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj))
         print(e)
+        reader.close()
         return []
 
 
