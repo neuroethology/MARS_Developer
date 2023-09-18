@@ -46,13 +46,17 @@ def configure_workforce(task):
         }
 
     # Specifies the workforce and compensation.
-    human_task_config["PublicWorkforceTaskPrice"] = {
-                "AmountInUsd": {
-                   "Dollars": task['price']['dollars'],
-                   "Cents": task['price']['cents'],
-                   "TenthFractionsOfACent": task['price']['tenthcent'],
-                }
-            }
+    # public job -- needs to define the compensation
+    if task['workforce'] == 'public':
+      human_task_config["PublicWorkforceTaskPrice"] = {
+                  "AmountInUsd": {
+                    "Dollars": task['price']['dollars'],
+                    "Cents": task['price']['cents'],
+                    "TenthFractionsOfACent": task['price']['tenthcent'],
+                  }
+              }
+
+    # ARNs for the team 
     human_task_config["WorkteamArn"] = task['arns']['workteam_arn']
 
     return human_task_config

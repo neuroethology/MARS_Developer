@@ -34,7 +34,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
     # download the model checkpoints and demo data
     if download_demo_data:
         dataset_name = 'CRIM13_sample_data'  # 2000 frames from CRIM13, manually annotated for pose
-        dataset_id = '1DGUmuWgiQXM7Kx6x-QHJQathVIjQOmMR'
+        dataset_id = '1DGUmuWgiQXM7Kx6x-QHJQathVIjQOmMR&confirm=t'
 
         print('Downloading the 2000-frame sample pose dataset (2000 manually annotated images, 289Mb)...')
         download_from_google_drive(dataset_id, os.path.join(project, dataset_name+'.zip'))
@@ -47,7 +47,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
 
     if download_MARS_checkpoints:
         ckpts_name = 'MARS_v1_8_models'
-        ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op'
+        ckpts_id = '1NyAuwI6iQdMgRB2w4zX44yFAgEkux4op&confirm=t' # tell gdown to confirm the download request
         # names of the models we want to unpack:
         search_keys = ['detect*black*', 'detect*white*', 'detect*resnet*', 'pose*']
         # where we're unpacking them to:
