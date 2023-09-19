@@ -1,11 +1,8 @@
 import os, sys
-import pathlib
 import argparse
-import shutil
 import glob
 import re
-from shutil import copytree
-import requests
+from shutil import copytree, move, rmtree
 import zipfile
 import gdown
 
@@ -16,10 +13,9 @@ def download_from_google_drive(id, destination):
 
 
 def create_new_project(location, name, download_MARS_checkpoints=True, download_demo_data=False):
-    name = name.lstrip("'").rstrip("'").lstrip('"').rstrip('"') # remove quotes
+    name = re.sub(r'\'|\"','',name)
     if not os.path.isdir(location):
-        location = location.lstrip("'").rstrip("'") # try removing quotes
-        location = location.lstrip('"').rstrip('"')
+        name = re.sub(r'\'|\"','',name)
         if not os.path.isdir(location):
             print("I couldn't find the location " + location)
             return
@@ -63,7 +59,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
         # move checkpoints to where they need to be within the project:
         for [src, tgt] in zip(search_keys, save_keys):
             src_model = glob.glob(os.path.join(project, ckpts_name, src))
-            shutil.move(src_model[0], os.path.join(project, tgt))
+            move(src_model[0], os.path.join(project, tgt))
             ckpt_name = glob.glob(os.path.join(project, tgt, '*.ckpt*'))
             ckpt_pth, ckpt_name = os.path.split(ckpt_name[0])
             substr = re.compile("(ckpt-?[0-9]*)(\..*)")
@@ -73,7 +69,7 @@ def create_new_project(location, name, download_MARS_checkpoints=True, download_
                 f.write('model_checkpoint_path: "' + ckpt_name + '"')
 
         # cleanup
-        shutil.rmtree(os.path.join(project, ckpts_name))
+        rmtree(os.path.join(project, ckpts_name))
         os.remove(os.path.join(project, ckpts_name+'.zip')) # delete original zip file
         print('  models have been unpacked.')
 
