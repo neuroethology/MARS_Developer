@@ -120,11 +120,11 @@ def make_project_priors(project):
             print('done.')
 
 
-def annotation_postprocessing(project):
+def annotation_postprocessing(project_path:str):
     """
     Given human annotations (from Amazon Ground Truth or from the DeepLabCut annotation interface), create the tfrecord
     files that are used to train MARS's detectors and pose estimators.
-    project : string
+    project_path : string
         The absolute path to the project directory.
     Example
     --------
@@ -132,14 +132,14 @@ def annotation_postprocessing(project):
     --------
     """
     # extract info from annotations into an intermediate dictionary file
-    make_annot_dict(project)
+    make_annot_dict(project_path)
 
     # save tfrecords
-    prepare_detector_training_data(project)
-    prepare_pose_training_data(project)
+    prepare_detector_training_data(project_path)
+    prepare_pose_training_data(project_path)
 
     # make priors
-    make_project_priors(project)
+    make_project_priors(project_path)
 
 
 if __name__ ==  '__main__':

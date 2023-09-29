@@ -3,8 +3,10 @@ import numpy as np
 import os
 from queue import Queue
 import sys
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+# I don't think we're using anything that will break tf2
+# import tensorflow.compat.v1 as tf
+# tf.disable_v2_behavior()
+import tensorflow as tf
 import threading
 import math
 import random
@@ -94,10 +96,11 @@ def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 
-def _bytes_feature(value):
+def _bytes_feature(value:bytes):
     """Wrapper for inserting bytes features into Example proto."""
     if isinstance(value, str):
         value = value.encode('utf-8')
+    
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
@@ -148,6 +151,7 @@ def _convert_to_example(image_example, image_buffer, height, width):
     channels = 3
     image_format = b'JPEG'
 
+
     example = tf.train.Example(features=tf.train.Features(feature={
         'image/height': _int64_feature(height),
         'image/width': _int64_feature(width),
@@ -176,82 +180,85 @@ def _convert_to_example(image_example, image_buffer, height, width):
     return example
 
 
-class ImageCoder(object):
-    """Helper class that provides TensorFlow image coding utilities."""
+# class ImageCoder(object):
+#     """Helper class that provides TensorFlow image coding utilities."""
 
-    def __init__(self):
-        # Create a single Session to run all image coding calls.
-        self._sess = tf.Session()
+#     def __init__(self):
+#         pass
+#         # # note to Kevin: Remove all session calls. This looks like it's for the purpose of
+#         # # parrallelizing the image coding calls
+#         # self._sess = tf.Session()
 
-        # Initializes function that converts PNG to JPEG data.
-        self._png_data = tf.placeholder(dtype=tf.string)
-        image = tf.image.decode_png(self._png_data, channels=3)
-        self._png_to_jpeg = tf.image.encode_jpeg(image, format='rgb', quality=100)
+#         # # Initializes function that converts PNG to JPEG data.
+#         # self._png_data = tf.keras.layers.Input(dtype=tf.string)
+#         # # self._png_data = tf.placeholder(dtype=tf.string)
+#         # image = tf.image.decode_png(self._png_data, channels=3)
+#         # self._png_to_jpeg = tf.image.encode_jpeg(image, format='rgb', quality=100)
 
-        # Initializes function that decodes RGB JPEG data.
-        self._decode_jpeg_data = tf.placeholder(dtype=tf.string)
-        self._decode_jpeg = tf.image.decode_jpeg(self._decode_jpeg_data, channels=3)
+#         # # Initializes function that decodes RGB JPEG data.
+#         # self._decode_jpeg_data = tf.keras.layers.Input(dtype=tf.string)
+#         # # self._decode_jpeg_data = tf.placeholder(dtype=tf.string)
+#         # self._decode_jpeg = tf.image.decode_jpeg(self._decode_jpeg_data, channels=3)
 
-    def png_to_jpeg(self, image_data):
-        return self._sess.run(self._png_to_jpeg,
-                              feed_dict={self._png_data: image_data})
+#     def png_to_jpeg(self, image_data):
+#         return self._sess.run(self._png_to_jpeg,
+#                               feed_dict={self._png_data: image_data})
 
-    def decode_jpeg(self, image_data):
-        image = self._sess.run(self._decode_jpeg,
-                               feed_dict={self._decode_jpeg_data: image_data})
-        assert len(image.shape) == 3
-        assert image.shape[2] == 3
-        return image
-
-
-def _is_png(filename):
-    """Determine if a file contains a PNG format image.
-    Args:
-      filename: string, path of the image file.
-    Returns:
-      boolean indicating if the image is a PNG.
-    """
-    filepath, file_extension = os.path.splitext(filename)
-    if file_extension == '.png':
-        return True
-    else:
-        return False
+#     def decode_jpeg(self, image_data):
+#         image = self._sess.run(self._decode_jpeg,
+#                                feed_dict={self._decode_jpeg_data: image_data})
+#         assert len(image.shape) == 3
+#         assert image.shape[2] == 3
+#         return image
+    
+#     # no need to have a separate function for jpg vs png vs others!
+#     def decode_img(self, image_data):
+#         image = tf.io.decode_image(image_data, channels=3) # return the tensor
+#         assert len(image.shape) == 3
+#         assert image.shape[2] == 3
+#         return image
 
 
-def _process_image(filename, coder):
+# def _is_png(filename):
+#     """Determine if a file contains a PNG format image.
+#     Args:
+#       filename: string, path of the image file.
+#     Returns:
+#       boolean indicating if the image is a PNG.
+#     """
+#     filepath, file_extension = os.path.splitext(filename)
+#     if file_extension == '.png':
+#         return True
+#     else:
+#         return False
+
+
+def _process_image(filename):
     """Process a single image file.
     Args:
       filename: string, path to an image file e.g., '/path/to/example.JPG'.
-      coder: instance of ImageCoder to provide TensorFlow image coding utils.
     Returns:
-      image_buffer: string, JPEG encoding of RGB image.
+      image: string, JPEG encoding of RGB image.
       height: integer, image height in pixels.
       width: integer, image width in pixels.
     """
-    # Read the image file.
-    image_data = tf.gfile.GFile(filename, 'rb').read()
 
-    # Clean the dirty data.
-    if _is_png(filename):
-        # 1 image is a PNG.
-        # print('Converting PNG to JPEG for %s' % filename)
-        image_data = coder.png_to_jpeg(image_data)
-
-    # Decode the RGB JPEG.
-    image = coder.decode_jpeg(image_data)
-    # Check that image converted to RGB
-    assert len(image.shape) == 3
+    # bring in the image, convert to MxNx3 uint tensor
+    image = tf.io.decode_image(tf.io.read_file(filename), channels=3) 
+    assert len(image.shape) == 3, 'Image must be 3 dimensions'
     height = image.shape[0]
     width = image.shape[1]
-    assert image.shape[2] == 3
+    assert image.shape[2] == 3, 'Image must have 3 channels, RGB'
 
-    return image_data, height, width
+    # convert it into a jpeg bytes-string -- pull the data out of the tensor!
+    image_bytes = tf.image.encode_jpeg(image, quality=100).numpy()
+
+    return image_bytes, height, width
 
 
-def _process_image_files_batch(coder, thread_index, ranges, name, output_directory, dataset, num_shards, error_queue):
+def _process_image_files_batch(thread_index, ranges, name, output_directory, dataset, num_shards, error_queue):
     """Processes and saves list of images as TFRecord in 1 thread.
     Args:
-      coder: instance of ImageCoder to provide TensorFlow image coding utils.
       thread_index: integer, unique batch to run index is within [0, len(ranges)).
       ranges: list of pairs of integers specifying ranges of each batches to
         analyze in parallel.
@@ -280,7 +287,7 @@ def _process_image_files_batch(coder, thread_index, ranges, name, output_directo
         shard = thread_index * num_shards_per_batch + s
         output_filename = '%s-%.5d-of-%.5d' % (name, shard, num_shards)
         output_file = os.path.join(output_directory, output_filename)
-        writer = tf.python_io.TFRecordWriter(output_file)
+        writer = tf.io.TFRecordWriter(output_file)
 
         shard_counter = 0
         files_in_shard = np.arange(shard_ranges[s], shard_ranges[s + 1], dtype=int)
@@ -291,10 +298,10 @@ def _process_image_files_batch(coder, thread_index, ranges, name, output_directo
             filename = str(image_example['filename'])
 
             try:
-                image_buffer, height, width = _process_image(filename, coder)
+                image_buffer, height, width = _process_image(filename)
 
-                # if len(image_buffer) == 0:
-                #   print(image_buffer, height, width)
+                if type(image_buffer) != bytes:
+                    print(filename)
 
                 example = _convert_to_example(image_example, image_buffer, height, width)
                 writer.write(example.SerializeToString())
@@ -360,42 +367,33 @@ def create(dataset, dataset_name, output_directory, num_shards, num_threads, shu
         random.shuffle(dataset)
 
     # Break all images into batches with a [ranges[i][0], ranges[i][1]].
-    spacing = np.linspace(0, len(dataset), num_threads + 1).astype(np.int)
-    ranges = []
-    threads = []
-    for i in range(len(spacing) - 1):
-        ranges.append([spacing[i], spacing[i + 1]])
-
-    # Launch a thread for each batch.
-    # print('Launching %d threads for spacings: %s' % (num_threads, ranges))
-    # sys.stdout.flush()
+    spacing = np.linspace(0, len(dataset), num_threads + 1).astype(int)
+    # ranges is a 2xlen(dataset)-1 list
+    ranges = np.array([spacing[:-1],spacing[1:]]).T.tolist()
 
     # Create a mechanism for monitoring when all threads are finished.
     coord = tf.train.Coordinator()
 
     # Create a generic TensorFlow-based utility for converting all image codings.
-    coder = ImageCoder()
+    # coder = ImageCoder()
 
     # A Queue to hold the image examples that fail to process.
     error_queue = Queue()
 
     threads = []
     for thread_index in range(len(ranges)):
-        args = (coder, thread_index, ranges, dataset_name, output_directory, dataset, num_shards, error_queue)
+        args = (thread_index, ranges, dataset_name, output_directory, dataset, num_shards, error_queue)
         t = threading.Thread(target=_process_image_files_batch, args=args)
         t.start()
         threads.append(t)
 
     # Wait for all the threads to terminate.
     coord.join(threads)
-    # print('%s: Finished writing all %d images in data set.' %
-    #       (datetime.now(), len(dataset)))
 
     # Collect the errors
     errors = []
     while not error_queue.empty():
         errors.append(error_queue.get())
-    # print('%d examples failed.' % (len(errors),))
 
     return errors
 

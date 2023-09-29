@@ -10,9 +10,12 @@ import math
 import shutil
 from io import StringIO
 import numpy as np
-import tensorflow.compat.v1 as tf
-import tensorflow.contrib.slim as slim
-from tensorflow.python.util import deprecation
+# import tensorflow.compat.v1 as tf
+# import tensorflow.contrib.slim as slim
+# from tensorflow.python.util import deprecation
+import tensorflow as tf
+import tensorflow.keras.layers import Dense, Input
+import tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.colors as colors
@@ -31,10 +34,10 @@ from multibox_detection import eval_inputs as inputs
 from tensorboard.backend.event_processing import event_accumulator
 import pdb
 
-deprecation._PRINT_DEPRECATION_WARNINGS = False
+# deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 
-def coco_eval(project, detector_names=None, reselect_model=False, rerun_test=False):
+def coco_eval(project:str, detector_names=None, reselect_model=False, rerun_test=False):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -75,7 +78,7 @@ def coco_eval(project, detector_names=None, reselect_model=False, rerun_test=Fal
     return savedEvals
 
 
-def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[15, 10], confidence_thr=0.75):
+def plot_frame(project:str, frame_num, detector_names=None, markersize=8, figsize=[15, 10], confidence_thr=0.75):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -134,7 +137,7 @@ def plot_frame(project, frame_num, detector_names=None, markersize=8, figsize=[1
         plt.show()
 
 
-def pr_curve(project, detector_names=None):
+def pr_curve(project:str, detector_names=None):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -189,7 +192,7 @@ def smooth(xran, tran, decay=0.99, burnIn=0):
     return sm_x
 
 
-def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
+def find_best_checkpoint(project:str, model, decay=0.99975, burnIn=1000):
     event_path = os.path.join(project, 'detection', model + '_log')
 
     ckptfiles = glob.glob(os.path.join(event_path, 'model.ckpt-*.index'))
@@ -232,7 +235,7 @@ def find_best_checkpoint(project, model, decay=0.99975, burnIn=1000):
     return steps, vals, ckpt_steps, min_step, params
 
 
-def save_best_checkpoint(project, detector_names=None):
+def save_best_checkpoint(project:str, detector_names=None):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -263,7 +266,7 @@ def save_best_checkpoint(project, detector_names=None):
         print('Saved best-performing checkpoint for model "' + model + '."')
 
 
-def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTime=False, omitFirst=0):
+def plot_training_progress(project:str, detector_names=None, figsize:tuple=(14, 6), logTime=False, omitFirst=0):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -294,8 +297,6 @@ def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTim
                 step_inds.append(len(steps) - 1)
         ckpt_vals = [sm_vals[x] for x in step_inds]
         
-#         pdb.set_trace()
-
         ax[i, 0].plot(steps, vals, color='skyblue', label='raw')
         ax[i, 0].plot(steps, sm_vals, color='darkblue', label='smoothed')
         ax[i, 0].plot(ckpt_steps, ckpt_vals, 'ro', label='saved checkpoints')
@@ -314,7 +315,15 @@ def plot_training_progress(project, detector_names=None, figsize=(14, 6), logTim
 # ----------------------------------------------------------------------------------------------------------------------
 
 
-def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images, cfg):
+def evaluation(tfrecord_list:list, bbox_priors, summary_dir, checkpoint_path, num_images, cfg):
+
+    # setup the input layer and a tfrecorddataset as a data generator
+    
+
+
+    ### Everything from here is outdated tf1 code
+    ### It will be deleted as soon as I get everything converted to TF2
+    '''
     graph = tf.Graph()
 
     # Force all Variables to reside on the CPU.
@@ -500,9 +509,13 @@ def evaluation(tfrecords, bbox_priors, summary_dir, checkpoint_path, num_images,
                 os.remove(os.path.join(summary_dir, 'performance_detection.json'))
             with open(os.path.join(summary_dir, 'performance_detection.json'), 'w') as jsonfile:
                 json.dump(cocodata, jsonfile)
+        
+        
+        
+        '''
 
 
-def run_test(project, detector_names=None, num_images=0):
+def run_test(project:str, detector_names=None, num_images:int=0):
     config_fid = os.path.join(project, 'project_config.yaml')
     with open(config_fid) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -530,7 +543,7 @@ def run_test(project, detector_names=None, num_images=0):
                 print("Couldn't find a saved model for " + detector + ", using latest training checkpoint instead.")
 
         tf_dir = os.path.join(project, 'detection', detector + '_tfrecords_detection')
-        tfrecords = glob.glob(os.path.join(tf_dir, 'test_dataset-*'))
+        tfrecord_list = glob.glob(os.path.join(tf_dir, 'test_dataset-*'))
 
         priors_fid = os.path.join(project, 'detection', 'priors_' + detector + '.pkl')
         with open(priors_fid, 'rb') as f:
@@ -544,7 +557,7 @@ def run_test(project, detector_names=None, num_images=0):
         cfg = parse_config_file(os.path.join(project, 'detection', 'config_test.yaml'))
 
         evaluation(
-            tfrecords=tfrecords,
+            tfrecords=tfrecord_list,
             bbox_priors=bbox_priors,
             summary_dir=summary_dir,
             checkpoint_path=checkpoint_path,

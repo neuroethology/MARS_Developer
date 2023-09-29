@@ -108,7 +108,7 @@ def export_detector(checkpoint_path, export_dir, model_name, prior_path):
             tf.compat.v1.global_variables_initializer().run()
             saver.restore(sess, checkpoint_path)
 
-            #export varibales to constants
+            #export variables to constants
             constant_graph_def = graph_util.convert_variables_to_constants(
                 sess=sess,
                 input_graph_def=input_graph_def,

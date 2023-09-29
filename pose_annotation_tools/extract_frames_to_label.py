@@ -1,21 +1,43 @@
-import os, sys
-import pathlib
+import sys
+from os import path
 import argparse
 from shutil import copyfile
 sys.path.append('../')
 from Util import extract_frames as ef
+import re
+import logging
 
 
-def extract_frames_to_label(project_path, n_frames=1000, to_skip=0):
-    if not os.path.isdir(project_path):
-        project_path = project_path.lstrip("'").rstrip("'").lstrip('"').rstrip('"')
-        if not os.path.isdir(project_path):
-            print("Couldn't find a project at " + project_path)
+def extract_frames_to_label(project_path, n_frames=1000, to_skip=0, verbosity='0'):
+    """
+    extracts frames from videos in a provided path for future labeling.
+    
+        project_path        base directory of project (created using MARS create_new_project)
+        n_frames            *total* number of frames to extract across all videos
+        to_skip             Number of frames to skip at the beginning of each video
+        verbosity           amount of information to share (default:warnings and errors only)
+    
+    """
+
+    if verbosity.lower() == 'info':
+        logging.basicConfig(format="%(funcName)s:: %(message)s", level=logging.INFO)
+    elif verbosity.lower() == 'debug': 
+        logging.basicConfig(format="%(funcName)s:: %(message)s", level=logging.DEBUG)
+    else:
+        logging.basicConfig(format="%(funcName)s:: %(message)s", level=logging.WARNING)
+
+    # does the project exist?
+    if not path.isdir(project_path):
+        project_path = re.sub('\'|\"',r'',project_path)
+        if not path.isdir(project_path):
+            logging.warning("Couldn't find a project at " + project_path)
             return
-    input_dir = os.path.join(project_path,'annotation_data','behavior_movies')
-    output_dir = os.path.join(project_path,'annotation_data','raw_images')
-    ef.extract_frames(input_dir, output_dir, n_frames, to_skip)
-    print("Added frames to " + os.path.basename(project_path))
+    
+    # parse and pass everything to Util function extract_frames
+    input_dir = path.join(project_path,'annotation_data','behavior_movies') 
+    output_dir = path.join(project_path,'annotation_data','raw_images')
+    ef.extract_frames(input_dir, output_dir, n_frames, to_skip, verbosity=verbosity)
+    print(f"Added frames to {project_path}")
 
 
 if __name__ ==  '__main__':

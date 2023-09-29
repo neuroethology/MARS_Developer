@@ -31,10 +31,10 @@ def len_util(tf_record_dataset):
     return c
 
 
-def convert(tf_r):
+def convert(tf_record:str):
     """
     INPUTS:
-        tf_r (str): path to tfrecords file
+        tf_record (str): path to tfrecords file
     OUTPUTS:
         dataset (list): a list of dictionaries to be used in
             generate_aspect_ratios
@@ -43,43 +43,44 @@ def convert(tf_r):
     dataset = []
 
     # Loop through all the tfrecords provided
-    for r in tf_r:
+    for rec_file in tf_record:
         # Make TFRecord Dataset object and add mapping 
-        raw_dataset = tf.compat.v1.data.TFRecordDataset(r)
+        raw_dataset = tf.data.TFRecordDataset(rec_file)
         parsed_dataset = raw_dataset.map(_parse_function)
 
-        # Make an iterator for our dataset 
-        iterator = tf.compat.v1.data.make_one_shot_iterator(parsed_dataset)
-        next_element = iterator.get_next()
+        # # Make an iterator for our dataset 
+        # iterator = tf.compat.v1.data.make_one_shot_iterator(parsed_dataset)
+        # next_element = iterator.get_next()
 
-        # Count the number of entries in our dataset
-        num_records = len_util(r)
+        # # Count the number of entries in our dataset
+        # num_records = len_util(r)
 
-        # Enumerate over our parsed dataset
-        with tf.compat.v1.Session() as sess:
-            for i in range(num_records):
-                # Get the current record
-                record = sess.run(next_element)
+        # # Enumerate over our parsed dataset
+        for batch in raw_dataset.map(_parse_function):
+        # with tf.compat.v1.Session() as sess:
+        #     for i in range(num_records):
+        #         # Get the current record
+        #         record = sess.run(next_element)
 
-                # Make new dict
-                image_data = {}
+            # Make new dict
+            image_data = {}
 
-                # Extract and create the bbox dict
-                image_data['object'] = {
-                    'bbox': {
-                        'xmax': record['image/object/bbox/xmax'].values,
-                        'xmin': record['image/object/bbox/xmin'].values,
-                        'ymax': record['image/object/bbox/ymax'].values,
-                        'ymin': record['image/object/bbox/ymin'].values}
-                }
+            # Extract and create the bbox dict
+            image_data['object'] = {
+                'bbox': {
+                    'xmax': batch['image/object/bbox/xmax'].values,
+                    'xmin': batch['image/object/bbox/xmin'].values,
+                    'ymax': batch['image/object/bbox/ymax'].values,
+                    'ymin': batch['image/object/bbox/ymin'].values}
+            }
 
-                # Retrieve the id, width, and height of the image
-                image_data['width'] = record['image/width']
-                image_data['height'] = record['image/height']
-                image_data['id'] = record['image/id']
+            # Retrieve the id, width, and height of the image
+            image_data['width'] = batch['image/width']
+            image_data['height'] = batch['image/height']
+            image_data['id'] = batch['image/id']
 
                 # Append to dataset list
-                dataset.append(image_data)
+            dataset.append(image_data)
 
     return dataset
 
@@ -105,7 +106,7 @@ def generate_priors_from_data(dataset=None, aspect_ratios=None):
         aspect_ratios = [float(aspect_ratio) for aspect_ratio in aspect_ratios]
 
     else:
-        print("Only provide either the hand-defined aspect ratios or tfrecords file(s) to construct the priors from")
+        print("Please provide only hand-defined aspect ratios or tf_records files, not both")
         sys.exit()
     # Generate the priors with either hand-defined priors or priors generated from data
     priors = generate_priors(aspect_ratios, min_scale=0.1, max_scale=0.95, restrict_to_image_bounds=True)
