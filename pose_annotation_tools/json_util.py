@@ -39,12 +39,19 @@ def geometric_median(X, eps=1e-5):
         y = y1
 
 
+def get_jobname(data):
+    allfields = list(data[0].keys())
+    jobname = [f for f in allfields if 'source-ref' not in f and 'metadata' not in f]
+    jobname = jobname[0]
+    return jobname
+    
+
 def count_workers(data):
+    jobname = get_jobname(data)
     nWorkers = []
     for f,frame in enumerate(data):
-#         pdb.set_trace()
-        if 'annotatedResult' in frame.keys():  # check if this frame has at least one set of annotations
-            nWorkers.append(len(frame['annotatedResult']['annotationsFromAllWorkers']))
+        if jobname in frame.keys():  # check if this frame has at least one set of annotations
+            nWorkers.append(len(frame[jobname]['annotationsFromAllWorkers']))
         else:
             nWorkers.append(0)
     return nWorkers
@@ -136,6 +143,7 @@ def manifest_to_dict(project):
         data.append(json.loads(line))
     nWorkers = count_workers(data)
     nSamp = len(data)
+    jobname = get_jobname(data)
 
     # loop over frames in the manifest file
     images = ['']*nSamp      # store local paths to labeled images
@@ -151,7 +159,7 @@ def manifest_to_dict(project):
     for f, sample in enumerate(data):
         if f and not f % 200 and verbose:
             print('  frame '+str(f))
-        if 'annotatedResult' in sample.keys():  # check if this frame has at least one set of annotations
+        if jobname in sample.keys():  # check if this frame has at least one set of annotations
             hits[f] = True
             images[f] = sample['source-ref']
             images[f] = images[f].replace(sourceStr, localStr).replace('/', os.path.sep)
@@ -173,7 +181,7 @@ def manifest_to_dict(project):
                 rawPts = {n: np.zeros((nKpts, 2, nWorkers[f])) for n in animal_names}
             else:
                 continue
-            for w, worker in enumerate(sample['annotatedResult']['annotationsFromAllWorkers']):
+            for w, worker in enumerate(sample[jobname]['annotationsFromAllWorkers']):
                 # the json of annotations from each worker is stored as a string for security reasons.
                 # we'll use eval to convert it into a dict:
                 annot = eval(worker['annotationData']['content'])
