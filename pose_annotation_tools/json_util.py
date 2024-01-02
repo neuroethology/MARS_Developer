@@ -196,7 +196,7 @@ def manifest_to_dict(project):
                     part = keypoint_names.index(kpt_clean)
                     counts[kpt_clean] += 1
 
-                    if counts[kpt_clean] > 1:
+                    if counts[kpt_clean] > len(animal_names)*nobj:
                         continue
                     # rawPts[animal + str(counts[kpt_clean])][part, 0, w] = pt['x']/im.shape[1]
                     # rawPts[animal + str(counts[kpt_clean])][part, 1, w] = pt['y']/im.shape[0]
