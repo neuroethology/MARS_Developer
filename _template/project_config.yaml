@@ -15,16 +15,14 @@ framerate : 25
 
 # name the detectors and pose estimators you will train, and specify which
 # animals in animal_names (see next section) will be used in training each one.
-# If you are leaving animal_names empty ([]) for this project (eg if your
-# experiments have a single type of animal), leave the right hand side empty
-# here as well. For example, if you are tracking one or more indistinguishable
-# black mice, you might write:
+# You must have at least one entry in both the detection and post lists, otherwise
+# the iterators in the tfrecords creation will not work correctly. For example:
 # detection:
-#   black_top: []
+#   black_top: ['solo']
 # pose:
-#   top: []
+#   top: ['solo']
 # and in the next section, you'd have
-# animal_names : []
+# animal_names : ['solo']
 
 detection:
   black_top: ['black']
